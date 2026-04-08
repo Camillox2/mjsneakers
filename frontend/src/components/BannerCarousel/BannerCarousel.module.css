@@ -1,0 +1,255 @@
+.carousel {
+  position: relative;
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 20px 20px 0;
+  overflow: hidden;
+}
+
+.bannerWrap {
+  position: relative;
+  border-radius: 18px;
+  overflow: hidden;
+  height: 380px;
+  background: #0a0a0a;
+}
+
+.bannerSlide {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.bannerImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.bannerVideo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.bannerOverlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 40px 50px;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.85));
+  z-index: 5;
+}
+
+.bannerTitle {
+  font-family: var(--font-display);
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: white;
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+}
+
+.bannerSub {
+  color: var(--gray-lighter);
+  font-size: 1rem;
+}
+
+/* Nav dots */
+.dots {
+  position: absolute;
+  bottom: 18px;
+  right: 30px;
+  display: flex;
+  gap: 8px;
+  z-index: 10;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.dot:hover { background: rgba(255, 255, 255, 0.6); }
+.activeDot { background: var(--red-primary) !important; transform: scale(1.2); }
+
+/* Arrows */
+.arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.5);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  z-index: 10;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  transition: background 0.3s;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.arrow:hover { background: var(--red-primary); }
+.arrowLeft { left: 16px; }
+.arrowRight { right: 16px; }
+
+/* ===== EFFECTS ===== */
+
+/* Sparkle / Cintilante */
+.effectSparkle {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 4;
+  overflow: hidden;
+}
+
+.effectSparkle::before,
+.effectSparkle::after {
+  content: '';
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: white;
+  box-shadow:
+    20px 40px 0 white, 80px 20px 0 white, 140px 60px 0 white,
+    200px 30px 0 white, 260px 80px 0 white, 320px 15px 0 white,
+    380px 70px 0 white, 440px 25px 0 white, 500px 55px 0 white,
+    560px 35px 0 white, 620px 75px 0 white, 680px 10px 0 white,
+    50px 120px 0 rgba(255,255,255,0.5), 150px 140px 0 rgba(255,255,255,0.5),
+    300px 110px 0 rgba(255,255,255,0.5), 450px 130px 0 rgba(255,255,255,0.5);
+}
+
+.effectSparkle::before { animation: sparkleA var(--effect-duration) ease-in-out infinite; }
+.effectSparkle::after { animation: sparkleA var(--effect-duration) ease-in-out infinite reverse; opacity: 0.5; top: 50px; left: 30px; }
+
+@keyframes sparkleA {
+  0%, 100% { opacity: 0.2; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+
+/* Cometa */
+.effectComet {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 4;
+  overflow: hidden;
+}
+
+.effectComet::before {
+  content: '';
+  position: absolute;
+  width: 100px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, white, transparent);
+  top: 30%;
+  left: -120px;
+  animation: cometMove var(--effect-duration) linear infinite;
+  box-shadow: 0 0 10px 2px rgba(255, 255, 255, 0.4);
+}
+
+.effectComet::after {
+  content: '';
+  position: absolute;
+  width: 80px;
+  height: 1.5px;
+  background: linear-gradient(90deg, transparent, rgba(220, 38, 38, 0.8), transparent);
+  top: 65%;
+  left: -100px;
+  animation: cometMove var(--effect-duration) linear infinite;
+  animation-delay: calc(var(--effect-duration) / 2);
+  box-shadow: 0 0 8px 2px rgba(220, 38, 38, 0.3);
+}
+
+@keyframes cometMove {
+  0% { left: -120px; opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { left: calc(100% + 120px); opacity: 0; }
+}
+
+/* Glow Pulse */
+.effectGlowPulse {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 4;
+  border-radius: 18px;
+  animation: glowPulse var(--effect-duration) ease-in-out infinite;
+}
+
+@keyframes glowPulse {
+  0%, 100% { box-shadow: inset 0 0 30px rgba(220, 38, 38, 0.1); }
+  50% { box-shadow: inset 0 0 80px rgba(220, 38, 38, 0.25), 0 0 30px rgba(220, 38, 38, 0.15); }
+}
+
+/* Neon Border */
+.effectNeonBorder {
+  position: absolute;
+  inset: -2px;
+  pointer-events: none;
+  z-index: 4;
+  border-radius: 20px;
+  animation: neonBorder var(--effect-duration) linear infinite;
+}
+
+@keyframes neonBorder {
+  0% { box-shadow: inset 0 0 10px rgba(220, 38, 38, 0.5), 0 0 10px rgba(220, 38, 38, 0.3); }
+  25% { box-shadow: inset 0 0 20px rgba(220, 38, 38, 0.7), 0 0 20px rgba(220, 38, 38, 0.4); }
+  50% { box-shadow: inset 0 0 10px rgba(220, 38, 38, 0.5), 0 0 10px rgba(220, 38, 38, 0.3); }
+  75% { box-shadow: inset 0 0 20px rgba(220, 38, 38, 0.7), 0 0 20px rgba(220, 38, 38, 0.4); }
+  100% { box-shadow: inset 0 0 10px rgba(220, 38, 38, 0.5), 0 0 10px rgba(220, 38, 38, 0.3); }
+}
+
+/* Light Sweep */
+.effectLightSweep {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 4;
+  overflow: hidden;
+  border-radius: 18px;
+}
+
+.effectLightSweep::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.08),
+    rgba(255, 255, 255, 0.15),
+    rgba(255, 255, 255, 0.08),
+    transparent
+  );
+  animation: lightSweep var(--effect-duration) linear infinite;
+  transform: skewX(-15deg);
+}
+
+@keyframes lightSweep {
+  0% { left: -100%; }
+  100% { left: 200%; }
+}
+
+@media (max-width: 768px) {
+  .bannerWrap { height: 240px; border-radius: 14px; }
+  .bannerTitle { font-size: 1.4rem; }
+  .bannerOverlay { padding: 20px 24px; }
+  .arrow { width: 36px; height: 36px; font-size: 1rem; }
+}

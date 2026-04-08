@@ -1,0 +1,246 @@
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(17, 17, 17, 0.95);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(220, 38, 38, 0.2);
+  padding: 0 30px;
+}
+
+.headerInner {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 70px;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+}
+
+.logoImg {
+  height: 45px;
+  width: auto;
+  object-fit: contain;
+}
+
+.logoText {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--white);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.logoText span {
+  color: var(--red-primary);
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.cartBtn {
+  position: relative;
+  background: transparent;
+  color: var(--white);
+  font-size: 1.5rem;
+  display: flex;
+  align-items: center;
+  padding: 8px;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+}
+
+.cartBtn:hover {
+  background: rgba(220, 38, 38, 0.15);
+  color: var(--red-primary);
+}
+
+.cartBadge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  background: var(--red-primary);
+  color: white;
+  font-size: 0.65rem;
+  font-weight: 700;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.adminBtn {
+  background: transparent;
+  color: var(--gray-light);
+  font-size: 1.3rem;
+  display: flex;
+  align-items: center;
+  padding: 8px;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+}
+
+.adminBtn:hover {
+  background: rgba(220, 38, 38, 0.15);
+  color: var(--red-primary);
+}
+
+.adminBtn.logged {
+  color: var(--red-primary);
+}
+
+/* Search */
+.searchWrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.searchBtn {
+  background: transparent;
+  color: var(--gray-light);
+  font-size: 1.3rem;
+  display: flex;
+  align-items: center;
+  padding: 8px;
+  border-radius: 50%;
+  transition: all 0.3s;
+}
+.searchBtn:hover {
+  background: rgba(220, 38, 38, 0.15);
+  color: var(--red-primary);
+}
+
+.searchBar {
+  display: flex;
+  align-items: center;
+  background: var(--gray-dark);
+  border-radius: 12px;
+  padding: 0 12px;
+  gap: 8px;
+  overflow: hidden;
+  border: 1px solid var(--gray-border);
+}
+
+.searchIcon {
+  color: var(--gray-light);
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.searchInput {
+  background: transparent;
+  border: none;
+  color: var(--white);
+  font-size: 0.9rem;
+  padding: 10px 0;
+  width: 100%;
+}
+.searchInput::placeholder { color: var(--gray-mid); }
+
+.searchClose {
+  background: transparent;
+  color: var(--gray-light);
+  font-size: 1rem;
+  padding: 4px;
+  flex-shrink: 0;
+  transition: color 0.2s;
+}
+.searchClose:hover { color: var(--red-primary); }
+
+.searchDropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 8px;
+  background: var(--black-card);
+  border: 1px solid var(--gray-border);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  z-index: 200;
+  min-width: 300px;
+}
+
+.searchResult {
+  display: flex;
+  gap: 12px;
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: background 0.2s;
+  border-bottom: 1px solid rgba(55, 65, 81, 0.3);
+}
+.searchResult:hover { background: rgba(220, 38, 38, 0.06); }
+.searchResult:last-child { border-bottom: none; }
+
+.searchResultImg {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: #0a0a0a;
+  flex-shrink: 0;
+}
+
+.searchResultInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.searchResultBrand {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--red-primary);
+  font-weight: 600;
+}
+
+.searchResultName {
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.searchResultPrice {
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--red-primary);
+}
+
+@media (max-width: 768px) {
+  .header { padding: 0 16px; }
+  .headerInner { height: 60px; }
+  .logoText { font-size: 1.2rem; letter-spacing: 1px; }
+  .logoImg { height: 35px; }
+  .headerActions { gap: 12px; }
+  .cartBtn { font-size: 1.3rem; padding: 6px; }
+  .adminBtn { font-size: 1.1rem; padding: 6px; }
+  .searchWrap { position: static; }
+  .searchBar { position: fixed; top: 0; left: 0; right: 0; z-index: 200; border-radius: 0; padding: 0 16px; height: 60px; background: var(--black); border-bottom: 1px solid var(--gray-border); }
+  .searchDropdown { position: fixed; top: 60px; left: 0; right: 0; border-radius: 0; min-width: unset; max-height: 60vh; overflow-y: auto; }
+  .searchResultImg { width: 40px; height: 40px; }
+}
+
+@media (max-width: 480px) {
+  .logoText { font-size: 1rem; }
+  .headerActions { gap: 8px; }
+}

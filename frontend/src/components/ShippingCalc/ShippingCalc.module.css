@@ -1,0 +1,103 @@
+.wrap {
+  border-top: 1px solid var(--gray-border);
+  padding: 14px 0 0;
+}
+
+.header {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--gray-lighter);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.inputRow {
+  display: flex;
+  gap: 8px;
+}
+
+.cepInput {
+  flex: 1;
+  background: var(--gray-dark);
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 10px 14px;
+  color: var(--white);
+  font-size: 0.9rem;
+  transition: border-color 0.2s;
+}
+.cepInput:focus { border-color: var(--red-primary); }
+.cepInput::placeholder { color: var(--gray-mid); }
+
+.calcBtn {
+  padding: 10px 18px;
+  border-radius: 8px;
+  background: var(--red-primary);
+  color: white;
+  font-size: 0.85rem;
+  font-weight: 700;
+  transition: background 0.2s;
+}
+.calcBtn:hover { background: var(--red-dark); }
+.calcBtn:disabled { opacity: 0.6; }
+
+.error {
+  color: var(--red-light);
+  font-size: 0.8rem;
+  margin-top: 6px;
+}
+
+.results {
+  margin-top: 10px;
+  overflow: hidden;
+}
+
+.address {
+  font-size: 0.8rem;
+  color: var(--gray-lighter);
+  margin-bottom: 8px;
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 8px;
+  margin-bottom: 6px;
+  border: 1px solid rgba(55, 65, 81, 0.3);
+}
+
+.optionLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.optionType {
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--white);
+}
+
+.optionDays {
+  font-size: 0.7rem;
+  color: var(--gray-lighter);
+}
+
+.optionPrice {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--red-primary);
+  font-family: var(--font-display);
+}
+
+@media (max-width: 480px) {
+  .cepInput { padding: 8px 12px; font-size: 0.85rem; }
+  .calcBtn { padding: 8px 14px; font-size: 0.8rem; }
+}

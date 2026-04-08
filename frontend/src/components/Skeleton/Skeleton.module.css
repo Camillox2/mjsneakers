@@ -1,0 +1,55 @@
+.skeletonGrid {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 10px 20px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 8px;
+}
+
+.skeletonCard {
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--black-card);
+  border: 1px solid rgba(55, 65, 81, 0.5);
+}
+
+.skeletonImage {
+  width: 100%;
+  aspect-ratio: 1;
+  background: linear-gradient(110deg, #1a1a1a 8%, #252525 18%, #1a1a1a 33%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+.skeletonBody {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.skeletonLine {
+  height: 12px;
+  border-radius: 6px;
+  background: linear-gradient(110deg, #1a1a1a 8%, #252525 18%, #1a1a1a 33%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+.skeletonLine:nth-child(1) { width: 40%; }
+.skeletonLine:nth-child(2) { width: 80%; height: 16px; }
+.skeletonLine:nth-child(3) { width: 50%; height: 20px; }
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@media (max-width: 768px) {
+  .skeletonGrid { grid-template-columns: repeat(2, 1fr); gap: 6px; padding: 10px 12px; }
+}
+
+@media (max-width: 380px) {
+  .skeletonGrid { gap: 4px; padding: 8px; }
+}
