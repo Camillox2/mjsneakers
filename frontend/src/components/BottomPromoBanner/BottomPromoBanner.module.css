@@ -1,0 +1,134 @@
+.section {
+  padding: 40px 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.banner {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  min-height: 220px;
+  display: flex;
+  align-items: center;
+  background-size: cover;
+  background-position: center;
+}
+
+.bannerOverlay {
+  position: relative;
+  z-index: 1;
+  padding: 40px;
+  background: linear-gradient(90deg, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.3) 100%);
+  width: 100%;
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.bannerTitle {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  text-transform: uppercase;
+  color: #fff;
+  margin-bottom: 8px;
+}
+
+.bannerSubtitle {
+  font-size: 1rem;
+  color: rgba(255,255,255,0.8);
+  margin-bottom: 20px;
+  max-width: 500px;
+}
+
+.bannerBtn {
+  display: inline-block;
+  background: var(--red-primary);
+  color: #fff;
+  padding: 12px 28px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: background 0.2s;
+  width: fit-content;
+}
+.bannerBtn:hover { background: var(--red-dark); }
+
+.productsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.productCard {
+  position: relative;
+  background: var(--black-card);
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+.productCard:hover { transform: translateY(-4px); }
+
+.productImg {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+}
+
+.productInfo {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.productBrand {
+  font-size: 0.7rem;
+  color: var(--gray-lighter);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.productName {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.oldPrice {
+  font-size: 0.75rem;
+  color: var(--gray-light);
+  text-decoration: line-through;
+}
+
+.productPrice {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--red-primary);
+}
+
+.discountBadge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: var(--red-primary);
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+@media (max-width: 640px) {
+  .bannerTitle { font-size: 1.4rem; }
+  .bannerOverlay { padding: 24px; }
+  .productsGrid { grid-template-columns: repeat(2, 1fr); }
+}

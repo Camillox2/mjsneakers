@@ -12,4 +12,19 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      const isAdminRoute = error.config?.url?.includes('/auth') === false;
+      if (isAdminRoute && localStorage.getItem('mj_token')) {
+        localStorage.removeItem('mj_token');
+        localStorage.removeItem('mj_user');
+        window.location.href = '/admin';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 export default api;

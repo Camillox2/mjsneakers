@@ -67,13 +67,23 @@ export default function ProductModal({ product, isOpen, onClose }) {
 
   const images = [product.image_url, product.image_url_2, product.image_url_3, product.image_url_4].filter(Boolean)
   const sizes = product.sizes ? product.sizes.split(',').map(s => s.trim()) : []
+  const rawDiscount = Number(product.discount_percentage || 0)
+  const discount = Math.min(Math.max(rawDiscount, 0), 90)
+  const discountActive = discount > 0
+  const finalPrice = discountActive ? Number(product.price) * (1 - discount / 100) : Number(product.price)
 
   const formatPrice = (price) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(price)
+  const stock = Number(product.stock || 0)
 
   const handleAddToCart = () => {
+    if (stock === 0) return
     const size = selectedSize || sizes[0] || '42'
-    addToCart(product, size)
-    addToast(`${product.name} adicionado ao carrinho!`, 'success')
+    addToCart({ ...product, price: finalPrice }, size)
+    if (stock <= 3) {
+      addToast(`${product.name} adicionado! Apenas ${stock} unidades restantes.`, 'warning')
+    } else {
+      addToast(`${product.name} adicionado ao carrinho!`, 'success')
+    }
     onClose()
     setTimeout(() => setCartOpen(true), 300)
   }
@@ -123,6 +133,7 @@ export default function ProductModal({ product, isOpen, onClose }) {
             <div className={styles.infoSection}>
               <motion.span className={styles.brand} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.15 }}>{product.brand_name}</motion.span>
               <motion.h2 className={styles.name} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}>{product.name}</motion.h2>
+              {discountActive && <span className={styles.discountPill}>-{Math.round(discount)}% OFF</span>}
               
               {avgRating && (
                 <motion.div className={styles.ratingRow} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.22 }}>
@@ -132,7 +143,22 @@ export default function ProductModal({ product, isOpen, onClose }) {
                 </motion.div>
               )}
 
-              <motion.span className={styles.price} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.25 }}>{formatPrice(product.price)}</motion.span>
+              <motion.div className={styles.priceRow} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.25 }}>
+                {discountActive && <span className={styles.priceOld}>{formatPrice(product.price)}</span>}
+                <span className={styles.price}>{formatPrice(finalPrice)}</span>
+              </motion.div>
+
+              {stock <= 3 && stock > 0 && (
+                <motion.span className={styles.lowStockLabel} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.27 }}>
+                  ⚠ Últimas {stock} unidades!
+                </motion.span>
+              )}
+              {stock === 0 && (
+                <motion.span className={styles.outStockLabel} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.27 }}>
+                  Produto esgotado
+                </motion.span>
+              )}
+
               <motion.p className={styles.description} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}>{product.description}</motion.p>
 
               {sizes.length > 0 && (
@@ -151,9 +177,10 @@ export default function ProductModal({ product, isOpen, onClose }) {
               )}
 
               <motion.button className={styles.addToCartBtn} onClick={handleAddToCart}
-                whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-                initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
-                <FiShoppingCart /> Adicionar ao Carrinho
+                whileHover={stock > 0 ? { scale: 1.02 } : {}} whileTap={stock > 0 ? { scale: 0.97 } : {}}
+                initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
+                disabled={stock === 0} style={stock === 0 ? { opacity: 0.4, cursor: 'default' } : {}}>
+                <FiShoppingCart /> {stock === 0 ? 'Indisponível' : 'Adicionar ao Carrinho'}
               </motion.button>
 
               {/* Reviews Section */}

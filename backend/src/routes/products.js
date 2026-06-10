@@ -4,6 +4,9 @@ const productController = require('../controllers/productController');
 const { authMiddleware, adminMiddleware } = require('../middleware/auth');
 
 router.get('/', productController.getAll);
+router.get('/featured', productController.getFeatured);
+router.get('/recent', productController.getRecent);
+router.get('/bestsellers', productController.getBestSellers);
 router.get('/:id', productController.getById);
 router.post('/', authMiddleware, adminMiddleware, productController.create);
 router.put('/:id', authMiddleware, adminMiddleware, productController.update);

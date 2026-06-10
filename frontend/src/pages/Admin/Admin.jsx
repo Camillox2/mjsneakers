@@ -1,7 +1,7 @@
 import { useState, useContext, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
-import { FiPlus, FiEdit2, FiTrash2, FiLogOut, FiPackage, FiImage, FiStar, FiCheck, FiX, FiBarChart2, FiShoppingBag, FiSettings, FiChevronDown, FiChevronUp, FiAlertTriangle, FiTrendingUp, FiBox, FiUsers, FiDollarSign, FiSave } from 'react-icons/fi'
+import { FiPlus, FiEdit2, FiTrash2, FiLogOut, FiPackage, FiImage, FiStar, FiCheck, FiX, FiBarChart2, FiShoppingBag, FiSettings, FiChevronDown, FiChevronUp, FiAlertTriangle, FiTrendingUp, FiBox, FiUsers, FiDollarSign, FiSave, FiTag, FiPercent, FiType, FiFileText, FiShield, FiSliders } from 'react-icons/fi'
 import api from '../../services/api'
 import { AuthContext } from '../../App'
 import { getImageUrl } from '../../utils/imageHelper'
@@ -68,10 +68,18 @@ function ProductFormModal({ product, brands, onSave, onClose }) {
     name: product?.name || '',
     description: product?.description || '',
     price: product?.price || '',
+    discount_percentage: product?.discount_percentage ?? 0,
     brand_id: product?.brand_id || '',
     sizes: product?.sizes || '38,39,40,41,42,43,44',
     stock: product?.stock || 10,
     active: product?.active ?? true,
+    featured: product?.featured ?? false,
+    feature_order: product?.feature_order ?? 0,
+    meta_title: product?.meta_title || '',
+    meta_description: product?.meta_description || '',
+    tags: product?.tags || '',
+    promo_start: product?.promo_start ? product.promo_start.slice(0, 16) : '',
+    promo_end: product?.promo_end ? product.promo_end.slice(0, 16) : '',
   })
   const [images, setImages] = useState(() => {
     const imgs = []
@@ -115,15 +123,37 @@ function ProductFormModal({ product, brands, onSave, onClose }) {
   const handleSave = async () => {
     setSaving(true)
     try {
+      // Upload images that are base64 (new uploads)
+      const uploadedImages = [...images]
+      for (let i = 0; i < uploadedImages.length; i++) {
+        if (uploadedImages[i] && uploadedImages[i].startsWith('data:')) {
+          try {
+            const blob = await (await fetch(uploadedImages[i])).blob()
+            const formData = new FormData()
+            formData.append('image', blob, `product-${Date.now()}-${i}.jpg`)
+            formData.append('category', 'products')
+            const { data: uploadResult } = await api.post('/upload/single', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
+            uploadedImages[i] = uploadResult.url
+          } catch {
+            // Keep as-is if upload fails
+          }
+        }
+      }
+
       const payload = {
         ...form,
         price: parseFloat(form.price),
+        discount_percentage: Math.max(0, Math.min(90, parseFloat(form.discount_percentage) || 0)),
         brand_id: parseInt(form.brand_id) || null,
         stock: parseInt(form.stock) || 0,
-        image_url: images[0] || null,
-        image_url_2: images[1] || null,
-        image_url_3: images[2] || null,
-        image_url_4: images[3] || null,
+        featured: form.featured ? 1 : 0,
+        feature_order: parseInt(form.feature_order) || 0,
+        promo_start: form.promo_start || null,
+        promo_end: form.promo_end || null,
+        image_url: uploadedImages[0] || null,
+        image_url_2: uploadedImages[1] || null,
+        image_url_3: uploadedImages[2] || null,
+        image_url_4: uploadedImages[3] || null,
       }
       if (product?.id) {
         await api.put(`/products/${product.id}`, payload)
@@ -139,6 +169,8 @@ function ProductFormModal({ product, brands, onSave, onClose }) {
   }
 
   const brandName = brands.find(b => b.id === parseInt(form.brand_id))?.name || ''
+  const previewDiscount = Math.max(0, Math.min(90, parseFloat(form.discount_percentage) || 0))
+  const previewFinalPrice = form.price ? Number(form.price) * (1 - previewDiscount / 100) : 0
 
   return (
     <motion.div className={styles.formOverlay} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}>
@@ -176,8 +208,68 @@ function ProductFormModal({ product, brands, onSave, onClose }) {
         </div>
 
         <div className={styles.inputGroup}>
+          <label className={styles.label}>Desconto (%)</label>
+          <input
+            className={styles.input}
+            type="number"
+            min="0"
+            max="90"
+            step="0.1"
+            value={form.discount_percentage}
+            onChange={e => handleChange('discount_percentage', e.target.value)}
+            placeholder="0"
+          />
+        </div>
+
+        <div className={styles.inputGroup}>
           <label className={styles.label}>Tamanhos (separados por vírgula)</label>
           <input className={styles.input} value={form.sizes} onChange={e => handleChange('sizes', e.target.value)} placeholder="38,39,40,41,42,43,44" />
+        </div>
+
+        {/* Featured & SEO */}
+        <div className={styles.formRow}>
+          <div className={styles.inputGroup}>
+            <label className={styles.toggleRow}>
+              <input type="checkbox" checked={form.featured} onChange={e => handleChange('featured', e.target.checked)} />
+              <span className={styles.toggleSwitch} />
+              <span className={styles.toggleLabel}>Produto em Destaque</span>
+            </label>
+          </div>
+          {form.featured && (
+            <div className={styles.inputGroup}>
+              <label className={styles.label}>Ordem destaque</label>
+              <input className={styles.input} type="number" value={form.feature_order} onChange={e => handleChange('feature_order', e.target.value)} />
+            </div>
+          )}
+        </div>
+
+        <div className={styles.formRow}>
+          <div className={styles.inputGroup}>
+            <label className={styles.label}>Tags (SEO, vírgula)</label>
+            <input className={styles.input} value={form.tags} onChange={e => handleChange('tags', e.target.value)} placeholder="nike, air max, corrida" />
+          </div>
+        </div>
+
+        <div className={styles.formRow}>
+          <div className={styles.inputGroup}>
+            <label className={styles.label}>Meta Title (SEO)</label>
+            <input className={styles.input} value={form.meta_title} onChange={e => handleChange('meta_title', e.target.value)} placeholder="Título para SEO" />
+          </div>
+          <div className={styles.inputGroup}>
+            <label className={styles.label}>Meta Description (SEO)</label>
+            <input className={styles.input} value={form.meta_description} onChange={e => handleChange('meta_description', e.target.value)} placeholder="Descrição para SEO" />
+          </div>
+        </div>
+
+        <div className={styles.formRow}>
+          <div className={styles.inputGroup}>
+            <label className={styles.label}>Início Promoção</label>
+            <input className={styles.input} type="datetime-local" value={form.promo_start} onChange={e => handleChange('promo_start', e.target.value)} />
+          </div>
+          <div className={styles.inputGroup}>
+            <label className={styles.label}>Fim Promoção</label>
+            <input className={styles.input} type="datetime-local" value={form.promo_end} onChange={e => handleChange('promo_end', e.target.value)} />
+          </div>
         </div>
 
         <div className={styles.inputGroup}>
@@ -209,7 +301,10 @@ function ProductFormModal({ product, brands, onSave, onClose }) {
               <div className={styles.previewCardInfo}>
                 {brandName && <span className={styles.previewCardBrand}>{brandName}</span>}
                 <span className={styles.previewCardName}>{form.name}</span>
-                {form.price && <span className={styles.previewCardPrice}>{formatPrice(form.price)}</span>}
+                {form.price && previewDiscount > 0 && (
+                  <span className={styles.adminCardMeta} style={{ textDecoration: 'line-through' }}>{formatPrice(form.price)}</span>
+                )}
+                {form.price && <span className={styles.previewCardPrice}>{formatPrice(previewFinalPrice || form.price)}</span>}
               </div>
             </div>
           </div>
@@ -419,11 +514,28 @@ export default function Admin() {
   const [expandedOrder, setExpandedOrder] = useState(null)
   const [orderDetails, setOrderDetails] = useState({})
   const [savingSettings, setSavingSettings] = useState(false)
+  const [savingPromotions, setSavingPromotions] = useState(false)
+  const [savingDiscountId, setSavingDiscountId] = useState(null)
+
+  /* NEW: Tickers, Coupons, Admins, Audit, Appearance */
+  const [tickers, setTickers] = useState([])
+  const [tickerForm, setTickerForm] = useState(null)
+  const [coupons, setCoupons] = useState([])
+  const [couponForm, setCouponForm] = useState(null)
+  const [admins, setAdmins] = useState([])
+  const [adminForm, setAdminForm] = useState({ username: '', password: '' })
+  const [auditLogs, setAuditLogs] = useState([])
+  const [auditPage, setAuditPage] = useState(1)
+  const [auditTotal, setAuditTotal] = useState(0)
+  const [appearance, setAppearance] = useState({})
+  const [savingAppearance, setSavingAppearance] = useState(false)
+  const [changePasswordForm, setChangePasswordForm] = useState({ current: '', new_password: '', confirm: '' })
 
   const loadProducts = useCallback(async () => {
     try {
-      const { data } = await api.get('/products')
-      setProducts(data)
+      const { data } = await api.get('/products', { params: { limit: 200 } })
+      const items = data.data || data
+      setProducts(Array.isArray(items) ? items : [])
     } catch {}
   }, [])
 
@@ -469,8 +581,39 @@ export default function Admin() {
     try {
       const { data } = await api.get('/settings')
       setSettings(data)
+      setAppearance({
+        primary_color: data.primary_color || '#e31837',
+        bg_color: data.bg_color || '#111111',
+        card_color: data.card_color || '#1a1a1a',
+        text_color: data.text_color || '#ffffff',
+        footer_email: data.footer_email || '',
+        footer_credit: data.footer_credit || '',
+        footer_phone: data.footer_phone || '',
+        footer_instagram: data.footer_instagram || '',
+        footer_address: data.footer_address || '',
+      })
     } catch {}
   }, [])
+
+  const loadTickers = useCallback(async () => {
+    try { const { data } = await api.get('/tickers/all'); setTickers(data) } catch {}
+  }, [])
+
+  const loadCoupons = useCallback(async () => {
+    try { const { data } = await api.get('/coupons'); setCoupons(data) } catch {}
+  }, [])
+
+  const loadAdmins = useCallback(async () => {
+    try { const { data } = await api.get('/auth/admins'); setAdmins(data) } catch {}
+  }, [])
+
+  const loadAuditLogs = useCallback(async () => {
+    try {
+      const { data } = await api.get('/audit', { params: { page: auditPage, limit: 30 } })
+      setAuditLogs(data.data || data)
+      setAuditTotal(data.pages || 1)
+    } catch {}
+  }, [auditPage])
 
   useEffect(() => {
     if (!user) return
@@ -481,7 +624,15 @@ export default function Admin() {
     loadReviews()
     loadOrders()
     loadSettings()
-  }, [user, loadProducts, loadBrands, loadBanners, loadReviews, loadOrders, loadDashboard, loadSettings])
+    loadTickers()
+    loadCoupons()
+    loadAdmins()
+    loadAuditLogs()
+  }, [user, loadProducts, loadBrands, loadBanners, loadReviews, loadOrders, loadDashboard, loadSettings, loadTickers, loadCoupons, loadAdmins, loadAuditLogs])
+
+  useEffect(() => {
+    if (user) loadAuditLogs()
+  }, [auditPage, loadAuditLogs, user])
 
   const handleDeleteProduct = async (id) => {
     if (!confirm('Remover este produto?')) return
@@ -535,10 +686,23 @@ export default function Admin() {
   const handleSaveSettings = async () => {
     setSavingSettings(true)
     try {
-      const keys = ['store_name', 'store_email', 'store_phone', 'store_whatsapp', 'store_instagram', 'store_facebook', 'maintenance_mode']
+      const keys = [
+        'store_name',
+        'store_email',
+        'store_phone',
+        'store_whatsapp',
+        'store_instagram',
+        'store_facebook',
+        'maintenance_mode',
+        'home_promo_enabled',
+        'home_promo_tag',
+        'home_promo_text',
+        'home_promo_button_text',
+        'home_promo_button_link',
+      ]
       for (const key of keys) {
         if (settings[key] !== undefined) {
-          await api.post('/settings', { key, value: settings[key] })
+          await api.put('/settings', { key, value: settings[key] })
         }
       }
       alert('Configurações salvas!')
@@ -547,6 +711,137 @@ export default function Admin() {
     } finally {
       setSavingSettings(false)
     }
+  }
+
+  const handleSavePromotions = async () => {
+    setSavingPromotions(true)
+    try {
+      const keys = [
+        'home_promo_enabled',
+        'home_promo_tag',
+        'home_promo_text',
+        'home_promo_button_text',
+        'home_promo_button_link',
+      ]
+      for (const key of keys) {
+        await api.put('/settings', { key, value: settings[key] || '' })
+      }
+      alert('Campanha da home salva!')
+    } catch {
+      alert('Erro ao salvar campanha')
+    } finally {
+      setSavingPromotions(false)
+    }
+  }
+
+  const handleQuickDiscountChange = (productId, value) => {
+    setProducts(prev => prev.map(p => p.id === productId ? { ...p, discount_percentage: value } : p))
+  }
+
+  const handleSaveQuickDiscount = async (productId) => {
+    const product = products.find(p => p.id === productId)
+    if (!product) return
+
+    setSavingDiscountId(productId)
+    try {
+      const discount = Math.max(0, Math.min(90, parseFloat(product.discount_percentage) || 0))
+      await api.put(`/products/${productId}`, {
+        name: product.name,
+        description: product.description,
+        price: parseFloat(product.price),
+        discount_percentage: discount,
+        brand_id: product.brand_id || null,
+        image_url: product.image_url || null,
+        image_url_2: product.image_url_2 || null,
+        image_url_3: product.image_url_3 || null,
+        image_url_4: product.image_url_4 || null,
+        sizes: product.sizes,
+        stock: parseInt(product.stock) || 0,
+        active: product.active ?? true,
+      })
+      loadProducts()
+    } catch {
+      alert('Erro ao salvar desconto')
+    } finally {
+      setSavingDiscountId(null)
+    }
+  }
+
+  /* ---- Ticker Handlers ---- */
+  const handleSaveTicker = async () => {
+    if (!tickerForm) return
+    try {
+      if (tickerForm.id) {
+        await api.put(`/tickers/${tickerForm.id}`, tickerForm)
+      } else {
+        await api.post('/tickers', tickerForm)
+      }
+      setTickerForm(null)
+      loadTickers()
+    } catch { alert('Erro ao salvar ticker') }
+  }
+  const handleDeleteTicker = async (id) => {
+    if (!confirm('Remover este ticker?')) return
+    try { await api.delete(`/tickers/${id}`); loadTickers() } catch {}
+  }
+
+  /* ---- Coupon Handlers ---- */
+  const handleSaveCoupon = async () => {
+    if (!couponForm) return
+    try {
+      const payload = {
+        ...couponForm,
+        value: parseFloat(couponForm.value) || 0,
+        min_order: parseFloat(couponForm.min_order) || 0,
+        max_uses: parseInt(couponForm.max_uses) || 0,
+      }
+      if (couponForm.id) {
+        await api.put(`/coupons/${couponForm.id}`, payload)
+      } else {
+        await api.post('/coupons', payload)
+      }
+      setCouponForm(null)
+      loadCoupons()
+    } catch { alert('Erro ao salvar cupom') }
+  }
+  const handleDeleteCoupon = async (id) => {
+    if (!confirm('Remover este cupom?')) return
+    try { await api.delete(`/coupons/${id}`); loadCoupons() } catch {}
+  }
+
+  /* ---- Admin User Handlers ---- */
+  const handleCreateAdmin = async () => {
+    if (!adminForm.username || !adminForm.password) return
+    try {
+      await api.post('/auth/admins', adminForm)
+      setAdminForm({ username: '', password: '' })
+      loadAdmins()
+    } catch (err) { alert(err.response?.data?.error || 'Erro ao criar administrador') }
+  }
+  const handleToggleAdmin = async (id) => {
+    try { await api.put(`/auth/admins/${id}/toggle`); loadAdmins() } catch (err) { alert(err.response?.data?.error || 'Erro') }
+  }
+  const handleChangePassword = async () => {
+    if (changePasswordForm.new_password !== changePasswordForm.confirm) { alert('Senhas não conferem'); return }
+    try {
+      await api.put('/auth/change-password', { currentPassword: changePasswordForm.current, newPassword: changePasswordForm.new_password })
+      setChangePasswordForm({ current: '', new_password: '', confirm: '' })
+      alert('Senha alterada com sucesso!')
+    } catch (err) { alert(err.response?.data?.error || 'Erro ao alterar senha') }
+  }
+
+  /* ---- Appearance Handlers ---- */
+  const handleSaveAppearance = async () => {
+    setSavingAppearance(true)
+    try {
+      const keys = Object.keys(appearance)
+      for (const key of keys) {
+        if (appearance[key] !== undefined) {
+          await api.put('/settings', { key, value: appearance[key] || '' })
+        }
+      }
+      alert('Aparência salva!')
+    } catch { alert('Erro ao salvar') } finally { setSavingAppearance(false) }
   }
 
   const handleLogout = () => {
@@ -560,8 +855,14 @@ export default function Admin() {
     { key: 'dashboard', label: 'Dashboard', icon: <FiBarChart2 /> },
     { key: 'products', label: 'Produtos', icon: <FiPackage /> },
     { key: 'banners', label: 'Banners', icon: <FiImage /> },
+    { key: 'tickers', label: 'Ticker', icon: <FiType /> },
+    { key: 'coupons', label: 'Cupons', icon: <FiPercent /> },
+    { key: 'promotions', label: 'Promoções', icon: <FiTag /> },
     { key: 'orders', label: 'Pedidos', icon: <FiShoppingBag />, badge: orders.filter(o => o.status === 'pending').length || 0 },
     { key: 'reviews', label: 'Reviews', icon: <FiStar />, badge: pendingCount },
+    { key: 'admins', label: 'Admins', icon: <FiShield /> },
+    { key: 'appearance', label: 'Aparência', icon: <FiSliders /> },
+    { key: 'audit', label: 'Logs', icon: <FiFileText /> },
     { key: 'settings', label: 'Config', icon: <FiSettings /> },
   ]
 
@@ -718,10 +1019,16 @@ export default function Admin() {
                 <div className={styles.adminCardBody}>
                   <span className={styles.adminCardBrand}>{p.brand_name}</span>
                   <span className={styles.adminCardName}>{p.name}</span>
-                  <span className={styles.adminCardPrice}>{formatPrice(p.price)}</span>
+                  {Number(p.discount_percentage || 0) > 0 && (
+                    <span className={styles.adminCardMeta} style={{ textDecoration: 'line-through' }}>{formatPrice(p.price)}</span>
+                  )}
+                  <span className={styles.adminCardPrice}>
+                    {formatPrice(Number(p.price) * (1 - (Math.max(0, Math.min(90, Number(p.discount_percentage || 0))) / 100)))}
+                  </span>
                   <div className={styles.adminCardMeta}>
                     <span>Estoque: {p.stock}</span>
                     <span>Tam: {p.sizes}</span>
+                    {Number(p.discount_percentage || 0) > 0 && <span>-{Math.round(Number(p.discount_percentage))}%</span>}
                   </div>
                   <div className={styles.adminCardActions}>
                     <button className={styles.editBtn} onClick={() => { setEditingProduct(p); setShowProductForm(true) }}><FiEdit2 /> Editar</button>
@@ -789,6 +1096,103 @@ export default function Admin() {
             ))}
           </div>
           {banners.length === 0 && !showBannerForm && <p className={styles.noData}>Nenhum banner cadastrado</p>}
+        </motion.div>
+      )}
+
+      {/* ===== PROMOTIONS TAB ===== */}
+      {activeTab === 'promotions' && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          <div className={styles.sectionHeader}>
+            <span className={styles.sectionTitle}>Promoções e Descontos</span>
+          </div>
+
+          <div className={styles.promoLayout}>
+            <section className={styles.promoCard}>
+              <div className={styles.promoCardHeader}>
+                <div>
+                  <h4 className={styles.settingsGroupTitle}>Campanha Home</h4>
+                  <p className={styles.promoDescription}>Configure a faixa promocional da página principal com CTA e link.</p>
+                </div>
+                <label className={styles.toggleRow}>
+                  <input
+                    type="checkbox"
+                    checked={settings.home_promo_enabled === 'true'}
+                    onChange={e => setSettings(p => ({ ...p, home_promo_enabled: e.target.checked ? 'true' : 'false' }))}
+                  />
+                  <span className={styles.toggleSwitch} />
+                  <span className={styles.toggleLabel}>Ativar campanha</span>
+                </label>
+              </div>
+
+              <div className={styles.promoFieldsGrid}>
+                <div className={styles.inputGroup}>
+                  <label className={styles.label}>Tag da Campanha</label>
+                  <input className={styles.input} value={settings.home_promo_tag || ''} onChange={e => setSettings(p => ({ ...p, home_promo_tag: e.target.value }))} placeholder="Oferta Especial" />
+                </div>
+                <div className={styles.inputGroup}>
+                  <label className={styles.label}>Texto Principal</label>
+                  <input className={styles.input} value={settings.home_promo_text || ''} onChange={e => setSettings(p => ({ ...p, home_promo_text: e.target.value }))} placeholder="Ex: Semana do Sneaker com até 30% OFF" />
+                </div>
+                <div className={styles.inputGroup}>
+                  <label className={styles.label}>Texto do Botão</label>
+                  <input className={styles.input} value={settings.home_promo_button_text || ''} onChange={e => setSettings(p => ({ ...p, home_promo_button_text: e.target.value }))} placeholder="Conferir ofertas" />
+                </div>
+                <div className={styles.inputGroup}>
+                  <label className={styles.label}>Link do Botão</label>
+                  <input className={styles.input} value={settings.home_promo_button_link || ''} onChange={e => setSettings(p => ({ ...p, home_promo_button_link: e.target.value }))} placeholder="#catalogo ou https://..." />
+                </div>
+              </div>
+
+              <div className={styles.promoActions}>
+                <button className={styles.saveBtn} onClick={handleSavePromotions} disabled={savingPromotions}>
+                  <FiSave /> {savingPromotions ? 'Salvando...' : 'Salvar Campanha'}
+                </button>
+              </div>
+            </section>
+
+            <section className={styles.promoCard}>
+              <div className={styles.promoCardHeader}>
+                <div>
+                  <h4 className={styles.settingsGroupTitle}>Desconto Rápido por Produto</h4>
+                  <p className={styles.promoDescription}>Ajuste percentual e salve individualmente, sem abrir o modal do produto.</p>
+                </div>
+              </div>
+
+              <div className={styles.quickDiscountList}>
+                {products.map(p => (
+                  <div key={p.id} className={styles.quickDiscountRow}>
+                    <div className={styles.quickDiscountInfo}>
+                      <span className={styles.quickDiscountName}>{p.name}</span>
+                      <span className={styles.quickDiscountMeta}>{p.brand_name} • {formatPrice(p.price)}</span>
+                    </div>
+
+                    <div className={styles.quickDiscountControls}>
+                      <div className={styles.discountInputWrap}>
+                        <input
+                          className={`${styles.input} ${styles.discountInput}`}
+                          type="number"
+                          min="0"
+                          max="90"
+                          step="0.1"
+                          value={p.discount_percentage ?? 0}
+                          onChange={e => handleQuickDiscountChange(p.id, e.target.value)}
+                        />
+                        <span className={styles.discountSuffix}>%</span>
+                      </div>
+
+                      <button
+                        className={styles.quickSaveBtn}
+                        onClick={() => handleSaveQuickDiscount(p.id)}
+                        disabled={savingDiscountId === p.id}
+                      >
+                        <FiSave /> {savingDiscountId === p.id ? 'Salvando...' : 'Salvar'}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </div>
         </motion.div>
       )}
 
@@ -974,6 +1378,41 @@ export default function Admin() {
             </div>
 
             <div className={styles.settingsGroup}>
+              <h4 className={styles.settingsGroupTitle}>Campanha Home</h4>
+              <label className={styles.toggleRow} style={{ marginBottom: 14 }}>
+                <input
+                  type="checkbox"
+                  checked={settings.home_promo_enabled === 'true'}
+                  onChange={e => setSettings(p => ({ ...p, home_promo_enabled: e.target.checked ? 'true' : 'false' }))}
+                />
+                <span className={styles.toggleSwitch} />
+                <span className={styles.toggleLabel}>Exibir faixa de campanha na página principal</span>
+              </label>
+
+              <div className={styles.formRow}>
+                <div className={styles.inputGroup}>
+                  <label className={styles.label}>Tag da Campanha</label>
+                  <input className={styles.input} value={settings.home_promo_tag || ''} onChange={e => setSettings(p => ({ ...p, home_promo_tag: e.target.value }))} placeholder="Oferta Especial" />
+                </div>
+                <div className={styles.inputGroup}>
+                  <label className={styles.label}>Texto Principal</label>
+                  <input className={styles.input} value={settings.home_promo_text || ''} onChange={e => setSettings(p => ({ ...p, home_promo_text: e.target.value }))} placeholder="Ex: Semana do Sneaker com até 30% OFF" />
+                </div>
+              </div>
+
+              <div className={styles.formRow}>
+                <div className={styles.inputGroup}>
+                  <label className={styles.label}>Texto do Botão</label>
+                  <input className={styles.input} value={settings.home_promo_button_text || ''} onChange={e => setSettings(p => ({ ...p, home_promo_button_text: e.target.value }))} placeholder="Conferir ofertas" />
+                </div>
+                <div className={styles.inputGroup}>
+                  <label className={styles.label}>Link do Botão</label>
+                  <input className={styles.input} value={settings.home_promo_button_link || ''} onChange={e => setSettings(p => ({ ...p, home_promo_button_link: e.target.value }))} placeholder="#catalogo ou https://..." />
+                </div>
+              </div>
+            </div>
+
+            <div className={styles.settingsGroup}>
               <h4 className={styles.settingsGroupTitle}>Manutenção</h4>
               <label className={styles.toggleRow}>
                 <input type="checkbox" checked={settings.maintenance_mode === 'true'} onChange={e => setSettings(p => ({ ...p, maintenance_mode: e.target.checked ? 'true' : 'false' }))} />
@@ -986,6 +1425,368 @@ export default function Admin() {
               <FiSave /> {savingSettings ? 'Salvando...' : 'Salvar Configurações'}
             </button>
           </div>
+        </motion.div>
+      )}
+
+      {/* ===== TICKERS TAB ===== */}
+      {activeTab === 'tickers' && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          <div className={styles.sectionHeader}>
+            <span className={styles.sectionTitle}>Ticker Marquee ({tickers.length})</span>
+            <button className={styles.addBtn} onClick={() => setTickerForm({ text: '', active: true, sort_order: 0 })}>
+              <FiPlus /> Novo Ticker
+            </button>
+          </div>
+
+          {tickerForm && (
+            <div className={styles.settingsGroup} style={{ marginBottom: '1.5rem' }}>
+              <h4 className={styles.settingsGroupTitle}>{tickerForm.id ? 'Editar Ticker' : 'Novo Ticker'}</h4>
+              <div className={styles.formRow}>
+                <div className={styles.inputGroup}>
+                  <label className={styles.label}>Texto</label>
+                  <input className={styles.input} value={tickerForm.text} onChange={e => setTickerForm(p => ({ ...p, text: e.target.value }))} placeholder="🔥 Frete grátis acima de R$300!" />
+                </div>
+                <div className={styles.inputGroup}>
+                  <label className={styles.label}>Ordem</label>
+                  <input className={styles.input} type="number" value={tickerForm.sort_order} onChange={e => setTickerForm(p => ({ ...p, sort_order: parseInt(e.target.value) || 0 }))} />
+                </div>
+              </div>
+              <label className={styles.toggleRow}>
+                <input type="checkbox" checked={tickerForm.active} onChange={e => setTickerForm(p => ({ ...p, active: e.target.checked }))} />
+                <span className={styles.toggleSwitch} />
+                <span className={styles.toggleLabel}>Ativo</span>
+              </label>
+              <div className={styles.formActions}>
+                <button className={styles.cancelBtn} onClick={() => setTickerForm(null)}>Cancelar</button>
+                <button className={styles.saveBtn} onClick={handleSaveTicker}>Salvar</button>
+              </div>
+            </div>
+          )}
+
+          <div className={styles.ordersList}>
+            {tickers.map(t => (
+              <div key={t.id} className={styles.orderCard}>
+                <div className={styles.orderHeader}>
+                  <div className={styles.orderMainInfo}>
+                    <span className={styles.orderId}>#{t.id}</span>
+                    <span className={styles.orderCustomer}>{t.text}</span>
+                  </div>
+                  <div className={styles.orderRightInfo}>
+                    <span className={`${styles.statusBadge} ${t.active ? styles.statusApproved : styles.statusRejected}`}>
+                      {t.active ? 'Ativo' : 'Inativo'}
+                    </span>
+                    <button className={styles.editBtn} onClick={() => setTickerForm(t)}><FiEdit2 /></button>
+                    <button className={styles.deleteBtn} onClick={() => handleDeleteTicker(t.id)}><FiTrash2 /></button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          {tickers.length === 0 && !tickerForm && <p className={styles.noData}>Nenhum ticker cadastrado</p>}
+        </motion.div>
+      )}
+
+      {/* ===== COUPONS TAB ===== */}
+      {activeTab === 'coupons' && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          <div className={styles.sectionHeader}>
+            <span className={styles.sectionTitle}>Cupons de Desconto ({coupons.length})</span>
+            <button className={styles.addBtn} onClick={() => setCouponForm({ code: '', type: 'percentage', value: 10, min_order: 0, max_uses: 0, expires_at: '', active: true })}>
+              <FiPlus /> Novo Cupom
+            </button>
+          </div>
+
+          {couponForm && (
+            <div className={styles.settingsGroup} style={{ marginBottom: '1.5rem' }}>
+              <h4 className={styles.settingsGroupTitle}>{couponForm.id ? 'Editar Cupom' : 'Novo Cupom'}</h4>
+              <div className={styles.formRow}>
+                <div className={styles.inputGroup}>
+                  <label className={styles.label}>Código</label>
+                  <input className={styles.input} value={couponForm.code} onChange={e => setCouponForm(p => ({ ...p, code: e.target.value.toUpperCase() }))} placeholder="DESCONTO10" maxLength={30} />
+                </div>
+                <div className={styles.inputGroup}>
+                  <label className={styles.label}>Tipo</label>
+                  <select className={styles.select} value={couponForm.type} onChange={e => setCouponForm(p => ({ ...p, type: e.target.value }))}>
+                    <option value="percentage">Porcentagem (%)</option>
+                    <option value="fixed">Valor fixo (R$)</option>
+                  </select>
+                </div>
+                <div className={styles.inputGroup}>
+                  <label className={styles.label}>Valor</label>
+                  <input className={styles.input} type="number" step="0.01" value={couponForm.value} onChange={e => setCouponForm(p => ({ ...p, value: e.target.value }))} />
+                </div>
+              </div>
+              <div className={styles.formRow}>
+                <div className={styles.inputGroup}>
+                  <label className={styles.label}>Pedido mínimo (R$)</label>
+                  <input className={styles.input} type="number" step="0.01" value={couponForm.min_order} onChange={e => setCouponForm(p => ({ ...p, min_order: e.target.value }))} />
+                </div>
+                <div className={styles.inputGroup}>
+                  <label className={styles.label}>Máx usos (0 = ilimitado)</label>
+                  <input className={styles.input} type="number" value={couponForm.max_uses} onChange={e => setCouponForm(p => ({ ...p, max_uses: e.target.value }))} />
+                </div>
+                <div className={styles.inputGroup}>
+                  <label className={styles.label}>Expira em</label>
+                  <input className={styles.input} type="datetime-local" value={couponForm.expires_at ? couponForm.expires_at.slice(0, 16) : ''} onChange={e => setCouponForm(p => ({ ...p, expires_at: e.target.value }))} />
+                </div>
+              </div>
+              <label className={styles.toggleRow}>
+                <input type="checkbox" checked={couponForm.active} onChange={e => setCouponForm(p => ({ ...p, active: e.target.checked }))} />
+                <span className={styles.toggleSwitch} />
+                <span className={styles.toggleLabel}>Ativo</span>
+              </label>
+              <div className={styles.formActions}>
+                <button className={styles.cancelBtn} onClick={() => setCouponForm(null)}>Cancelar</button>
+                <button className={styles.saveBtn} onClick={handleSaveCoupon}>Salvar</button>
+              </div>
+            </div>
+          )}
+
+          <div className={styles.tableWrap}>
+            <table className={styles.reviewsTable}>
+              <thead>
+                <tr>
+                  <th>Código</th>
+                  <th>Tipo</th>
+                  <th>Valor</th>
+                  <th>Mín.</th>
+                  <th>Usos</th>
+                  <th>Expira</th>
+                  <th>Status</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {coupons.map(c => (
+                  <tr key={c.id}>
+                    <td><strong>{c.code}</strong></td>
+                    <td>{c.type === 'percentage' ? '%' : 'R$'}</td>
+                    <td>{c.type === 'percentage' ? `${c.value}%` : formatPrice(c.value)}</td>
+                    <td>{formatPrice(c.min_order || 0)}</td>
+                    <td>{c.used_count}/{c.max_uses || '∞'}</td>
+                    <td>{c.expires_at ? new Date(c.expires_at).toLocaleDateString('pt-BR') : 'Sem limite'}</td>
+                    <td>
+                      <span className={`${styles.statusBadge} ${c.active ? styles.statusApproved : styles.statusRejected}`}>
+                        {c.active ? 'Ativo' : 'Inativo'}
+                      </span>
+                    </td>
+                    <td>
+                      <button className={styles.editBtn} onClick={() => setCouponForm(c)}><FiEdit2 /></button>
+                      <button className={`${styles.actionBtn} ${styles.rejectBtn}`} onClick={() => handleDeleteCoupon(c.id)}><FiTrash2 /></button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {coupons.length === 0 && !couponForm && <p className={styles.noData}>Nenhum cupom cadastrado</p>}
+        </motion.div>
+      )}
+
+      {/* ===== ADMINS TAB ===== */}
+      {activeTab === 'admins' && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          <div className={styles.sectionHeader}>
+            <span className={styles.sectionTitle}>Gestão de Admins</span>
+          </div>
+
+          <div className={styles.settingsGroup}>
+            <h4 className={styles.settingsGroupTitle}>Criar Novo Admin</h4>
+            <div className={styles.formRow}>
+              <div className={styles.inputGroup}>
+                <label className={styles.label}>Usuário</label>
+                <input className={styles.input} value={adminForm.username} onChange={e => setAdminForm(p => ({ ...p, username: e.target.value }))} placeholder="Novo usuário" />
+              </div>
+              <div className={styles.inputGroup}>
+                <label className={styles.label}>Senha (min 6 caracteres)</label>
+                <input className={styles.input} type="password" value={adminForm.password} onChange={e => setAdminForm(p => ({ ...p, password: e.target.value }))} placeholder="Senha" />
+              </div>
+              <div className={styles.inputGroup} style={{ justifyContent: 'flex-end' }}>
+                <button className={styles.saveBtn} onClick={handleCreateAdmin}><FiPlus /> Criar</button>
+              </div>
+            </div>
+          </div>
+
+          <div className={styles.settingsGroup}>
+            <h4 className={styles.settingsGroupTitle}>Admins Ativos</h4>
+            <div className={styles.ordersList}>
+              {admins.map(a => (
+                <div key={a.id} className={styles.orderCard}>
+                  <div className={styles.orderHeader}>
+                    <div className={styles.orderMainInfo}>
+                      <span className={styles.orderId}><FiShield /></span>
+                      <span className={styles.orderCustomer}>{a.username}</span>
+                      {a.last_login && <span className={styles.orderDate}>Último login: {new Date(a.last_login).toLocaleString('pt-BR')}</span>}
+                    </div>
+                    <div className={styles.orderRightInfo}>
+                      <span className={`${styles.statusBadge} ${a.active ? styles.statusApproved : styles.statusRejected}`}>
+                        {a.active ? 'Ativo' : 'Desativado'}
+                      </span>
+                      <button className={a.active ? styles.deleteBtn : styles.editBtn} onClick={() => handleToggleAdmin(a.id)}>
+                        {a.active ? 'Desativar' : 'Ativar'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className={styles.settingsGroup}>
+            <h4 className={styles.settingsGroupTitle}>Alterar Minha Senha</h4>
+            <div className={styles.formRow}>
+              <div className={styles.inputGroup}>
+                <label className={styles.label}>Senha Atual</label>
+                <input className={styles.input} type="password" value={changePasswordForm.current} onChange={e => setChangePasswordForm(p => ({ ...p, current: e.target.value }))} />
+              </div>
+              <div className={styles.inputGroup}>
+                <label className={styles.label}>Nova Senha</label>
+                <input className={styles.input} type="password" value={changePasswordForm.new_password} onChange={e => setChangePasswordForm(p => ({ ...p, new_password: e.target.value }))} />
+              </div>
+              <div className={styles.inputGroup}>
+                <label className={styles.label}>Confirmar Nova Senha</label>
+                <input className={styles.input} type="password" value={changePasswordForm.confirm} onChange={e => setChangePasswordForm(p => ({ ...p, confirm: e.target.value }))} />
+              </div>
+            </div>
+            <button className={styles.saveBtn} onClick={handleChangePassword} style={{ maxWidth: 200 }}>
+              <FiSave /> Alterar Senha
+            </button>
+          </div>
+        </motion.div>
+      )}
+
+      {/* ===== APPEARANCE TAB ===== */}
+      {activeTab === 'appearance' && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          <div className={styles.sectionHeader}>
+            <span className={styles.sectionTitle}>Aparência e Textos</span>
+          </div>
+
+          <div className={styles.settingsForm}>
+            <div className={styles.settingsGroup}>
+              <h4 className={styles.settingsGroupTitle}>Cores do Site</h4>
+              <div className={styles.formRow}>
+                <div className={styles.inputGroup}>
+                  <label className={styles.label}>Cor Primária</label>
+                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    <input type="color" value={appearance.primary_color || '#e31837'} onChange={e => setAppearance(p => ({ ...p, primary_color: e.target.value }))} style={{ width: 40, height: 36, border: 'none', cursor: 'pointer' }} />
+                    <input className={styles.input} value={appearance.primary_color || ''} onChange={e => setAppearance(p => ({ ...p, primary_color: e.target.value }))} placeholder="#e31837" />
+                  </div>
+                </div>
+                <div className={styles.inputGroup}>
+                  <label className={styles.label}>Cor de Fundo</label>
+                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    <input type="color" value={appearance.bg_color || '#111111'} onChange={e => setAppearance(p => ({ ...p, bg_color: e.target.value }))} style={{ width: 40, height: 36, border: 'none', cursor: 'pointer' }} />
+                    <input className={styles.input} value={appearance.bg_color || ''} onChange={e => setAppearance(p => ({ ...p, bg_color: e.target.value }))} placeholder="#111111" />
+                  </div>
+                </div>
+              </div>
+              <div className={styles.formRow}>
+                <div className={styles.inputGroup}>
+                  <label className={styles.label}>Cor dos Cards</label>
+                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    <input type="color" value={appearance.card_color || '#1a1a1a'} onChange={e => setAppearance(p => ({ ...p, card_color: e.target.value }))} style={{ width: 40, height: 36, border: 'none', cursor: 'pointer' }} />
+                    <input className={styles.input} value={appearance.card_color || ''} onChange={e => setAppearance(p => ({ ...p, card_color: e.target.value }))} placeholder="#1a1a1a" />
+                  </div>
+                </div>
+                <div className={styles.inputGroup}>
+                  <label className={styles.label}>Cor do Texto</label>
+                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    <input type="color" value={appearance.text_color || '#ffffff'} onChange={e => setAppearance(p => ({ ...p, text_color: e.target.value }))} style={{ width: 40, height: 36, border: 'none', cursor: 'pointer' }} />
+                    <input className={styles.input} value={appearance.text_color || ''} onChange={e => setAppearance(p => ({ ...p, text_color: e.target.value }))} placeholder="#ffffff" />
+                  </div>
+                </div>
+              </div>
+              {/* Preview */}
+              <div style={{ display: 'flex', gap: '1rem', marginTop: '0.75rem' }}>
+                <div style={{ flex: 1, background: appearance.bg_color || '#111', borderRadius: 12, padding: '1.5rem', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <p style={{ color: appearance.text_color || '#fff', fontSize: '0.85rem', marginBottom: '0.5rem' }}>Preview do texto</p>
+                  <div style={{ background: appearance.card_color || '#1a1a1a', borderRadius: 10, padding: '1rem' }}>
+                    <p style={{ color: appearance.primary_color || '#e31837', fontWeight: 700 }}>Cor Primária</p>
+                    <p style={{ color: appearance.text_color || '#fff', fontSize: '0.8rem' }}>Texto normal num card</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className={styles.settingsGroup}>
+              <h4 className={styles.settingsGroupTitle}>Textos do Footer</h4>
+              <div className={styles.formRow}>
+                <div className={styles.inputGroup}>
+                  <label className={styles.label}>Email</label>
+                  <input className={styles.input} value={appearance.footer_email || ''} onChange={e => setAppearance(p => ({ ...p, footer_email: e.target.value }))} placeholder="contato@mjsneakers.com.br" />
+                </div>
+                <div className={styles.inputGroup}>
+                  <label className={styles.label}>Telefone</label>
+                  <input className={styles.input} value={appearance.footer_phone || ''} onChange={e => setAppearance(p => ({ ...p, footer_phone: e.target.value }))} placeholder="(11) 99999-9999" />
+                </div>
+              </div>
+              <div className={styles.formRow}>
+                <div className={styles.inputGroup}>
+                  <label className={styles.label}>Instagram</label>
+                  <input className={styles.input} value={appearance.footer_instagram || ''} onChange={e => setAppearance(p => ({ ...p, footer_instagram: e.target.value }))} placeholder="@mjsneakers" />
+                </div>
+                <div className={styles.inputGroup}>
+                  <label className={styles.label}>Crédito</label>
+                  <input className={styles.input} value={appearance.footer_credit || ''} onChange={e => setAppearance(p => ({ ...p, footer_credit: e.target.value }))} placeholder="Feito por..." />
+                </div>
+              </div>
+              <div className={styles.inputGroup}>
+                <label className={styles.label}>Endereço</label>
+                <input className={styles.input} value={appearance.footer_address || ''} onChange={e => setAppearance(p => ({ ...p, footer_address: e.target.value }))} placeholder="Rua..." />
+              </div>
+            </div>
+
+            <button className={styles.saveBtn} onClick={handleSaveAppearance} disabled={savingAppearance} style={{ maxWidth: 250 }}>
+              <FiSave /> {savingAppearance ? 'Salvando...' : 'Salvar Aparência'}
+            </button>
+          </div>
+        </motion.div>
+      )}
+
+      {/* ===== AUDIT TAB ===== */}
+      {activeTab === 'audit' && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          <div className={styles.sectionHeader}>
+            <span className={styles.sectionTitle}>Logs de Auditoria</span>
+          </div>
+
+          <div className={styles.tableWrap}>
+            <table className={styles.reviewsTable}>
+              <thead>
+                <tr>
+                  <th>Data</th>
+                  <th>Usuário</th>
+                  <th>Ação</th>
+                  <th>Entidade</th>
+                  <th>ID</th>
+                  <th>Detalhes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {auditLogs.map(log => (
+                  <tr key={log.id}>
+                    <td>{new Date(log.created_at).toLocaleString('pt-BR')}</td>
+                    <td>{log.admin_username || `ID:${log.admin_id}`}</td>
+                    <td><span className={styles.statusBadge}>{log.action}</span></td>
+                    <td>{log.entity}</td>
+                    <td>{log.entity_id || '-'}</td>
+                    <td style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{log.details || '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {auditTotal > 1 && (
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', padding: '1rem' }}>
+              <button className={styles.cancelBtn} disabled={auditPage <= 1} onClick={() => setAuditPage(p => p - 1)}>Anterior</button>
+              <span style={{ color: '#999', fontSize: '0.85rem', display: 'flex', alignItems: 'center' }}>{auditPage} / {auditTotal}</span>
+              <button className={styles.cancelBtn} disabled={auditPage >= auditTotal} onClick={() => setAuditPage(p => p + 1)}>Próxima</button>
+            </div>
+          )}
+
+          {auditLogs.length === 0 && <p className={styles.noData}>Nenhum log encontrado</p>}
         </motion.div>
       )}
     </div>

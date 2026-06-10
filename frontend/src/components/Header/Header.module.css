@@ -82,6 +82,41 @@
   justify-content: center;
 }
 
+.wishlistBtn {
+  position: relative;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--white);
+  font-size: 1.5rem;
+  display: flex;
+  align-items: center;
+  padding: 8px;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+}
+
+.wishlistBtn:hover {
+  background: rgba(220, 38, 38, 0.15);
+  color: var(--red-primary);
+}
+
+.wishlistBadge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  background: var(--red-primary);
+  color: white;
+  font-size: 0.65rem;
+  font-weight: 700;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .adminBtn {
   background: transparent;
   color: var(--gray-light);

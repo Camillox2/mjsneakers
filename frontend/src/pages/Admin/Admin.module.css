@@ -164,6 +164,7 @@
 /* Tabs */
 .tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
   margin-bottom: 28px;
   border-bottom: 1px solid var(--gray-border);
@@ -1103,13 +1104,147 @@
   color: var(--gray-lighter);
 }
 
+.promoLayout {
+  display: grid;
+  gap: 18px;
+  max-width: 1100px;
+}
+
+.promoCard {
+  background: linear-gradient(120deg, rgba(26, 26, 26, 0.96) 0%, rgba(18, 18, 18, 0.96) 100%);
+  border: 1px solid rgba(55, 65, 81, 0.45);
+  border-radius: 16px;
+  padding: 22px;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.24);
+}
+
+.promoCardHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 16px;
+}
+
+.promoDescription {
+  color: var(--gray-light);
+  font-size: 0.83rem;
+  line-height: 1.45;
+  margin-top: -6px;
+}
+
+.promoFieldsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.promoActions {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-start;
+}
+
+.promoActions .saveBtn {
+  max-width: 240px;
+}
+
+.quickDiscountList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.quickDiscountRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(7, 8, 10, 0.85);
+  border: 1px solid rgba(55, 65, 81, 0.4);
+}
+
+.quickDiscountInfo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.quickDiscountName {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--white);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.quickDiscountMeta {
+  font-size: 0.78rem;
+  color: var(--gray-lighter);
+}
+
+.quickDiscountControls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.discountInputWrap {
+  position: relative;
+}
+
+.discountInput {
+  width: 112px;
+  text-align: center;
+  padding-right: 28px;
+  font-weight: 700;
+}
+
+.discountSuffix {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--gray-lighter);
+  font-size: 0.83rem;
+  pointer-events: none;
+}
+
+.quickSaveBtn {
+  min-width: 144px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #ef2a2a 0%, #cf1d1d 100%);
+  color: var(--white);
+  font-size: 0.85rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: transform 0.2s, filter 0.2s;
+}
+
+.quickSaveBtn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.05);
+}
+
+.quickSaveBtn:disabled {
+  opacity: 0.65;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .adminPage { padding: 16px; }
   .panelTitle { font-size: 1.2rem; }
-  .tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; gap: 0; }
-  .tabs::-webkit-scrollbar { display: none; }
-  .tab { padding: 10px 16px; font-size: 0.75rem; white-space: nowrap; flex-shrink: 0; }
+  .tabs { overflow: visible; gap: 6px; }
+  .tab { padding: 10px 14px; font-size: 0.75rem; white-space: nowrap; }
   .adminGrid { grid-template-columns: 1fr; }
   .formCard { padding: 20px; max-width: 100%; }
   .formRow { grid-template-columns: 1fr; gap: 12px; }
@@ -1133,6 +1268,14 @@
   .orderContactInfo { flex-direction: column; gap: 4px; }
   .statusBtns { flex-wrap: wrap; }
   .barLabel { min-width: 70px; font-size: 0.7rem; }
+  .promoCard { padding: 16px; }
+  .promoCardHeader { flex-direction: column; gap: 12px; }
+  .promoFieldsGrid { grid-template-columns: 1fr; }
+  .promoActions .saveBtn { max-width: 100%; }
+  .quickDiscountRow { flex-wrap: wrap; }
+  .quickDiscountControls { width: 100%; }
+  .discountInput { width: 100px; }
+  .quickSaveBtn { flex: 1; min-width: 0; }
 }
 
 @media (max-width: 480px) {

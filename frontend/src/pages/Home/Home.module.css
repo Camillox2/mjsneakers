@@ -42,6 +42,65 @@
   text-transform: uppercase;
 }
 
+.promoStrip {
+  max-width: 1400px;
+  margin: 0 auto 14px;
+  padding: 14px 20px;
+  border: 1px solid rgba(220, 38, 38, 0.4);
+  border-radius: 14px;
+  background: linear-gradient(90deg, rgba(220, 38, 38, 0.2) 0%, rgba(120, 20, 20, 0.1) 55%, rgba(0, 0, 0, 0.3) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.promoInfo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.promoTag {
+  flex-shrink: 0;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: var(--white);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+.promoText {
+  color: var(--white-soft);
+  font-size: 0.9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.promoButton {
+  flex-shrink: 0;
+  padding: 9px 14px;
+  border-radius: 10px;
+  background: var(--white);
+  color: #111;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transition: transform 0.2s, background 0.2s;
+}
+
+.promoButton:hover {
+  transform: translateY(-1px);
+  background: #f1f1f1;
+}
+
 .sectionTitle {
   max-width: 1400px;
   margin: 30px auto 10px;
@@ -71,10 +130,48 @@
   font-size: 1rem;
 }
 
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 2rem 0;
+}
+
+.pageBtn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--white);
+  padding: 0.5rem 1.2rem;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pageBtn:hover:not(:disabled) {
+  background: var(--red-primary);
+  border-color: var(--red-primary);
+}
+
+.pageBtn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.pageInfo {
+  font-size: 0.85rem;
+  color: #999;
+  font-weight: 600;
+}
+
 @media (max-width: 768px) {
   .hero { padding: 40px 0 20px; }
   .heroTitle { font-size: 2.2rem; letter-spacing: 2px; }
   .heroSub { font-size: 0.85rem; letter-spacing: 1px; }
+  .promoStrip { margin: 0 12px 10px; padding: 12px; flex-direction: column; align-items: flex-start; }
+  .promoInfo { width: 100%; }
+  .promoText { white-space: normal; overflow: visible; }
   .sectionTitle { font-size: 1rem; margin: 20px auto 8px; }
 }
 

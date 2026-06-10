@@ -1,10 +1,30 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
+import api from '../../services/api'
 import PrivacyModal from '../PrivacyModal/PrivacyModal'
 import styles from './Footer.module.css'
 
 export default function Footer() {
   const [showPrivacy, setShowPrivacy] = useState(false)
+  const [info, setInfo] = useState({
+    email: 'contato@mjsneakers.com.br',
+    credit: 'Feito por DC Digital Foundry by Vitor Camillo',
+    phone: '',
+    address: '',
+    instagram: '',
+  })
+
+  useEffect(() => {
+    api.get('/settings').then(({ data }) => {
+      setInfo({
+        email: data.footer_email || data.contact_email || 'contato@mjsneakers.com.br',
+        credit: data.footer_credit || 'Feito por DC Digital Foundry by Vitor Camillo',
+        phone: data.footer_phone || data.contact_phone || '',
+        address: data.footer_address || '',
+        instagram: data.footer_instagram || '',
+      })
+    }).catch(() => {})
+  }, [])
 
   return (
     <>
@@ -28,8 +48,32 @@ export default function Footer() {
             viewport={{ once: true }}
             transition={{ delay: 0.1 }}
           >
-            Contato: <a href="mailto:contato@mjsneakers.com.br">contato@mjsneakers.com.br</a>
+            Contato: <a href={`mailto:${info.email}`}>{info.email}</a>
           </motion.p>
+
+          {info.phone && (
+            <motion.p
+              className={styles.footerEmail}
+              initial={{ opacity: 0 }}
+              whileInView={{ opacity: 1 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.15 }}
+            >
+              Telefone: {info.phone}
+            </motion.p>
+          )}
+
+          {info.instagram && (
+            <motion.p
+              className={styles.footerEmail}
+              initial={{ opacity: 0 }}
+              whileInView={{ opacity: 1 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.15 }}
+            >
+              Instagram: <a href={`https://instagram.com/${info.instagram.replace('@', '')}`} target="_blank" rel="noreferrer">{info.instagram}</a>
+            </motion.p>
+          )}
 
           <motion.p
             className={styles.footerCredit}
@@ -38,7 +82,7 @@ export default function Footer() {
             viewport={{ once: true }}
             transition={{ delay: 0.2 }}
           >
-            Feito por DC Digital Foundry by Vitor Camillo
+            {info.credit}
           </motion.p>
 
           <motion.button

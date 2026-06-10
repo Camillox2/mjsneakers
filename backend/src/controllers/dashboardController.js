@@ -5,13 +5,14 @@ const dashboardController = {
     try {
       const [[{ totalProducts }]] = await pool.query('SELECT COUNT(*) as totalProducts FROM products');
       const [[{ activeProducts }]] = await pool.query('SELECT COUNT(*) as activeProducts FROM products WHERE active = 1');
-      const [[{ outOfStock }]] = await pool.query('SELECT COUNT(*) as outOfStock FROM products WHERE stock = 0');
+      const [[{ outOfStock }]] = await pool.query('SELECT COUNT(*) as outOfStock FROM products WHERE stock = 0 AND active = 1');
       const [[{ totalBanners }]] = await pool.query('SELECT COUNT(*) as totalBanners FROM banners');
       const [[{ totalOrders }]] = await pool.query('SELECT COUNT(*) as totalOrders FROM orders');
       const [[{ pendingOrders }]] = await pool.query("SELECT COUNT(*) as pendingOrders FROM orders WHERE status = 'pending'");
       const [[{ pendingReviews }]] = await pool.query("SELECT COUNT(*) as pendingReviews FROM reviews WHERE status = 'pending'");
       const [[{ approvedReviews }]] = await pool.query("SELECT COUNT(*) as approvedReviews FROM reviews WHERE status = 'approved'");
       const [[{ totalRevenue }]] = await pool.query("SELECT COALESCE(SUM(total), 0) as totalRevenue FROM orders WHERE status != 'cancelled'");
+      const [[{ totalCoupons }]] = await pool.query('SELECT COUNT(*) as totalCoupons FROM coupons WHERE active = TRUE');
 
       const [brandStats] = await pool.query(
         `SELECT b.name, COUNT(p.id) as count 
@@ -30,17 +31,39 @@ const dashboardController = {
       );
 
       const [lowStock] = await pool.query(
-        'SELECT id, name, stock, image_url FROM products WHERE stock <= 5 AND stock > 0 ORDER BY stock ASC LIMIT 10'
+        'SELECT id, name, stock, image_url FROM products WHERE stock <= 5 AND stock > 0 AND active = TRUE ORDER BY stock ASC LIMIT 10'
       );
 
+      // Sales chart: last 30 days
+      const [salesChart] = await pool.query(`
+        SELECT DATE(created_at) as date, COUNT(*) as orders, COALESCE(SUM(total), 0) as revenue
+        FROM orders
+        WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY) AND status != 'cancelled'
+        GROUP BY DATE(created_at)
+        ORDER BY date ASC
+      `);
+
+      // Top selling products
+      const [topProducts] = await pool.query(`
+        SELECT p.name, p.image_url, SUM(oi.quantity) as total_sold, SUM(oi.price * oi.quantity) as total_revenue
+        FROM order_items oi
+        JOIN products p ON oi.product_id = p.id
+        GROUP BY p.id, p.name, p.image_url
+        ORDER BY total_sold DESC
+        LIMIT 5
+      `);
+
       res.json({
-        cards: { totalProducts, activeProducts, outOfStock, totalBanners, totalOrders, pendingOrders, pendingReviews, approvedReviews, totalRevenue },
+        cards: { totalProducts, activeProducts, outOfStock, totalBanners, totalOrders, pendingOrders, pendingReviews, approvedReviews, totalRevenue, totalCoupons },
         brandStats,
         recentReviews,
         recentOrders,
-        lowStock
+        lowStock,
+        salesChart,
+        topProducts
       });
     } catch (error) {
+      console.error('Dashboard error:', error);
       res.status(500).json({ error: 'Erro ao buscar métricas' });
     }
   }
