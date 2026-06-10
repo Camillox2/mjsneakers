@@ -5,7 +5,7 @@ import { FiStar } from 'react-icons/fi'
 import { getImageUrl } from '../../utils/imageHelper'
 import styles from './RelatedProducts.module.css'
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:3304/api'
+const API = import.meta.env.VITE_API_URL || 'http://localhost:3305/api'
 
 export default function RelatedProducts({ productId, onProductClick }) {
   const [products, setProducts] = useState([])

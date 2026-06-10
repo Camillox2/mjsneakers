@@ -4,7 +4,7 @@ import { FiMail, FiX, FiCheck } from 'react-icons/fi'
 import axios from 'axios'
 import styles from './Newsletter.module.css'
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:3304/api'
+const API = import.meta.env.VITE_API_URL || 'http://localhost:3305/api'
 
 export default function Newsletter({ variant = 'footer' }) {
   const [email, setEmail] = useState('')

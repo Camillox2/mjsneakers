@@ -4,7 +4,7 @@ import axios from 'axios'
 import { FiSearch, FiPackage, FiTruck, FiCheckCircle, FiXCircle, FiClock } from 'react-icons/fi'
 import styles from './Track.module.css'
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:3304/api'
+const API = import.meta.env.VITE_API_URL || 'http://localhost:3305/api'
 
 const STATUS_MAP = {
   pending:    { label: 'Aguardando pagamento', icon: FiClock,       color: '#f59e0b' },

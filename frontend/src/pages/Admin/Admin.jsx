@@ -1,7 +1,7 @@
 import { useState, useContext, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
-import { FiPlus, FiEdit2, FiTrash2, FiLogOut, FiPackage, FiImage, FiStar, FiCheck, FiX, FiBarChart2, FiShoppingBag, FiSettings, FiChevronDown, FiChevronUp, FiAlertTriangle, FiTrendingUp, FiBox, FiUsers, FiDollarSign, FiSave, FiTag, FiPercent, FiType, FiFileText, FiShield, FiSliders } from 'react-icons/fi'
+import { FiPlus, FiEdit2, FiTrash2, FiLogOut, FiPackage, FiImage, FiStar, FiCheck, FiX, FiBarChart2, FiShoppingBag, FiSettings, FiChevronDown, FiChevronUp, FiAlertTriangle, FiTrendingUp, FiBox, FiUsers, FiDollarSign, FiSave, FiTag, FiPercent, FiType, FiFileText, FiShield, FiSliders, FiMenu, FiMessageSquare, FiGift, FiPieChart, FiHome, FiList, FiZap, FiActivity, FiBell, FiMail } from 'react-icons/fi'
 import api from '../../services/api'
 import { AuthContext } from '../../App'
 import { getImageUrl } from '../../utils/imageHelper'
@@ -493,10 +493,310 @@ function BannerInlineForm({ banner, onSave, onCancel }) {
 /* ========================================================
    MAIN ADMIN COMPONENT
    ======================================================== */
+
+/* ========================================================
+   LOYALTY PANEL
+   ======================================================== */
+function LoyaltyPanel() {
+  const [customers, setCustomers] = useState([])
+  const [bonusForm, setBonusForm] = useState({ email: '', points: '', description: '' })
+  const [loading, setLoading] = useState(true)
+
+  const load = async () => {
+    setLoading(true)
+    try {
+      const { data } = await api.get('/loyalty')
+      setCustomers(data)
+    } catch {}
+    setLoading(false)
+  }
+
+  useEffect(() => { load() }, [])
+
+  const handleBonus = async (e) => {
+    e.preventDefault()
+    try {
+      await api.post('/loyalty/bonus', bonusForm)
+      setBonusForm({ email: '', points: '', description: '' })
+      load()
+    } catch { alert('Erro ao adicionar bônus') }
+  }
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+      <div className={styles.sectionHeader}>
+        <span className={styles.sectionTitle}>Programa de Fidelidade</span>
+      </div>
+
+      <div className={styles.settingsGroup} style={{ marginBottom: '1.5rem' }}>
+        <h4 className={styles.settingsGroupTitle}>Adicionar Pontos Bônus</h4>
+        <form onSubmit={handleBonus} className={styles.formRow}>
+          <div className={styles.inputGroup}>
+            <label className={styles.label}>Email do cliente</label>
+            <input className={styles.input} type="email" placeholder="cliente@email.com" value={bonusForm.email}
+              onChange={e => setBonusForm(p => ({ ...p, email: e.target.value }))} required />
+          </div>
+          <div className={styles.inputGroup}>
+            <label className={styles.label}>Pontos</label>
+            <input className={styles.input} type="number" min="1" placeholder="100" value={bonusForm.points}
+              onChange={e => setBonusForm(p => ({ ...p, points: e.target.value }))} required />
+          </div>
+          <div className={styles.inputGroup}>
+            <label className={styles.label}>Motivo</label>
+            <input className={styles.input} placeholder="Bônus de aniversário" value={bonusForm.description}
+              onChange={e => setBonusForm(p => ({ ...p, description: e.target.value }))} />
+          </div>
+          <button type="submit" className={styles.saveBtn} style={{ alignSelf: 'flex-end', minWidth: 120 }}>Adicionar</button>
+        </form>
+      </div>
+
+      {loading ? <div className={styles.loadingState}><div className={styles.loadingSpinner} /><span>Carregando...</span></div> : (
+        <div className={styles.tableWrap}>
+          <table className={styles.reviewsTable}>
+            <thead><tr><th>Cliente</th><th>Email</th><th>Pontos</th><th>Total Ganho</th><th>Total Resgatado</th></tr></thead>
+            <tbody>
+              {customers.map(c => (
+                <tr key={c.id}>
+                  <td>{c.customer_name || '-'}</td>
+                  <td>{c.customer_email}</td>
+                  <td><strong style={{ color: '#22C55E' }}>{c.points}</strong></td>
+                  <td>{c.total_earned}</td>
+                  <td>{c.total_redeemed}</td>
+                </tr>
+              ))}
+              {customers.length === 0 && <tr><td colSpan={5} style={{ textAlign: 'center', color: '#666', padding: '2rem' }}>Nenhum cliente com pontos ainda</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </motion.div>
+  )
+}
+
+/* ========================================================
+   LIVE CHAT PANEL
+   ======================================================== */
+function LiveChatPanel() {
+  const [sessions, setSessions] = useState([])
+  const [activeSession, setActiveSession] = useState(null)
+  const [messages, setMessages] = useState([])
+  const [reply, setReply] = useState('')
+  const [socket, setSocket] = useState(null)
+  const msgEndRef = useRef(null)
+
+  useEffect(() => {
+    let ioInst = null
+    import('socket.io-client').then(({ io }) => {
+      ioInst = io(import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:3305')
+      ioInst.emit('admin:join')
+      ioInst.on('sessions:list', setSessions)
+      ioInst.on('session:new', s => setSessions(prev => [s, ...prev.filter(x => x.session_id !== s.session_id)]))
+      ioInst.on('session:closed', ({ sessionId }) => setSessions(prev => prev.map(s => s.session_id === sessionId ? { ...s, status: 'closed' } : s)))
+      ioInst.on('chat:message', msg => setMessages(prev => [...prev, msg]))
+      ioInst.on('chat:history', setMessages)
+      setSocket(ioInst)
+    }).catch(() => {})
+    return () => ioInst?.disconnect()
+  }, [])
+
+  useEffect(() => { msgEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
+
+  const openSession = (s) => {
+    setActiveSession(s)
+    setMessages([])
+    socket?.emit('admin:join-session', { sessionId: s.session_id })
+  }
+
+  const sendReply = () => {
+    if (!reply.trim() || !activeSession) return
+    socket?.emit('admin:message', { sessionId: activeSession.session_id, message: reply })
+    setReply('')
+  }
+
+  const closeSession = () => {
+    if (!activeSession) return
+    socket?.emit('session:close', { sessionId: activeSession.session_id })
+    setActiveSession(null)
+  }
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+      <div className={styles.sectionHeader}>
+        <span className={styles.sectionTitle}>Chat ao Vivo</span>
+      </div>
+      <div className={styles.chatLayout}>
+        <div className={styles.chatSessions}>
+          <div className={styles.chatSessionsHeader}>Conversas</div>
+          {sessions.length === 0 && <p className={styles.noData} style={{ padding: '1rem', fontSize: '0.8rem' }}>Nenhuma conversa ativa</p>}
+          {sessions.map(s => (
+            <div key={s.session_id}
+              className={`${styles.chatSessionItem} ${activeSession?.session_id === s.session_id ? styles.chatSessionActive : ''} ${s.status === 'closed' ? styles.chatSessionClosed : ''}`}
+              onClick={() => openSession(s)}>
+              <div className={styles.chatSessionName}>{s.customer_name || 'Cliente'}</div>
+              <div className={styles.chatSessionEmail}>{s.customer_email || s.session_id.slice(0, 8)}</div>
+              <span className={`${styles.chatSessionStatus} ${s.status === 'open' ? styles.chatStatusOpen : ''}`}>{s.status}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className={styles.chatMain}>
+          {!activeSession ? (
+            <div className={styles.chatEmpty}>
+              <FiMessageSquare size={40} style={{ opacity: 0.2 }} />
+              <p>Selecione uma conversa</p>
+            </div>
+          ) : (
+            <>
+              <div className={styles.chatHeader}>
+                <span>{activeSession.customer_name || 'Cliente'} — {activeSession.customer_email}</span>
+                {activeSession.status === 'open' && <button className={styles.cancelBtn} onClick={closeSession}>Encerrar</button>}
+              </div>
+              <div className={styles.chatMessages}>
+                {messages.map(m => (
+                  <div key={m.id} className={`${styles.chatMsg} ${m.sender === 'admin' ? styles.chatMsgAdmin : styles.chatMsgCustomer}`}>
+                    <span className={styles.chatMsgSender}>{m.sender === 'admin' ? 'Você' : (activeSession.customer_name || 'Cliente')}</span>
+                    <div className={styles.chatMsgBubble}>{m.message}</div>
+                    <span className={styles.chatMsgTime}>{new Date(m.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+                  </div>
+                ))}
+                <div ref={msgEndRef} />
+              </div>
+              {activeSession.status === 'open' && (
+                <div className={styles.chatInput}>
+                  <input className={styles.input} placeholder="Digite uma resposta..." value={reply}
+                    onChange={e => setReply(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendReply()} />
+                  <button className={styles.saveBtn} onClick={sendReply} style={{ minWidth: 80 }}>Enviar</button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
+/* ========================================================
+   REPORTS PANEL
+   ======================================================== */
+function ReportsPanel() {
+  const [data, setData] = useState({})
+  const [loading, setLoading] = useState(true)
+  const formatPrice = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0)
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true)
+      try {
+        const [brand, monthly, top, funnel] = await Promise.all([
+          api.get('/reports/revenue-by-brand'),
+          api.get('/reports/monthly-revenue'),
+          api.get('/reports/top-products'),
+          api.get('/reports/funnel'),
+        ])
+        setData({ brand: brand.data, monthly: monthly.data, top: top.data, funnel: funnel.data })
+      } catch (e) { console.error(e) }
+      setLoading(false)
+    }
+    load()
+  }, [])
+
+  if (loading) return <div className={styles.loadingState}><div className={styles.loadingSpinner} /><span>Carregando relatórios...</span></div>
+
+  const maxBrand = data.brand?.length ? Math.max(...data.brand.map(b => b.revenue), 1) : 1
+  const maxMonthly = data.monthly?.length ? Math.max(...data.monthly.map(m => m.revenue), 1) : 1
+  const maxFunnel = data.funnel?.[0]?.value || 1
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+      <div className={styles.sectionHeader}>
+        <span className={styles.sectionTitle}>Analytics & Relatórios</span>
+      </div>
+
+      <div className={styles.reportsGrid}>
+        {/* Revenue by Brand */}
+        <div className={styles.reportCard}>
+          <h3 className={styles.reportCardTitle}><FiBarChart2 /> Receita por Marca</h3>
+          <div className={styles.barChart}>
+            {(data.brand || []).map(b => (
+              <div key={b.name} className={styles.barRow}>
+                <span className={styles.barLabel}>{b.name}</span>
+                <div className={styles.barTrack}>
+                  <motion.div className={styles.barFill} style={{ background: 'linear-gradient(90deg, #e31837, #ff6b35)' }}
+                    initial={{ width: 0 }} animate={{ width: `${(b.revenue / maxBrand) * 100}%` }} transition={{ duration: 0.8 }} />
+                </div>
+                <span className={styles.barValue}>{formatPrice(b.revenue)}</span>
+              </div>
+            ))}
+            {!data.brand?.length && <p className={styles.noData}>Sem dados de receita por marca</p>}
+          </div>
+        </div>
+
+        {/* Monthly Revenue */}
+        <div className={styles.reportCard}>
+          <h3 className={styles.reportCardTitle}><FiTrendingUp /> Receita Mensal (12m)</h3>
+          <div className={styles.monthlyChart}>
+            {(data.monthly || []).map(m => (
+              <div key={m.month} className={styles.monthBar}>
+                <div className={styles.monthBarFill} style={{ height: `${(m.revenue / maxMonthly) * 100}%` }}>
+                  <span className={styles.monthBarTip}>{formatPrice(m.revenue)}</span>
+                </div>
+                <span className={styles.monthBarLabel}>{m.month?.slice(5)}</span>
+              </div>
+            ))}
+            {!data.monthly?.length && <p className={styles.noData}>Sem dados mensais</p>}
+          </div>
+        </div>
+
+        {/* Top Products */}
+        <div className={styles.reportCard}>
+          <h3 className={styles.reportCardTitle}><FiStar /> Top 10 Produtos</h3>
+          <div className={styles.tableWrap} style={{ maxHeight: 300 }}>
+            <table className={styles.reviewsTable}>
+              <thead><tr><th>#</th><th>Produto</th><th>Vendas</th><th>Receita</th></tr></thead>
+              <tbody>
+                {(data.top || []).map((p, i) => (
+                  <tr key={i}>
+                    <td style={{ color: i < 3 ? '#FBBF24' : '#666', fontWeight: 700 }}>{i + 1}</td>
+                    <td>{p.name}</td>
+                    <td>{p.sales}</td>
+                    <td>{formatPrice(p.revenue)}</td>
+                  </tr>
+                ))}
+                {!data.top?.length && <tr><td colSpan={4} style={{ textAlign: 'center', color: '#666', padding: '1rem' }}>Sem dados</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Conversion Funnel */}
+        <div className={styles.reportCard}>
+          <h3 className={styles.reportCardTitle}><FiActivity /> Funil de Conversão</h3>
+          <div className={styles.funnelChart}>
+            {(data.funnel || []).map((step, i) => (
+              <div key={step.stage} className={styles.funnelStep}>
+                <div className={styles.funnelBar} style={{ width: `${Math.max((step.value / maxFunnel) * 100, 10)}%` }}>
+                  <span className={styles.funnelLabel}>{step.stage}</span>
+                  <span className={styles.funnelValue}>{step.value.toLocaleString()}</span>
+                </div>
+                {i < (data.funnel.length - 1) && data.funnel[i + 1] && step.value > 0 && (
+                  <span className={styles.funnelRate}>{((data.funnel[i+1].value / step.value) * 100).toFixed(1)}% conversão</span>
+                )}
+              </div>
+            ))}
+            {!data.funnel?.length && <p className={styles.noData}>Sem dados de funil</p>}
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
 export default function Admin() {
   const { user, login, logout } = useContext(AuthContext)
   const navigate = useNavigate()
 
+  const [sidebarOpen, setSidebarOpen] = useState(true)
   const [activeTab, setActiveTab] = useState('dashboard')
   const [products, setProducts] = useState([])
   const [brands, setBrands] = useState([])
@@ -981,22 +1281,63 @@ export default function Admin() {
 
   if (!user) return <LoginScreen onLogin={login} />
 
-  const tabs = [
-    { key: 'dashboard', label: 'Dashboard', icon: <FiBarChart2 /> },
-    { key: 'products', label: 'Produtos', icon: <FiPackage /> },
-    { key: 'orders', label: 'Pedidos', icon: <FiShoppingBag />, badge: orders.filter(o => o.status === 'pending').length || 0 },
-    { key: 'customers', label: 'Clientes', icon: <FiUsers /> },
-    { key: 'categories', label: 'Categorias', icon: <FiBox /> },
-    { key: 'banners', label: 'Banners', icon: <FiImage /> },
-    { key: 'tickers', label: 'Ticker', icon: <FiType /> },
-    { key: 'coupons', label: 'Cupons', icon: <FiPercent /> },
-    { key: 'promotions', label: 'Promoções', icon: <FiTag /> },
-    { key: 'reviews', label: 'Reviews', icon: <FiStar />, badge: pendingCount },
-    { key: 'admins', label: 'Admins', icon: <FiShield /> },
-    { key: 'appearance', label: 'Aparência', icon: <FiSliders /> },
-    { key: 'audit', label: 'Logs', icon: <FiFileText /> },
-    { key: 'settings', label: 'Config', icon: <FiSettings /> },
+  const navGroups = [
+    {
+      label: 'Principal',
+      items: [
+        { key: 'dashboard', label: 'Dashboard', icon: <FiHome /> },
+      ]
+    },
+    {
+      label: 'Catálogo',
+      items: [
+        { key: 'products', label: 'Produtos', icon: <FiPackage /> },
+        { key: 'categories', label: 'Categorias', icon: <FiList /> },
+        { key: 'promotions', label: 'Promoções', icon: <FiTag /> },
+      ]
+    },
+    {
+      label: 'Vendas',
+      items: [
+        { key: 'orders', label: 'Pedidos', icon: <FiShoppingBag />, badge: orders.filter(o => o.status === 'pending').length || 0 },
+        { key: 'customers', label: 'Clientes', icon: <FiUsers /> },
+        { key: 'coupons', label: 'Cupons', icon: <FiPercent /> },
+        { key: 'loyalty', label: 'Fidelidade', icon: <FiGift /> },
+      ]
+    },
+    {
+      label: 'Marketing',
+      items: [
+        { key: 'banners', label: 'Banners', icon: <FiImage /> },
+        { key: 'tickers', label: 'Ticker', icon: <FiZap /> },
+        { key: 'newsletter', label: 'Newsletter', icon: <FiMail /> },
+      ]
+    },
+    {
+      label: 'Comunidade',
+      items: [
+        { key: 'reviews', label: 'Reviews', icon: <FiStar />, badge: pendingCount },
+        { key: 'livechat', label: 'Chat ao Vivo', icon: <FiMessageSquare /> },
+      ]
+    },
+    {
+      label: 'Relatórios',
+      items: [
+        { key: 'reports', label: 'Analytics', icon: <FiActivity /> },
+      ]
+    },
+    {
+      label: 'Sistema',
+      items: [
+        { key: 'admins', label: 'Admins', icon: <FiShield /> },
+        { key: 'appearance', label: 'Aparência', icon: <FiSliders /> },
+        { key: 'settings', label: 'Config', icon: <FiSettings /> },
+        { key: 'audit', label: 'Logs', icon: <FiFileText /> },
+      ]
+    },
   ]
+
+  const allNavItems = navGroups.flatMap(g => g.items)
 
   const statusLabels = {
     pending: 'Pendente', confirmed: 'Confirmado', shipped: 'Enviado', delivered: 'Entregue', cancelled: 'Cancelado'
@@ -1007,27 +1348,62 @@ export default function Admin() {
 
   const maxBrand = dashboard?.brandStats?.length ? Math.max(...dashboard.brandStats.map(b => b.count), 1) : 1
 
-  return (
-    <div className={styles.adminPage}>
-      <div className={styles.topBar}>
-        <h1 className={styles.panelTitle}>Painel <span>Admin</span></h1>
-        <button className={styles.logoutBtn} onClick={handleLogout}><FiLogOut /> Sair</button>
-      </div>
+  const activeLabel = allNavItems.find(i => i.key === activeTab)?.label || ''
 
-      {/* Tabs */}
-      <div className={styles.tabs}>
-        {tabs.map(t => (
-          <button key={t.key} className={`${styles.tab} ${activeTab === t.key ? styles.activeTab : ''}`} onClick={() => setActiveTab(t.key)}>
-            {t.icon} {t.label}
-            {t.badge > 0 && <span className={styles.tabBadge}>{t.badge}</span>}
+  return (
+    <div className={styles.adminRoot}>
+      {/* Top bar */}
+      <header className={styles.topBar}>
+        <div className={styles.topBarLeft}>
+          <button className={styles.sidebarToggle} onClick={() => setSidebarOpen(o => !o)} title="Toggle menu">
+            <FiMenu size={20} />
           </button>
-        ))}
-      </div>
+          <h1 className={styles.panelTitle}><span>MJ</span> Admin</h1>
+        </div>
+        <div className={styles.topBarRight}>
+          <span className={styles.topBarSection}>{activeLabel}</span>
+          <button className={styles.logoutBtn} onClick={handleLogout}><FiLogOut /> Sair</button>
+        </div>
+      </header>
+
+      <div className={styles.adminBody}>
+        {/* Sidebar */}
+        <aside className={`${styles.sidebar} ${sidebarOpen ? styles.sidebarOpen : styles.sidebarClosed}`}>
+          <nav className={styles.sidebarNav}>
+            {navGroups.map(group => (
+              <div key={group.label} className={styles.navGroup}>
+                {sidebarOpen && <span className={styles.navGroupLabel}>{group.label}</span>}
+                {group.items.map(item => (
+                  <button
+                    key={item.key}
+                    className={`${styles.navItem} ${activeTab === item.key ? styles.navItemActive : ''}`}
+                    onClick={() => setActiveTab(item.key)}
+                    title={!sidebarOpen ? item.label : undefined}
+                  >
+                    <span className={styles.navIcon}>{item.icon}</span>
+                    {sidebarOpen && <span className={styles.navLabel}>{item.label}</span>}
+                    {sidebarOpen && item.badge > 0 && <span className={styles.navBadge}>{item.badge}</span>}
+                    {!sidebarOpen && item.badge > 0 && <span className={styles.navBadgeDot} />}
+                  </button>
+                ))}
+              </div>
+            ))}
+          </nav>
+        </aside>
+
+        {/* Main content */}
+        <main className={styles.mainContent}>
 
       {/* ===== DASHBOARD TAB ===== */}
-      {activeTab === 'dashboard' && dashboard && (
+      {activeTab === 'dashboard' && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-          <div className={styles.dashGrid}>
+          {!dashboard && (
+            <div className={styles.loadingState}>
+              <div className={styles.loadingSpinner} />
+              <span>Carregando dashboard...</span>
+            </div>
+          )}
+          {dashboard && <div className={styles.dashGrid}>
             <div className={styles.dashCard}>
               <div className={styles.dashCardIcon} style={{ background: 'rgba(99,102,241,0.15)', color: '#818CF8' }}><FiPackage size={22} /></div>
               <div className={styles.dashCardInfo}>
@@ -1056,9 +1432,9 @@ export default function Admin() {
                 <span className={styles.dashCardLabel}>Reviews Pendentes</span>
               </div>
             </div>
-          </div>
+          </div>}
 
-          <div className={styles.dashRow}>
+          {dashboard && <div className={styles.dashRow}>
             {/* Brand chart */}
             <div className={styles.dashPanel}>
               <h3 className={styles.dashPanelTitle}><FiTrendingUp /> Produtos por Marca</h3>
@@ -1106,10 +1482,9 @@ export default function Admin() {
                 )}
               </div>
             </div>
-          </div>
+          </div>}
 
-          {/* Recent reviews */}
-          <div className={styles.dashPanel}>
+          {dashboard && <div className={styles.dashPanel}>
             <h3 className={styles.dashPanelTitle}><FiStar /> Últimas Reviews</h3>
             {dashboard.recentReviews.length > 0 ? (
               <div className={styles.recentList}>
@@ -1130,7 +1505,7 @@ export default function Admin() {
             ) : (
               <p className={styles.noData}>Nenhuma review ainda</p>
             )}
-          </div>
+          </div>}
         </motion.div>
       )}
 
@@ -2141,6 +2516,36 @@ export default function Admin() {
           {auditLogs.length === 0 && <p className={styles.noData}>Nenhum log encontrado</p>}
         </motion.div>
       )}
+
+      {/* ===== NEWSLETTER TAB ===== */}
+      {activeTab === 'newsletter' && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          <div className={styles.sectionHeader}>
+            <span className={styles.sectionTitle}>Newsletter</span>
+          </div>
+          <div className={styles.tableWrap}>
+            <p className={styles.noData} style={{padding:'2rem'}}>Gerencie assinantes da newsletter via configurações de email.</p>
+          </div>
+        </motion.div>
+      )}
+
+      {/* ===== LOYALTY TAB ===== */}
+      {activeTab === 'loyalty' && (
+        <LoyaltyPanel />
+      )}
+
+      {/* ===== LIVE CHAT TAB ===== */}
+      {activeTab === 'livechat' && (
+        <LiveChatPanel />
+      )}
+
+      {/* ===== REPORTS TAB ===== */}
+      {activeTab === 'reports' && (
+        <ReportsPanel />
+      )}
+
+        </main>
+      </div>
     </div>
   )
 }

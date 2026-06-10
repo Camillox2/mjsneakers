@@ -17,7 +17,6 @@ const dashboardController = {
       const [[{ cancelledOrders }]] = await pool.query("SELECT COUNT(*) as cancelledOrders FROM orders WHERE status = 'cancelled'");
       const [[{ avgTicket }]] = await pool.query("SELECT COALESCE(AVG(total), 0) as avgTicket FROM orders WHERE status != 'cancelled'");
 
-      // Receita por marca
       const [brandRevenue] = await pool.query(
         `SELECT b.name, COALESCE(SUM(oi.price * oi.quantity), 0) as revenue, COUNT(DISTINCT oi.order_id) as orders
          FROM brands b
@@ -48,7 +47,16 @@ const dashboardController = {
         'SELECT id, name, stock, image_url FROM products WHERE stock <= 5 AND stock > 0 AND active = TRUE ORDER BY stock ASC LIMIT 10'
       );
 
-      // Sales chart: last 30 days
+      const [topProducts] = await pool.query(
+        `SELECT p.name, p.image_url, COALESCE(SUM(oi.quantity), 0) as sold, COALESCE(SUM(oi.price * oi.quantity), 0) as revenue
+         FROM products p
+         LEFT JOIN order_items oi ON p.id = oi.product_id
+         LEFT JOIN orders o ON oi.order_id = o.id AND o.status != 'cancelled'
+         GROUP BY p.id, p.name, p.image_url
+         ORDER BY sold DESC
+         LIMIT 10`
+      );
+
       const [salesChart] = await pool.query(`
         SELECT DATE(created_at) as date, COUNT(*) as orders, COALESCE(SUM(total), 0) as revenue
         FROM orders
@@ -58,13 +66,18 @@ const dashboardController = {
       `);
 
       res.json({
-        cards: { totalProducts, activeProducts, outOfStock, totalBanners, totalOrders, pendingOrders, pendingReviews, approvedReviews, totalRevenue, totalCoupons },
+        cards: {
+          totalProducts, activeProducts, outOfStock, totalBanners,
+          totalOrders, pendingOrders, pendingReviews, approvedReviews,
+          totalRevenue, totalCoupons, totalCustomers, cancelledOrders, avgTicket
+        },
         brandStats,
+        brandRevenue,
         recentReviews,
         recentOrders,
         lowStock,
+        topProducts,
         salesChart,
-        topProducts
       });
     } catch (error) {
       console.error('Dashboard error:', error);

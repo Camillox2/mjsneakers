@@ -12,7 +12,7 @@ import FeaturedSection from '../../components/FeaturedSection/FeaturedSection'
 import BottomPromoBanner from '../../components/BottomPromoBanner/BottomPromoBanner'
 import RecentlyViewed from '../../components/RecentlyViewed/RecentlyViewed'
 import Newsletter from '../../components/Newsletter/Newsletter'
-import { FiChevronDown, FiX, FiSliders } from 'react-icons/fi'
+import { FiChevronDown, FiX, FiSliders, FiArrowRight, FiTruck, FiShield, FiRefreshCw, FiZap } from 'react-icons/fi'
 import cardStyles from '../../components/ProductCard/ProductCard.module.css'
 import styles from './Home.module.css'
 
@@ -26,6 +26,22 @@ const SORT_OPTIONS = [
   { value: 'best_sellers', label: 'Mais vendidos' },
   { value: 'top_rated', label: 'Melhor avaliados' },
 ]
+
+const TRUST = [
+  { icon: FiTruck, title: 'Frete Grátis', sub: 'Acima de R$ 299' },
+  { icon: FiShield, title: '100% Original', sub: 'Garantia total' },
+  { icon: FiRefreshCw, title: 'Troca Fácil', sub: 'Até 30 dias' },
+  { icon: FiZap, title: 'Envio Rápido', sub: 'Em até 24h' },
+]
+
+const fadeUp = {
+  hidden: { opacity: 0, y: 28 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] } },
+}
+const stagger = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.1, delayChildren: 0.05 } },
+}
 
 export default function Home() {
   const [products, setProducts] = useState([])
@@ -116,27 +132,95 @@ export default function Home() {
   const hasActiveFilters = activeBrand || activeCategory || sort || minPrice || maxPrice || activeSize
   const promoLink = promo.buttonLink || '#catalogo'
   const promoExternal = promoLink.startsWith('http')
+  const catalogTitle = activeBrand ? brands.find(b => b.id === activeBrand)?.name || 'Produtos' : 'Todos os Tênis'
+
+  const renderCatChip = (id, label) => {
+    const isActive = activeCategory === id
+    return (
+      <button
+        key={id ?? 'all'}
+        className={`${styles.catChip} ${isActive ? styles.catChipActive : ''}`}
+        onClick={() => setActiveCategory(id)}
+      >
+        {isActive && (
+          <motion.span
+            layoutId="catPill"
+            className={styles.catPill}
+            transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+          />
+        )}
+        <span className={styles.catLabel}>{label}</span>
+      </button>
+    )
+  }
 
   return (
     <main>
       <BannerCarousel />
-      <div className={styles.hero}>
-        <div className={styles.heroBg} />
-        <motion.div className={styles.heroContent} initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7 }}>
-          <h1 className={styles.heroTitle}>MJ<span>Sneakers</span></h1>
-          <p className={styles.heroSub}>Os melhores tênis do mercado</p>
+
+      {/* ===== HERO ===== */}
+      <section className={styles.hero}>
+        <div className={styles.heroAurora} aria-hidden="true" />
+        <div className={styles.heroGrid} aria-hidden="true" />
+        <span className={`${styles.orb} ${styles.orb1}`} aria-hidden="true" />
+        <span className={`${styles.orb} ${styles.orb2}`} aria-hidden="true" />
+        <span className={`${styles.orb} ${styles.orb3}`} aria-hidden="true" />
+
+        <motion.div className={styles.heroContent} variants={stagger} initial="hidden" animate="show">
+          <motion.span className={styles.heroBadge} variants={fadeUp}>
+            <span className={styles.heroBadgeDot} /> Coleção 2026 · 100% Originais
+          </motion.span>
+          <motion.h1 className={styles.heroTitle} variants={fadeUp}>
+            MJ<span className={styles.accent}>Sneakers</span>
+          </motion.h1>
+          <motion.p className={styles.heroSub} variants={fadeUp}>
+            Os melhores tênis do mercado
+          </motion.p>
+          <motion.div className={styles.heroCtas} variants={fadeUp}>
+            <motion.a href="#catalogo" className={styles.heroCtaPrimary} whileHover={{ y: -2 }} whileTap={{ scale: 0.97 }}>
+              Explorar Catálogo <FiArrowRight />
+            </motion.a>
+          </motion.div>
         </motion.div>
-      </div>
+
+        <a href="#catalogo" className={styles.scrollCue} aria-label="Rolar para o catálogo">
+          <span className={styles.scrollMouse}><span className={styles.scrollWheel} /></span>
+        </a>
+      </section>
+
+      {/* ===== TRUST STRIP ===== */}
+      <motion.div
+        className={styles.trustStrip}
+        variants={stagger}
+        initial="hidden"
+        whileInView="show"
+        viewport={{ once: true, amount: 0.3 }}
+      >
+        {TRUST.map(({ icon: Icon, title, sub }) => (
+          <motion.div key={title} className={styles.trustItem} variants={fadeUp}>
+            <span className={styles.trustIcon}><Icon /></span>
+            <div className={styles.trustText}>
+              <span className={styles.trustTitle}>{title}</span>
+              <span className={styles.trustSub}>{sub}</span>
+            </div>
+          </motion.div>
+        ))}
+      </motion.div>
 
       {promo.enabled && promo.text && (
-        <motion.div className={styles.promoStrip} initial={{ opacity: 0, y: -14 }} animate={{ opacity: 1, y: 0 }}>
+        <motion.div
+          className={styles.promoStrip}
+          initial={{ opacity: 0, y: -14 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+        >
           <div className={styles.promoInfo}>
             <span className={styles.promoTag}>{promo.tag}</span>
             <p className={styles.promoText}>{promo.text}</p>
           </div>
           {promo.buttonText && (
             <a href={promoLink} className={styles.promoButton} target={promoExternal ? '_blank' : undefined} rel={promoExternal ? 'noreferrer' : undefined}>
-              {promo.buttonText}
+              {promo.buttonText} <FiArrowRight />
             </a>
           )}
         </motion.div>
@@ -146,87 +230,123 @@ export default function Home() {
 
       {categories.length > 0 && (
         <div className={styles.categoryRow}>
-          <button className={`${styles.catChip} ${!activeCategory ? styles.catChipActive : ''}`} onClick={() => setActiveCategory(null)}>Todas</button>
-          {categories.map(c => (
-            <button key={c.id} className={`${styles.catChip} ${activeCategory === c.id ? styles.catChipActive : ''}`} onClick={() => setActiveCategory(c.id)}>
-              {c.name}
-            </button>
-          ))}
+          {renderCatChip(null, 'Todas')}
+          {categories.map(c => renderCatChip(c.id, c.name))}
         </div>
       )}
 
       <FeaturedSection onProductClick={setSelectedProduct} />
 
-      <div className={styles.filterBar} id="catalogo">
-        <h2 className={styles.sectionTitle}>
-          {activeBrand ? brands.find(b => b.id === activeBrand)?.name || 'Produtos' : 'Todos os Tênis'}
-        </h2>
-        <div className={styles.filterActions}>
-          {hasActiveFilters && (
-            <button className={styles.clearBtn} onClick={clearFilters}>
-              <FiX /> Limpar filtros
-            </button>
-          )}
-          <button className={styles.filterToggle} onClick={() => setFiltersOpen(o => !o)}>
-            <FiSliders /> Filtros <FiChevronDown className={filtersOpen ? styles.chevronUp : ''} />
-          </button>
-          <select className={styles.sortSelect} value={sort} onChange={e => setSort(e.target.value)}>
-            {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
-        </div>
-      </div>
-
-      <AnimatePresence>
-        {filtersOpen && (
-          <motion.div className={styles.filtersPanel} initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }}>
-            <div className={styles.filterGroup}>
-              <span className={styles.filterLabel}>Preço</span>
-              <div className={styles.priceRange}>
-                <input type="number" placeholder="Mín" value={minPrice} onChange={e => setMinPrice(e.target.value)} className={styles.priceInput} />
-                <span>—</span>
-                <input type="number" placeholder="Máx" value={maxPrice} onChange={e => setMaxPrice(e.target.value)} className={styles.priceInput} />
-              </div>
-            </div>
-            <div className={styles.filterGroup}>
-              <span className={styles.filterLabel}>Tamanho</span>
-              <div className={styles.sizeRow}>
-                {SIZES.map(s => (
-                  <button key={s} className={`${styles.sizeChip} ${activeSize === s ? styles.sizeChipActive : ''}`} onClick={() => setActiveSize(activeSize === s ? '' : s)}>
-                    {s}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {loading && page === 1 ? (
-        <SkeletonGrid count={8} />
-      ) : (
-        <>
-          <div className={cardStyles.grid}>
-            <AnimatePresence mode="popLayout">
-              {products.length > 0 ? (
-                products.map((product, index) => (
-                  <ProductCard key={`${product.id}-${index}`} product={product} index={index % 20} onClick={setSelectedProduct} />
-                ))
-              ) : (
-                <motion.p className={cardStyles.noProducts} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                  Nenhum produto encontrado
-                </motion.p>
+      {/* ===== CATALOG ===== */}
+      <section className={styles.catalog} id="catalogo">
+        <motion.div
+          className={styles.catalogHeader}
+          variants={fadeUp}
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true, amount: 0.4 }}
+        >
+          <div className={styles.titleWrap}>
+            <span className={styles.titleBar} />
+            <h2 className={styles.sectionTitle}>{catalogTitle}</h2>
+            {!loading && products.length > 0 && (
+              <motion.span
+                key={products.length}
+                className={styles.countPill}
+                initial={{ scale: 0.6, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 24 }}
+              >
+                {products.length}
+              </motion.span>
+            )}
+          </div>
+          <div className={styles.filterActions}>
+            <AnimatePresence>
+              {hasActiveFilters && (
+                <motion.button
+                  className={styles.clearBtn}
+                  onClick={clearFilters}
+                  initial={{ opacity: 0, scale: 0.85 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.85 }}
+                >
+                  <FiX /> Limpar
+                </motion.button>
               )}
             </AnimatePresence>
+            <button className={`${styles.filterToggle} ${filtersOpen ? styles.filterToggleActive : ''}`} onClick={() => setFiltersOpen(o => !o)}>
+              <FiSliders /> Filtros <FiChevronDown className={filtersOpen ? styles.chevronUp : ''} />
+            </button>
+            <div className={styles.selectWrap}>
+              <select className={styles.sortSelect} value={sort} onChange={e => setSort(e.target.value)}>
+                {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+              <FiChevronDown className={styles.selectChevron} />
+            </div>
           </div>
-          <div ref={loaderRef} style={{ height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            {loading && hasMore && <span style={{ color: '#666', fontSize: 13 }}>Carregando...</span>}
-          </div>
-        </>
-      )}
+        </motion.div>
+
+        <AnimatePresence>
+          {filtersOpen && (
+            <motion.div className={styles.filtersPanel} initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}>
+              <div className={styles.filtersInner}>
+                <div className={styles.filterGroup}>
+                  <span className={styles.filterLabel}>Preço</span>
+                  <div className={styles.priceRange}>
+                    <input type="number" placeholder="Mín" value={minPrice} onChange={e => setMinPrice(e.target.value)} className={styles.priceInput} />
+                    <span className={styles.priceDash}>—</span>
+                    <input type="number" placeholder="Máx" value={maxPrice} onChange={e => setMaxPrice(e.target.value)} className={styles.priceInput} />
+                  </div>
+                </div>
+                <div className={styles.filterGroup}>
+                  <span className={styles.filterLabel}>Tamanho</span>
+                  <div className={styles.sizeRow}>
+                    {SIZES.map(s => (
+                      <button key={s} className={`${styles.sizeChip} ${activeSize === s ? styles.sizeChipActive : ''}`} onClick={() => setActiveSize(activeSize === s ? '' : s)}>
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {loading && page === 1 ? (
+          <SkeletonGrid count={8} />
+        ) : (
+          <>
+            <div className={cardStyles.grid}>
+              <AnimatePresence mode="popLayout">
+                {products.length > 0 ? (
+                  products.map((product, index) => (
+                    <ProductCard key={`${product.id}-${index}`} product={product} index={index % 20} onClick={setSelectedProduct} />
+                  ))
+                ) : (
+                  <motion.div className={styles.empty} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+                    <FiX className={styles.emptyIcon} />
+                    <p className={styles.emptyTitle}>Nenhum produto encontrado</p>
+                    <p className={styles.emptySub}>Tente ajustar os filtros ou limpar a busca.</p>
+                    {hasActiveFilters && (
+                      <button className={styles.clearBtn} onClick={clearFilters}><FiX /> Limpar filtros</button>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+            <div ref={loaderRef} className={styles.loader}>
+              {loading && hasMore && <span className={styles.spinner} aria-label="Carregando" />}
+            </div>
+          </>
+        )}
+      </section>
 
       <RecentlyViewed onProductClick={setSelectedProduct} />
 
       <div className={styles.newsletterStrip}>
+        <div className={styles.newsletterGlow} aria-hidden="true" />
         <Newsletter variant="footer" />
       </div>
 
