@@ -230,3 +230,35 @@
   .grid { grid-template-columns: repeat(2, 1fr); gap: 4px; padding: 8px; }
   .price { font-size: 0.85rem; }
 }
+
+.shareBtn {
+  position: absolute;
+  top: 46px;
+  right: 10px;
+  background: rgba(0,0,0,0.55);
+  border: none;
+  color: #ccc;
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  opacity: 0;
+  transition: opacity 0.2s, background 0.2s;
+  z-index: 2;
+}
+.card:hover .shareBtn { opacity: 1; }
+.shareBtn:hover { background: rgba(0,0,0,0.8); color: #fff; }
+
+.ratingRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 2px 0 4px;
+}
+.starIcon { color: #f59e0b; font-size: 12px; }
+.ratingVal { font-size: 12px; font-weight: 600; color: #f59e0b; }
+.reviewCount { font-size: 11px; color: rgba(255,255,255,0.5); }

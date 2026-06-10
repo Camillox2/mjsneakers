@@ -1,0 +1,44 @@
+.timer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.label {
+  font-size: 12px;
+  color: #aaa;
+  white-space: nowrap;
+}
+.blocks {
+  display: flex;
+  gap: 6px;
+}
+.block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 6px;
+  padding: 4px 8px;
+  min-width: 38px;
+}
+.num {
+  font-size: 16px;
+  font-weight: 700;
+  color: #ff4d4d;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.unit {
+  font-size: 9px;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.compact {
+  font-size: 12px;
+  color: #ff4d4d;
+  font-weight: 600;
+  white-space: nowrap;
+}

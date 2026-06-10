@@ -13,16 +13,30 @@ const dashboardController = {
       const [[{ approvedReviews }]] = await pool.query("SELECT COUNT(*) as approvedReviews FROM reviews WHERE status = 'approved'");
       const [[{ totalRevenue }]] = await pool.query("SELECT COALESCE(SUM(total), 0) as totalRevenue FROM orders WHERE status != 'cancelled'");
       const [[{ totalCoupons }]] = await pool.query('SELECT COUNT(*) as totalCoupons FROM coupons WHERE active = TRUE');
+      const [[{ totalCustomers }]] = await pool.query("SELECT COUNT(DISTINCT customer_email) as totalCustomers FROM orders WHERE customer_email IS NOT NULL AND customer_email != ''");
+      const [[{ cancelledOrders }]] = await pool.query("SELECT COUNT(*) as cancelledOrders FROM orders WHERE status = 'cancelled'");
+      const [[{ avgTicket }]] = await pool.query("SELECT COALESCE(AVG(total), 0) as avgTicket FROM orders WHERE status != 'cancelled'");
+
+      // Receita por marca
+      const [brandRevenue] = await pool.query(
+        `SELECT b.name, COALESCE(SUM(oi.price * oi.quantity), 0) as revenue, COUNT(DISTINCT oi.order_id) as orders
+         FROM brands b
+         LEFT JOIN products p ON b.id = p.brand_id
+         LEFT JOIN order_items oi ON p.id = oi.product_id
+         LEFT JOIN orders o ON oi.order_id = o.id AND o.status != 'cancelled'
+         GROUP BY b.id, b.name
+         ORDER BY revenue DESC`
+      );
 
       const [brandStats] = await pool.query(
-        `SELECT b.name, COUNT(p.id) as count 
-         FROM brands b LEFT JOIN products p ON b.id = p.brand_id 
+        `SELECT b.name, COUNT(p.id) as count
+         FROM brands b LEFT JOIN products p ON b.id = p.brand_id
          GROUP BY b.id, b.name ORDER BY count DESC`
       );
 
       const [recentReviews] = await pool.query(
-        `SELECT r.*, p.name as product_name 
-         FROM reviews r LEFT JOIN products p ON r.product_id = p.id 
+        `SELECT r.*, p.name as product_name
+         FROM reviews r LEFT JOIN products p ON r.product_id = p.id
          ORDER BY r.created_at DESC LIMIT 5`
       );
 
@@ -41,16 +55,6 @@ const dashboardController = {
         WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY) AND status != 'cancelled'
         GROUP BY DATE(created_at)
         ORDER BY date ASC
-      `);
-
-      // Top selling products
-      const [topProducts] = await pool.query(`
-        SELECT p.name, p.image_url, SUM(oi.quantity) as total_sold, SUM(oi.price * oi.quantity) as total_revenue
-        FROM order_items oi
-        JOIN products p ON oi.product_id = p.id
-        GROUP BY p.id, p.name, p.image_url
-        ORDER BY total_sold DESC
-        LIMIT 5
       `);
 
       res.json({

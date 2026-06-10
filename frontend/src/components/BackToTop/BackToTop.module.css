@@ -1,0 +1,23 @@
+.btn {
+  position: fixed;
+  bottom: 100px;
+  right: 24px;
+  z-index: 900;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--accent, #111);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+  transition: background 0.2s;
+}
+.btn:hover { background: #333; }
+
+@media (max-width: 600px) {
+  .btn { right: 16px; bottom: 80px; }
+}

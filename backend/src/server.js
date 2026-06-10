@@ -30,6 +30,10 @@ const tickerRoutes = require('./routes/tickers');
 const couponRoutes = require('./routes/coupons');
 const auditRoutes = require('./routes/audit');
 const uploadRoutes = require('./routes/upload');
+const categoryRoutes = require('./routes/categories');
+const customerRoutes = require('./routes/customers');
+const newsletterRoutes = require('./routes/newsletter');
+const stockAlertRoutes = require('./routes/stockAlerts');
 
 const app = express();
 const PORT = process.env.PORT || 3304;
@@ -77,6 +81,10 @@ app.use('/api/tickers', tickerRoutes);
 app.use('/api/coupons', couponRoutes);
 app.use('/api/audit', auditRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/categories', categoryRoutes);
+app.use('/api/customers', customerRoutes);
+app.use('/api/newsletter', newsletterRoutes);
+app.use('/api/stock-alerts', stockAlertRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -103,5 +111,7 @@ async function startServer() {
     process.exit(1);
   }
 }
+
+startServer();
 
 startServer();

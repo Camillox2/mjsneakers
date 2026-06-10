@@ -531,6 +531,23 @@ export default function Admin() {
   const [savingAppearance, setSavingAppearance] = useState(false)
   const [changePasswordForm, setChangePasswordForm] = useState({ current: '', new_password: '', confirm: '' })
 
+  /* NEW: Customers, Categories, Bulk, Inline edit, Order notes/tracking */
+  const [customers, setCustomers] = useState([])
+  const [customerPage, setCustomerPage] = useState(1)
+  const [customerTotal, setCustomerTotal] = useState(0)
+  const [customerSearch, setCustomerSearch] = useState('')
+  const [categories, setCategories] = useState([])
+  const [categoryForm, setCategoryForm] = useState(null)
+  const [selectedProducts, setSelectedProducts] = useState([])
+  const [inlineEdit, setInlineEdit] = useState({}) // { productId: { field, value } }
+  const [orderNote, setOrderNote] = useState({}) // { orderId: text }
+  const [orderTracking, setOrderTracking] = useState({}) // { orderId: code }
+  const [orderSearch, setOrderSearch] = useState('')
+  const [orderStatusFilter, setOrderStatusFilter] = useState('')
+  const [exportingCsv, setExportingCsv] = useState(false)
+  const [orderPage, setOrderPage] = useState(1)
+  const [orderTotal, setOrderTotal] = useState(0)
+
   const loadProducts = useCallback(async () => {
     try {
       const { data } = await api.get('/products', { params: { limit: 200 } })
@@ -562,13 +579,6 @@ export default function Admin() {
       setPendingCount(all.length)
     } catch {}
   }, [reviewFilter])
-
-  const loadOrders = useCallback(async () => {
-    try {
-      const { data } = await api.get('/orders')
-      setOrders(data)
-    } catch {}
-  }, [])
 
   const loadDashboard = useCallback(async () => {
     try {
@@ -615,6 +625,34 @@ export default function Admin() {
     } catch {}
   }, [auditPage])
 
+  const loadCustomers = useCallback(async () => {
+    try {
+      const { data } = await api.get('/customers', { params: { page: customerPage, limit: 20, search: customerSearch || undefined } })
+      const items = data.data || data
+      setCustomers(Array.isArray(items) ? items : [])
+      setCustomerTotal(data.pages || 1)
+    } catch {}
+  }, [customerPage, customerSearch])
+
+  const loadCategories = useCallback(async () => {
+    try {
+      const { data } = await api.get('/categories')
+      setCategories(data)
+    } catch {}
+  }, [])
+
+  const loadOrders = useCallback(async () => {
+    try {
+      const params = { page: orderPage, limit: 20 }
+      if (orderSearch) params.search = orderSearch
+      if (orderStatusFilter) params.status = orderStatusFilter
+      const { data } = await api.get('/orders', { params })
+      const items = data.data || data
+      setOrders(Array.isArray(items) ? items : [])
+      setOrderTotal(data.pages || 1)
+    } catch {}
+  }, [orderPage, orderSearch, orderStatusFilter])
+
   useEffect(() => {
     if (!user) return
     loadDashboard()
@@ -628,7 +666,12 @@ export default function Admin() {
     loadCoupons()
     loadAdmins()
     loadAuditLogs()
-  }, [user, loadProducts, loadBrands, loadBanners, loadReviews, loadOrders, loadDashboard, loadSettings, loadTickers, loadCoupons, loadAdmins, loadAuditLogs])
+    loadCustomers()
+    loadCategories()
+  }, [user, loadProducts, loadBrands, loadBanners, loadReviews, loadOrders, loadDashboard, loadSettings, loadTickers, loadCoupons, loadAdmins, loadAuditLogs, loadCustomers, loadCategories])
+
+  useEffect(() => { if (user) loadCustomers() }, [user, customerPage, customerSearch, loadCustomers])
+  useEffect(() => { if (user) loadOrders() }, [user, orderPage, orderSearch, orderStatusFilter, loadOrders])
 
   useEffect(() => {
     if (user) loadAuditLogs()
@@ -844,6 +887,93 @@ export default function Admin() {
     } catch { alert('Erro ao salvar') } finally { setSavingAppearance(false) }
   }
 
+  /* ---- Bulk Product Actions ---- */
+  const handleBulkAction = async (action) => {
+    if (!selectedProducts.length) return
+    if (action === 'delete' && !confirm(`Remover ${selectedProducts.length} produto(s)?`)) return
+    try {
+      await api.post('/products/bulk', { action, ids: selectedProducts })
+      setSelectedProducts([])
+      loadProducts()
+    } catch { alert('Erro na ação em massa') }
+  }
+
+  const handleCloneProduct = async (id) => {
+    try {
+      await api.post(`/products/${id}/clone`)
+      loadProducts()
+    } catch { alert('Erro ao clonar produto') }
+  }
+
+  /* ---- Inline Edit ---- */
+  const handleInlineEdit = (productId, field, value) => {
+    setInlineEdit(prev => ({ ...prev, [productId]: { field, value } }))
+  }
+  const handleInlineSave = async (productId) => {
+    const edit = inlineEdit[productId]
+    if (!edit) return
+    try {
+      await api.put(`/products/${productId}/inline`, { field: edit.field, value: edit.value })
+      setInlineEdit(prev => { const n = { ...prev }; delete n[productId]; return n })
+      loadProducts()
+    } catch { alert('Erro ao salvar') }
+  }
+
+  /* ---- Order Notes & Tracking ---- */
+  const handleAddNote = async (orderId) => {
+    const text = orderNote[orderId]
+    if (!text?.trim()) return
+    try {
+      await api.post(`/orders/${orderId}/notes`, { note: text.trim() })
+      setOrderNote(prev => ({ ...prev, [orderId]: '' }))
+      const { data } = await api.get(`/orders/${orderId}`)
+      setOrderDetails(prev => ({ ...prev, [orderId]: data }))
+    } catch { alert('Erro ao salvar nota') }
+  }
+
+  const handleSaveTracking = async (orderId) => {
+    const code = orderTracking[orderId]
+    if (!code?.trim()) return
+    try {
+      await api.put(`/orders/${orderId}/tracking`, { tracking_code: code.trim() })
+      loadOrders()
+    } catch { alert('Erro ao salvar rastreio') }
+  }
+
+  /* ---- CSV Export ---- */
+  const handleExportCsv = async () => {
+    setExportingCsv(true)
+    try {
+      const params = {}
+      if (orderStatusFilter) params.status = orderStatusFilter
+      const { data } = await api.get('/orders/export/csv', { params, responseType: 'blob' })
+      const url = URL.createObjectURL(new Blob([data], { type: 'text/csv;charset=utf-8' }))
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `pedidos-${new Date().toISOString().slice(0, 10)}.csv`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch { alert('Erro ao exportar') } finally { setExportingCsv(false) }
+  }
+
+  /* ---- Category Handlers ---- */
+  const handleSaveCategory = async () => {
+    if (!categoryForm) return
+    try {
+      if (categoryForm.id) {
+        await api.put(`/categories/${categoryForm.id}`, categoryForm)
+      } else {
+        await api.post('/categories', categoryForm)
+      }
+      setCategoryForm(null)
+      loadCategories()
+    } catch { alert('Erro ao salvar categoria') }
+  }
+  const handleDeleteCategory = async (id) => {
+    if (!confirm('Remover esta categoria?')) return
+    try { await api.delete(`/categories/${id}`); loadCategories() } catch {}
+  }
+
   const handleLogout = () => {
     logout()
     navigate('/')
@@ -854,11 +984,13 @@ export default function Admin() {
   const tabs = [
     { key: 'dashboard', label: 'Dashboard', icon: <FiBarChart2 /> },
     { key: 'products', label: 'Produtos', icon: <FiPackage /> },
+    { key: 'orders', label: 'Pedidos', icon: <FiShoppingBag />, badge: orders.filter(o => o.status === 'pending').length || 0 },
+    { key: 'customers', label: 'Clientes', icon: <FiUsers /> },
+    { key: 'categories', label: 'Categorias', icon: <FiBox /> },
     { key: 'banners', label: 'Banners', icon: <FiImage /> },
     { key: 'tickers', label: 'Ticker', icon: <FiType /> },
     { key: 'coupons', label: 'Cupons', icon: <FiPercent /> },
     { key: 'promotions', label: 'Promoções', icon: <FiTag /> },
-    { key: 'orders', label: 'Pedidos', icon: <FiShoppingBag />, badge: orders.filter(o => o.status === 'pending').length || 0 },
     { key: 'reviews', label: 'Reviews', icon: <FiStar />, badge: pendingCount },
     { key: 'admins', label: 'Admins', icon: <FiShield /> },
     { key: 'appearance', label: 'Aparência', icon: <FiSliders /> },
@@ -1012,31 +1144,79 @@ export default function Admin() {
             </button>
           </div>
 
+          {/* Bulk action bar */}
+          {selectedProducts.length > 0 && (
+            <div className={styles.bulkBar}>
+              <span>{selectedProducts.length} selecionado(s)</span>
+              <button className={styles.bulkBtn} onClick={() => handleBulkAction('activate')}>Ativar</button>
+              <button className={styles.bulkBtn} onClick={() => handleBulkAction('deactivate')}>Desativar</button>
+              <button className={styles.bulkBtn} onClick={() => handleBulkAction('feature')}>Destacar</button>
+              <button className={styles.bulkBtn} onClick={() => handleBulkAction('unfeature')}>Remover destaque</button>
+              <button className={`${styles.bulkBtn} ${styles.bulkBtnDanger}`} onClick={() => handleBulkAction('delete')}>Excluir</button>
+              <button className={styles.bulkBtnClear} onClick={() => setSelectedProducts([])}>Limpar</button>
+            </div>
+          )}
+
           <div className={styles.adminGrid}>
-            {products.map(p => (
-              <motion.div key={p.id} className={styles.adminCard} layout initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-                <img className={styles.adminCardImg} src={getImageUrl(p.image_url, p.name)} alt={p.name} />
-                <div className={styles.adminCardBody}>
-                  <span className={styles.adminCardBrand}>{p.brand_name}</span>
-                  <span className={styles.adminCardName}>{p.name}</span>
-                  {Number(p.discount_percentage || 0) > 0 && (
-                    <span className={styles.adminCardMeta} style={{ textDecoration: 'line-through' }}>{formatPrice(p.price)}</span>
-                  )}
-                  <span className={styles.adminCardPrice}>
-                    {formatPrice(Number(p.price) * (1 - (Math.max(0, Math.min(90, Number(p.discount_percentage || 0))) / 100)))}
-                  </span>
-                  <div className={styles.adminCardMeta}>
-                    <span>Estoque: {p.stock}</span>
-                    <span>Tam: {p.sizes}</span>
-                    {Number(p.discount_percentage || 0) > 0 && <span>-{Math.round(Number(p.discount_percentage))}%</span>}
+            {products.map(p => {
+              const isSelected = selectedProducts.includes(p.id)
+              const editing = inlineEdit[p.id]
+              return (
+                <motion.div
+                  key={p.id}
+                  className={`${styles.adminCard} ${isSelected ? styles.adminCardSelected : ''} ${!p.active ? styles.adminCardInactive : ''}`}
+                  layout
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                >
+                  {/* Checkbox */}
+                  <div className={styles.adminCardCheckbox}>
+                    <input type="checkbox" checked={isSelected} onChange={e => {
+                      setSelectedProducts(prev => e.target.checked ? [...prev, p.id] : prev.filter(id => id !== p.id))
+                    }} />
                   </div>
-                  <div className={styles.adminCardActions}>
-                    <button className={styles.editBtn} onClick={() => { setEditingProduct(p); setShowProductForm(true) }}><FiEdit2 /> Editar</button>
-                    <button className={styles.deleteBtn} onClick={() => handleDeleteProduct(p.id)}><FiTrash2 /></button>
+                  <img className={styles.adminCardImg} src={getImageUrl(p.image_url, p.name)} alt={p.name} />
+                  <div className={styles.adminCardBody}>
+                    <span className={styles.adminCardBrand}>{p.brand_name}</span>
+                    <span className={styles.adminCardName}>{p.name}</span>
+
+                    {/* Inline edit price */}
+                    {editing?.field === 'price' ? (
+                      <div className={styles.inlineEditRow}>
+                        <input className={styles.inlineInput} type="number" value={editing.value} onChange={e => handleInlineEdit(p.id, 'price', e.target.value)} autoFocus />
+                        <button className={styles.inlineSave} onClick={() => handleInlineSave(p.id)}><FiCheck /></button>
+                        <button className={styles.inlineCancel} onClick={() => setInlineEdit(prev => { const n = {...prev}; delete n[p.id]; return n })}><FiX /></button>
+                      </div>
+                    ) : (
+                      <span className={styles.adminCardPrice} title="Clique para editar" onClick={() => handleInlineEdit(p.id, 'price', p.price)} style={{ cursor: 'pointer' }}>
+                        {formatPrice(Number(p.price) * (1 - (Math.max(0, Math.min(90, Number(p.discount_percentage || 0))) / 100)))}
+                      </span>
+                    )}
+
+                    {/* Inline edit stock */}
+                    {editing?.field === 'stock' ? (
+                      <div className={styles.inlineEditRow}>
+                        <input className={styles.inlineInput} type="number" value={editing.value} onChange={e => handleInlineEdit(p.id, 'stock', e.target.value)} autoFocus />
+                        <button className={styles.inlineSave} onClick={() => handleInlineSave(p.id)}><FiCheck /></button>
+                        <button className={styles.inlineCancel} onClick={() => setInlineEdit(prev => { const n = {...prev}; delete n[p.id]; return n })}><FiX /></button>
+                      </div>
+                    ) : (
+                      <div className={styles.adminCardMeta}>
+                        <span title="Clique para editar estoque" onClick={() => handleInlineEdit(p.id, 'stock', p.stock)} style={{ cursor: 'pointer' }}>Estoque: <strong>{p.stock}</strong></span>
+                        <span>Tam: {p.sizes}</span>
+                        {!p.active && <span style={{ color: '#f44336' }}>Inativo</span>}
+                      </div>
+                    )}
+
+                    <div className={styles.adminCardActions}>
+                      <button className={styles.editBtn} onClick={() => { setEditingProduct(p); setShowProductForm(true) }}><FiEdit2 /> Editar</button>
+                      <button className={styles.cloneBtn} onClick={() => handleCloneProduct(p.id)} title="Clonar produto"><FiPlus /></button>
+                      <button className={styles.deleteBtn} onClick={() => handleDeleteProduct(p.id)}><FiTrash2 /></button>
+                    </div>
                   </div>
-                </div>
-              </motion.div>
-            ))}
+                </motion.div>
+              )
+            })}
           </div>
           {products.length === 0 && <p className={styles.noData}>Nenhum produto cadastrado</p>}
 
@@ -1201,6 +1381,23 @@ export default function Admin() {
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
           <div className={styles.sectionHeader}>
             <span className={styles.sectionTitle}>Pedidos ({orders.length})</span>
+            <button className={styles.exportBtn} onClick={handleExportCsv} disabled={exportingCsv}>
+              {exportingCsv ? 'Exportando...' : '⬇ CSV'}
+            </button>
+          </div>
+
+          {/* Search + filter */}
+          <div className={styles.orderFilterRow}>
+            <input
+              className={styles.orderSearchInput}
+              placeholder="Buscar por nome ou email..."
+              value={orderSearch}
+              onChange={e => { setOrderSearch(e.target.value); setOrderPage(1) }}
+            />
+            <select className={styles.orderStatusSel} value={orderStatusFilter} onChange={e => { setOrderStatusFilter(e.target.value); setOrderPage(1) }}>
+              <option value="">Todos os status</option>
+              {Object.entries(statusLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
           </div>
 
           {orders.length > 0 ? (
@@ -1246,6 +1443,18 @@ export default function Admin() {
                           </div>
                         )}
 
+                        {/* Tracking code */}
+                        <div className={styles.trackingRow}>
+                          <span className={styles.label}>Código de rastreio:</span>
+                          <input
+                            className={styles.trackingInput}
+                            placeholder={o.tracking_code || 'Ex: BR123456789BR'}
+                            value={orderTracking[o.id] ?? o.tracking_code ?? ''}
+                            onChange={e => setOrderTracking(prev => ({ ...prev, [o.id]: e.target.value }))}
+                          />
+                          <button className={styles.trackingBtn} onClick={() => handleSaveTracking(o.id)}><FiSave /></button>
+                        </div>
+
                         <div className={styles.orderStatusActions}>
                           <span className={styles.label}>Alterar status:</span>
                           <div className={styles.statusBtns}>
@@ -1259,6 +1468,27 @@ export default function Admin() {
                             ))}
                           </div>
                         </div>
+
+                        {/* Notes */}
+                        <div className={styles.notesSection}>
+                          <span className={styles.label}>Notas internas:</span>
+                          {orderDetails[o.id]?.notes?.map((n, i) => (
+                            <div key={i} className={styles.noteItem}>
+                              <span className={styles.noteText}>{n.note}</span>
+                              <span className={styles.noteDate}>{new Date(n.created_at).toLocaleString('pt-BR')}</span>
+                            </div>
+                          ))}
+                          <div className={styles.noteAdd}>
+                            <input
+                              className={styles.noteInput}
+                              placeholder="Adicionar nota..."
+                              value={orderNote[o.id] || ''}
+                              onChange={e => setOrderNote(prev => ({ ...prev, [o.id]: e.target.value }))}
+                              onKeyDown={e => e.key === 'Enter' && handleAddNote(o.id)}
+                            />
+                            <button className={styles.noteSaveBtn} onClick={() => handleAddNote(o.id)}><FiCheck /></button>
+                          </div>
+                        </div>
                       </motion.div>
                     )}
                   </AnimatePresence>
@@ -1267,6 +1497,128 @@ export default function Admin() {
             </div>
           ) : (
             <p className={styles.noData}>Nenhum pedido encontrado</p>
+          )}
+
+          {/* Pagination */}
+          {orderTotal > 1 && (
+            <div className={styles.pagination}>
+              <button className={styles.pageBtn} disabled={orderPage <= 1} onClick={() => setOrderPage(p => p - 1)}>Anterior</button>
+              <span className={styles.pageInfo}>{orderPage} / {orderTotal}</span>
+              <button className={styles.pageBtn} disabled={orderPage >= orderTotal} onClick={() => setOrderPage(p => p + 1)}>Próxima</button>
+            </div>
+          )}
+        </motion.div>
+      )}
+
+      {/* ===== CUSTOMERS TAB ===== */}
+      {activeTab === 'customers' && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          <div className={styles.sectionHeader}>
+            <span className={styles.sectionTitle}>CRM — Clientes ({customerTotal > 1 ? `pág. ${customerPage}/${customerTotal}` : customers.length})</span>
+          </div>
+          <div className={styles.orderFilterRow}>
+            <input
+              className={styles.orderSearchInput}
+              placeholder="Buscar por nome ou email..."
+              value={customerSearch}
+              onChange={e => { setCustomerSearch(e.target.value); setCustomerPage(1) }}
+            />
+          </div>
+          {customers.length > 0 ? (
+            <div className={styles.tableWrap}>
+              <table className={styles.reviewsTable}>
+                <thead>
+                  <tr>
+                    <th>Cliente</th>
+                    <th>Email</th>
+                    <th>Pedidos</th>
+                    <th>Total gasto</th>
+                    <th>Último pedido</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {customers.map((c, i) => (
+                    <tr key={i}>
+                      <td>{c.customer_name || '—'}</td>
+                      <td>{c.customer_email}</td>
+                      <td>{c.order_count}</td>
+                      <td>{formatPrice(c.total_spent || 0)}</td>
+                      <td>{c.last_order ? new Date(c.last_order).toLocaleDateString('pt-BR') : '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className={styles.noData}>Nenhum cliente encontrado</p>
+          )}
+          {customerTotal > 1 && (
+            <div className={styles.pagination}>
+              <button className={styles.pageBtn} disabled={customerPage <= 1} onClick={() => setCustomerPage(p => p - 1)}>Anterior</button>
+              <span className={styles.pageInfo}>{customerPage} / {customerTotal}</span>
+              <button className={styles.pageBtn} disabled={customerPage >= customerTotal} onClick={() => setCustomerPage(p => p + 1)}>Próxima</button>
+            </div>
+          )}
+        </motion.div>
+      )}
+
+      {/* ===== CATEGORIES TAB ===== */}
+      {activeTab === 'categories' && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          <div className={styles.sectionHeader}>
+            <span className={styles.sectionTitle}>Categorias ({categories.length})</span>
+            <button className={styles.addBtn} onClick={() => setCategoryForm({ name: '', description: '' })}>
+              <FiPlus /> Nova Categoria
+            </button>
+          </div>
+
+          {categoryForm && (
+            <div className={styles.inlineFormBox}>
+              <input
+                className={styles.inlineFormInput}
+                placeholder="Nome da categoria"
+                value={categoryForm.name}
+                onChange={e => setCategoryForm(prev => ({ ...prev, name: e.target.value }))}
+              />
+              <input
+                className={styles.inlineFormInput}
+                placeholder="Descrição (opcional)"
+                value={categoryForm.description || ''}
+                onChange={e => setCategoryForm(prev => ({ ...prev, description: e.target.value }))}
+              />
+              <button className={styles.addBtn} onClick={handleSaveCategory}><FiSave /> Salvar</button>
+              <button className={styles.deleteBtn} onClick={() => setCategoryForm(null)}><FiX /></button>
+            </div>
+          )}
+
+          {categories.length > 0 ? (
+            <div className={styles.tableWrap}>
+              <table className={styles.reviewsTable}>
+                <thead>
+                  <tr>
+                    <th>Nome</th>
+                    <th>Slug</th>
+                    <th>Descrição</th>
+                    <th>Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {categories.map(c => (
+                    <tr key={c.id}>
+                      <td>{c.name}</td>
+                      <td style={{ fontFamily: 'monospace', color: '#888' }}>{c.slug}</td>
+                      <td>{c.description || '—'}</td>
+                      <td>
+                        <button className={`${styles.actionBtn} ${styles.approveBtn}`} onClick={() => setCategoryForm(c)}><FiEdit2 /></button>
+                        <button className={`${styles.actionBtn} ${styles.rejectBtn}`} onClick={() => handleDeleteCategory(c.id)}><FiTrash2 /></button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className={styles.noData}>Nenhuma categoria cadastrada</p>
           )}
         </motion.div>
       )}

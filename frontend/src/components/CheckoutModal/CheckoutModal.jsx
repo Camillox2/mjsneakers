@@ -2,12 +2,14 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { FiX, FiUser, FiMapPin, FiTruck, FiCheck, FiChevronLeft, FiChevronRight, FiLoader } from 'react-icons/fi'
 import api from '../../services/api'
+import SuccessScreen from '../SuccessScreen/SuccessScreen'
 import styles from './CheckoutModal.module.css'
 
 const STEPS = ['Dados', 'Endereço', 'Frete', 'Revisão']
 
 export default function CheckoutModal({ isOpen, onClose, cartItems, coupon, onSuccess }) {
   const [step, setStep] = useState(0)
+  const [completedOrder, setCompletedOrder] = useState(null)
   const [loading, setLoading] = useState(false)
   const [shippingOptions, setShippingOptions] = useState([])
   const [shippingLoading, setShippingLoading] = useState(false)
@@ -32,7 +34,6 @@ export default function CheckoutModal({ isOpen, onClose, cartItems, coupon, onSu
   const shipping = Number(form.shipping_price) || 0
   const total = subtotal - couponDiscount + shipping
 
-  /* ---- Step validation ---- */
   const validateStep = () => {
     setError('')
     if (step === 0) {
@@ -67,7 +68,6 @@ export default function CheckoutModal({ isOpen, onClose, cartItems, coupon, onSu
   }
   const back = () => { setError(''); setStep(s => Math.max(s - 1, 0)) }
 
-  /* ---- CEP auto-fill ---- */
   const handleCepBlur = async () => {
     const cep = form.cep.replace(/\D/g, '')
     if (cep.length !== 8) return
@@ -86,7 +86,6 @@ export default function CheckoutModal({ isOpen, onClose, cartItems, coupon, onSu
     } catch {}
   }
 
-  /* ---- Fetch shipping ---- */
   const fetchShipping = async () => {
     const cep = form.cep.replace(/\D/g, '')
     if (cep.length !== 8) return
@@ -114,7 +113,6 @@ export default function CheckoutModal({ isOpen, onClose, cartItems, coupon, onSu
     setError('')
   }
 
-  /* ---- Submit ---- */
   const handleSubmit = async () => {
     setLoading(true)
     setError('')
@@ -125,7 +123,6 @@ export default function CheckoutModal({ isOpen, onClose, cartItems, coupon, onSu
         quantity: i.quantity,
         price: Number(i.price)
       }))
-
       const payload = {
         customer_name: form.name.trim(),
         customer_email: form.email.trim(),
@@ -142,8 +139,8 @@ export default function CheckoutModal({ isOpen, onClose, cartItems, coupon, onSu
         address_city: form.city,
         address_state: form.state
       }
-
       const { data } = await api.post('/orders', payload)
+      setCompletedOrder({ ...data, items: cartItems.map(i => ({ product_name: i.name, quantity: i.quantity, price: i.price })) })
       onSuccess && onSuccess(data)
     } catch (err) {
       setError(err.response?.data?.error || 'Erro ao finalizar pedido')
@@ -156,6 +153,18 @@ export default function CheckoutModal({ isOpen, onClose, cartItems, coupon, onSu
 
   if (!isOpen) return null
 
+  if (completedOrder) {
+    return (
+      <AnimatePresence>
+        <motion.div className={styles.overlay} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+          <motion.div className={styles.modal} initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 50, opacity: 0 }}>
+            <SuccessScreen order={completedOrder} onClose={() => { setCompletedOrder(null); onClose() }} />
+          </motion.div>
+        </motion.div>
+      </AnimatePresence>
+    )
+  }
+
   return (
     <AnimatePresence>
       <motion.div className={styles.overlay} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}>
@@ -165,7 +174,6 @@ export default function CheckoutModal({ isOpen, onClose, cartItems, coupon, onSu
             <button className={styles.closeBtn} onClick={onClose}><FiX /></button>
           </div>
 
-          {/* Stepper */}
           <div className={styles.stepper}>
             {STEPS.map((label, i) => (
               <div key={label} className={`${styles.stepItem} ${i <= step ? styles.stepActive : ''} ${i < step ? styles.stepDone : ''}`}>
@@ -178,7 +186,6 @@ export default function CheckoutModal({ isOpen, onClose, cartItems, coupon, onSu
           </div>
 
           <div className={styles.body}>
-            {/* Step 0: Customer Data */}
             {step === 0 && (
               <div className={styles.fields}>
                 <label className={styles.label}>Nome completo *
@@ -193,7 +200,6 @@ export default function CheckoutModal({ isOpen, onClose, cartItems, coupon, onSu
               </div>
             )}
 
-            {/* Step 1: Address */}
             {step === 1 && (
               <div className={styles.fields}>
                 <label className={styles.label}>CEP *
@@ -224,7 +230,6 @@ export default function CheckoutModal({ isOpen, onClose, cartItems, coupon, onSu
               </div>
             )}
 
-            {/* Step 2: Shipping */}
             {step === 2 && (
               <div className={styles.shippingSection}>
                 {shippingLoading ? (
@@ -250,7 +255,6 @@ export default function CheckoutModal({ isOpen, onClose, cartItems, coupon, onSu
               </div>
             )}
 
-            {/* Step 3: Review */}
             {step === 3 && (
               <div className={styles.review}>
                 <div className={styles.reviewSection}>
@@ -281,12 +285,10 @@ export default function CheckoutModal({ isOpen, onClose, cartItems, coupon, onSu
                 </div>
               </div>
             )}
-
-            {error && <p className={styles.error}>{error}</p>}
           </div>
 
-          {/* Actions */}
-          <div className={styles.actions}>
+          <div className={styles.footer}>
+            {error && <p className={styles.error}>{error}</p>}
             {step > 0 && (
               <button className={styles.backBtn} onClick={back}><FiChevronLeft /> Voltar</button>
             )}

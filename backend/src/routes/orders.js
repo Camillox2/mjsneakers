@@ -11,13 +11,17 @@ const checkoutLimiter = rateLimit({
   message: { error: 'Muitas tentativas. Tente novamente em alguns minutos.' },
 });
 
-// Public: create order (checkout)
+// Public
 router.post('/', checkoutLimiter, orderController.create);
+router.get('/track', orderController.track);
 
-// Admin routes
+// Admin
+router.get('/export/csv', authMiddleware, adminMiddleware, orderController.exportCsv);
 router.get('/', authMiddleware, adminMiddleware, orderController.getAll);
 router.get('/:id', authMiddleware, adminMiddleware, orderController.getById);
 router.put('/:id/status', authMiddleware, adminMiddleware, orderController.updateStatus);
+router.put('/:id/tracking', authMiddleware, adminMiddleware, orderController.updateTracking);
+router.post('/:id/notes', authMiddleware, adminMiddleware, orderController.addNote);
 router.delete('/:id', authMiddleware, adminMiddleware, orderController.delete);
 
 module.exports = router;

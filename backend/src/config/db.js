@@ -32,6 +32,14 @@ async function ensureIndex(connection, tableName, indexName, columns) {
   }
 }
 
+function slugify(text) {
+  return text
+    .toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
 async function initDatabase() {
   const connection = await mysql.createConnection({
     host: process.env.DB_HOST,
@@ -49,7 +57,7 @@ async function initDatabase() {
       id INT AUTO_INCREMENT PRIMARY KEY,
       username VARCHAR(100) NOT NULL UNIQUE,
       password VARCHAR(255) NOT NULL,
-      role ENUM('admin', 'user') DEFAULT 'user',
+      role ENUM('super_admin', 'admin', 'editor', 'atendimento') DEFAULT 'admin',
       last_login DATETIME,
       active BOOLEAN DEFAULT TRUE,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -57,6 +65,7 @@ async function initDatabase() {
   `);
   await ensureColumn(connection, 'users', 'last_login', 'DATETIME');
   await ensureColumn(connection, 'users', 'active', 'BOOLEAN DEFAULT TRUE');
+  await ensureColumn(connection, 'users', 'role', "ENUM('super_admin','admin','editor','atendimento') DEFAULT 'admin'");
 
   // ── Brands ──
   await connection.query(`
@@ -68,21 +77,36 @@ async function initDatabase() {
     )
   `);
 
+  // ── Categories ──
+  await connection.query(`
+    CREATE TABLE IF NOT EXISTS categories (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      name VARCHAR(100) NOT NULL UNIQUE,
+      slug VARCHAR(120) NOT NULL UNIQUE,
+      sort_order INT DEFAULT 0,
+      active BOOLEAN DEFAULT TRUE,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
   // ── Products ──
   await connection.query(`
     CREATE TABLE IF NOT EXISTS products (
       id INT AUTO_INCREMENT PRIMARY KEY,
       name VARCHAR(255) NOT NULL,
+      slug VARCHAR(300),
       description TEXT,
       price DECIMAL(10, 2) NOT NULL,
       discount_percentage DECIMAL(5, 2) DEFAULT 0,
       brand_id INT,
+      category_id INT,
       image_url LONGTEXT,
       image_url_2 LONGTEXT,
       image_url_3 LONGTEXT,
       image_url_4 LONGTEXT,
       sizes VARCHAR(500),
       stock INT DEFAULT 0,
+      view_count INT DEFAULT 0,
       active BOOLEAN DEFAULT TRUE,
       featured BOOLEAN DEFAULT FALSE,
       feature_order INT DEFAULT 0,
@@ -92,9 +116,13 @@ async function initDatabase() {
       promo_start DATETIME,
       promo_end DATETIME,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (brand_id) REFERENCES brands(id)
+      FOREIGN KEY (brand_id) REFERENCES brands(id),
+      FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL
     )
   `);
+  await ensureColumn(connection, 'products', 'slug', 'VARCHAR(300)');
+  await ensureColumn(connection, 'products', 'category_id', 'INT');
+  await ensureColumn(connection, 'products', 'view_count', 'INT DEFAULT 0');
   await ensureColumn(connection, 'products', 'discount_percentage', 'DECIMAL(5, 2) DEFAULT 0');
   await ensureColumn(connection, 'products', 'featured', 'BOOLEAN DEFAULT FALSE');
   await ensureColumn(connection, 'products', 'feature_order', 'INT DEFAULT 0');
@@ -104,7 +132,7 @@ async function initDatabase() {
   await ensureColumn(connection, 'products', 'promo_start', 'DATETIME');
   await ensureColumn(connection, 'products', 'promo_end', 'DATETIME');
 
-  // ── Orders (expanded) ──
+  // ── Orders ──
   await connection.query(`
     CREATE TABLE IF NOT EXISTS orders (
       id INT AUTO_INCREMENT PRIMARY KEY,
@@ -117,6 +145,7 @@ async function initDatabase() {
       discount_amount DECIMAL(10, 2) DEFAULT 0,
       shipping_price DECIMAL(10, 2) DEFAULT 0,
       shipping_type VARCHAR(50),
+      tracking_code VARCHAR(100),
       address_street VARCHAR(255),
       address_number VARCHAR(20),
       address_complement VARCHAR(100),
@@ -131,6 +160,7 @@ async function initDatabase() {
   await ensureColumn(connection, 'orders', 'discount_amount', 'DECIMAL(10, 2) DEFAULT 0');
   await ensureColumn(connection, 'orders', 'shipping_price', 'DECIMAL(10, 2) DEFAULT 0');
   await ensureColumn(connection, 'orders', 'shipping_type', 'VARCHAR(50)');
+  await ensureColumn(connection, 'orders', 'tracking_code', 'VARCHAR(100)');
   await ensureColumn(connection, 'orders', 'address_street', 'VARCHAR(255)');
   await ensureColumn(connection, 'orders', 'address_number', 'VARCHAR(20)');
   await ensureColumn(connection, 'orders', 'address_complement', 'VARCHAR(100)');
@@ -150,6 +180,43 @@ async function initDatabase() {
       price DECIMAL(10, 2),
       FOREIGN KEY (order_id) REFERENCES orders(id),
       FOREIGN KEY (product_id) REFERENCES products(id)
+    )
+  `);
+
+  // ── Order Notes (notas internas do admin) ──
+  await connection.query(`
+    CREATE TABLE IF NOT EXISTS order_notes (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      order_id INT NOT NULL,
+      admin_username VARCHAR(100),
+      note TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
+    )
+  `);
+
+  // ── Stock Alerts ──
+  await connection.query(`
+    CREATE TABLE IF NOT EXISTS stock_alerts (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      product_id INT NOT NULL,
+      email VARCHAR(255) NOT NULL,
+      notified BOOLEAN DEFAULT FALSE,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+      UNIQUE KEY unique_alert (product_id, email)
+    )
+  `);
+
+  // ── Newsletter Subscribers ──
+  await connection.query(`
+    CREATE TABLE IF NOT EXISTS newsletter_subscribers (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      email VARCHAR(255) NOT NULL UNIQUE,
+      name VARCHAR(255),
+      coupon_sent BOOLEAN DEFAULT FALSE,
+      active BOOLEAN DEFAULT TRUE,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
 
@@ -178,9 +245,13 @@ async function initDatabase() {
       effect_speed ENUM('ultra_slow', 'slow', 'fast', 'super_fast') DEFAULT 'slow',
       sort_order INT DEFAULT 0,
       active BOOLEAN DEFAULT TRUE,
+      active_from DATETIME,
+      active_until DATETIME,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
+  await ensureColumn(connection, 'banners', 'active_from', 'DATETIME');
+  await ensureColumn(connection, 'banners', 'active_until', 'DATETIME');
 
   // ── Reviews ──
   await connection.query(`
@@ -191,13 +262,15 @@ async function initDatabase() {
       customer_email VARCHAR(255),
       rating INT NOT NULL CHECK (rating >= 1 AND rating <= 5),
       comment TEXT,
+      photo_url LONGTEXT,
       status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (product_id) REFERENCES products(id)
     )
   `);
+  await ensureColumn(connection, 'reviews', 'photo_url', 'LONGTEXT');
 
-  // ── Promotion Tickers (faixa animada) ──
+  // ── Promotion Tickers ──
   await connection.query(`
     CREATE TABLE IF NOT EXISTS promotion_tickers (
       id INT AUTO_INCREMENT PRIMARY KEY,
@@ -246,21 +319,38 @@ async function initDatabase() {
   await ensureIndex(connection, 'products', 'idx_products_brand_id', 'brand_id');
   await ensureIndex(connection, 'products', 'idx_products_featured', 'featured');
   await ensureIndex(connection, 'products', 'idx_products_created_at', 'created_at');
+  await ensureIndex(connection, 'products', 'idx_products_slug', 'slug(191)');
   await ensureIndex(connection, 'orders', 'idx_orders_status', 'status');
   await ensureIndex(connection, 'orders', 'idx_orders_created_at', 'created_at');
+  await ensureIndex(connection, 'orders', 'idx_orders_email', 'customer_email(191)');
   await ensureIndex(connection, 'reviews', 'idx_reviews_product_status', 'product_id, status');
   await ensureIndex(connection, 'coupons', 'idx_coupons_code', 'code');
+  await ensureIndex(connection, 'newsletter_subscribers', 'idx_newsletter_email', 'email(191)');
 
-  // ── Seed brands ──
-  const [brands] = await connection.query('SELECT COUNT(*) as count FROM brands');
-  if (brands[0].count === 0) {
-    await connection.query(`
-      INSERT INTO brands (name, logo_url) VALUES 
-      ('Nike', '/brands/nike.png'),
+  await connection.end();
+  console.log('Database initialized successfully');
+}
+
+module.exports = { pool, initDatabase, slugify };
+ ('Nike', '/brands/nike.png'),
       ('Adidas', '/brands/adidas.png'),
       ('Puma', '/brands/puma.png'),
       ('New Balance', '/brands/newbalance.png'),
       ('Louis Vuitton', '/brands/louisvuitton.png')
+    `);
+  }
+
+  // ── Seed categories ──
+  const [cats] = await connection.query('SELECT COUNT(*) as count FROM categories');
+  if (cats[0].count === 0) {
+    await connection.query(`
+      INSERT INTO categories (name, slug, sort_order) VALUES
+      ('Casual', 'casual', 1),
+      ('Corrida', 'corrida', 2),
+      ('Basquete', 'basquete', 3),
+      ('Lifestyle', 'lifestyle', 4),
+      ('Skate', 'skate', 5),
+      ('Social', 'social', 6)
     `);
   }
 
@@ -272,7 +362,7 @@ async function initDatabase() {
     const hashedPassword = await bcrypt.hash(adminPass, 12);
     await connection.query(
       'INSERT INTO users (username, password, role) VALUES (?, ?, ?)',
-      ['admin', hashedPassword, 'admin']
+      ['admin', hashedPassword, 'super_admin']
     );
   }
 
@@ -280,15 +370,15 @@ async function initDatabase() {
   const [products] = await connection.query('SELECT COUNT(*) as count FROM products');
   if (products[0].count === 0) {
     await connection.query(`
-      INSERT INTO products (name, description, price, brand_id, image_url, image_url_2, sizes, stock) VALUES
-      ('LV Trainer Purple', 'Louis Vuitton LV Trainer Sneaker em tons de roxo.', 8900.00, 5, '/products/lv-purple-front.jpg', '/products/lv-purple-side.jpg', '38,39,40,41,42,43,44', 5),
-      ('LV Trainer Blue', 'Louis Vuitton LV Trainer Sneaker em tons de azul.', 8900.00, 5, '/products/lv-blue-front.jpg', '/products/lv-blue-side.jpg', '38,39,40,41,42,43,44', 3),
-      ('Air Max 90', 'Nike Air Max 90 clássico.', 899.90, 1, '/products/placeholder.jpg', NULL, '38,39,40,41,42,43,44', 10),
-      ('Ultraboost 22', 'Adidas Ultraboost 22 com tecnologia Boost.', 999.90, 2, '/products/placeholder.jpg', NULL, '38,39,40,41,42,43', 8),
-      ('RS-X', 'Puma RS-X com design futurista.', 699.90, 3, '/products/placeholder.jpg', NULL, '39,40,41,42,43', 12),
-      ('574 Classic', 'New Balance 574 clássico.', 599.90, 4, '/products/placeholder.jpg', NULL, '38,39,40,41,42,43,44', 15),
-      ('Air Jordan 1 High', 'Nike Air Jordan 1 High OG.', 1299.90, 1, '/products/placeholder.jpg', NULL, '39,40,41,42,43,44', 6),
-      ('Yeezy 350 V2', 'Adidas Yeezy Boost 350 V2.', 1499.90, 2, '/products/placeholder.jpg', NULL, '38,39,40,41,42,43', 4)
+      INSERT INTO products (name, slug, description, price, brand_id, image_url, image_url_2, sizes, stock) VALUES
+      ('LV Trainer Purple', 'lv-trainer-purple', 'Louis Vuitton LV Trainer Sneaker em tons de roxo.', 8900.00, 5, '/products/lv-purple-front.jpg', '/products/lv-purple-side.jpg', '38,39,40,41,42,43,44', 5),
+      ('LV Trainer Blue', 'lv-trainer-blue', 'Louis Vuitton LV Trainer Sneaker em tons de azul.', 8900.00, 5, '/products/lv-blue-front.jpg', '/products/lv-blue-side.jpg', '38,39,40,41,42,43,44', 3),
+      ('Air Max 90', 'air-max-90', 'Nike Air Max 90 clássico.', 899.90, 1, '/products/placeholder.jpg', NULL, '38,39,40,41,42,43,44', 10),
+      ('Ultraboost 22', 'ultraboost-22', 'Adidas Ultraboost 22 com tecnologia Boost.', 999.90, 2, '/products/placeholder.jpg', NULL, '38,39,40,41,42,43', 8),
+      ('RS-X', 'rs-x', 'Puma RS-X com design futurista.', 699.90, 3, '/products/placeholder.jpg', NULL, '39,40,41,42,43', 12),
+      ('574 Classic', '574-classic', 'New Balance 574 clássico.', 599.90, 4, '/products/placeholder.jpg', NULL, '38,39,40,41,42,43,44', 15),
+      ('Air Jordan 1 High', 'air-jordan-1-high', 'Nike Air Jordan 1 High OG.', 1299.90, 1, '/products/placeholder.jpg', NULL, '39,40,41,42,43,44', 6),
+      ('Yeezy 350 V2', 'yeezy-350-v2', 'Adidas Yeezy Boost 350 V2.', 1499.90, 2, '/products/placeholder.jpg', NULL, '38,39,40,41,42,43', 4)
     `);
   }
 
@@ -296,4 +386,4 @@ async function initDatabase() {
   console.log('Database initialized successfully');
 }
 
-module.exports = { pool, initDatabase };
+module.exports = { pool, initDatabase, slugify };

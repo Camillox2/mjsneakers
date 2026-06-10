@@ -4,9 +4,11 @@ import Header from './components/Header/Header'
 import Home from './pages/Home/Home'
 import Admin from './pages/Admin/Admin'
 import Product from './pages/Product/Product'
+import Track from './pages/Track/Track'
 import CartDrawer from './components/Cart/CartDrawer'
 import WishlistDrawer from './components/WishlistDrawer/WishlistDrawer'
 import PromotionTicker from './components/PromotionTicker/PromotionTicker'
+import BackToTop from './components/BackToTop/BackToTop'
 import { ToastProvider } from './components/Toast/Toast'
 import ChatBot from './components/ChatBot/ChatBot'
 
@@ -14,6 +16,7 @@ export const CartContext = createContext()
 export const AuthContext = createContext()
 export const SearchContext = createContext()
 export const WishlistContext = createContext()
+export const DarkModeContext = createContext()
 
 function App() {
   const [cart, setCart] = useState([])
@@ -21,6 +24,15 @@ function App() {
   const [user, setUser] = useState(null)
   const [wishlist, setWishlist] = useState([])
   const [wishlistOpen, setWishlistOpen] = useState(false)
+  const [darkMode, setDarkMode] = useState(() => {
+    const saved = localStorage.getItem('mj_dark_mode')
+    return saved !== null ? saved === 'true' : true
+  })
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', darkMode)
+    localStorage.setItem('mj_dark_mode', darkMode)
+  }, [darkMode])
 
   useEffect(() => {
     const savedCart = localStorage.getItem('mj_cart')
@@ -115,31 +127,35 @@ function App() {
 
   return (
     <ToastProvider>
-      <AuthContext.Provider value={{ user, login, logout }}>
-        <CartContext.Provider value={{ cart, addToCart, removeFromCart, updateQuantity, clearCart, cartTotal, cartCount, cartOpen, setCartOpen }}>
-          <WishlistContext.Provider value={{ wishlist, toggleWishlist, removeFromWishlist, wishlistOpen, setWishlistOpen }}>
-            <SearchContext.Provider value={{ searchProduct, setSearchProduct }}>
-              <PromotionTicker position="top" />
-              <Header />
-              <Routes>
-                <Route path="/" element={<Home />} />
-                <Route path="/admin" element={<Admin />} />
-                <Route path="/produto/:id" element={<Product wishlist={wishlist} onToggleWishlist={toggleWishlist} />} />
-              </Routes>
-              <CartDrawer />
-              <WishlistDrawer
-                isOpen={wishlistOpen}
-                onClose={() => setWishlistOpen(false)}
-                items={wishlist}
-                onRemove={removeFromWishlist}
-                onAddToCart={(item) => { addToCart(item, item.sizes ? JSON.parse(item.sizes)[0] : '42'); setWishlistOpen(false); setCartOpen(true) }}
-                onProductClick={(item) => { setSearchProduct(item) }}
-              />
-              <ChatBot />
-            </SearchContext.Provider>
-          </WishlistContext.Provider>
-        </CartContext.Provider>
-      </AuthContext.Provider>
+      <DarkModeContext.Provider value={{ darkMode, setDarkMode }}>
+        <AuthContext.Provider value={{ user, login, logout }}>
+          <CartContext.Provider value={{ cart, addToCart, removeFromCart, updateQuantity, clearCart, cartTotal, cartCount, cartOpen, setCartOpen }}>
+            <WishlistContext.Provider value={{ wishlist, toggleWishlist, removeFromWishlist, wishlistOpen, setWishlistOpen }}>
+              <SearchContext.Provider value={{ searchProduct, setSearchProduct }}>
+                <PromotionTicker position="top" />
+                <Header />
+                <Routes>
+                  <Route path="/" element={<Home />} />
+                  <Route path="/admin" element={<Admin />} />
+                  <Route path="/produto/:id" element={<Product wishlist={wishlist} onToggleWishlist={toggleWishlist} />} />
+                  <Route path="/rastrear" element={<Track />} />
+                </Routes>
+                <CartDrawer />
+                <WishlistDrawer
+                       isOpen={wishlistOpen}
+                  onClose={() => setWishlistOpen(false)}
+                  items={wishlist}
+                  onRemove={removeFromWishlist}
+                  onAddToCart={(item) => { addToCart(item, item.sizes ? JSON.parse(item.sizes)[0] : '42'); setWishlistOpen(false); setCartOpen(true) }}
+                  onProductClick={(item) => { setSearchProduct(item) }}
+                />
+                <BackToTop />
+                <ChatBot />
+              </SearchContext.Provider>
+            </WishlistContext.Provider>
+          </CartContext.Provider>
+        </AuthContext.Provider>
+      </DarkModeContext.Provider>
     </ToastProvider>
   )
 }

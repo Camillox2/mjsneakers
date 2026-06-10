@@ -17,75 +17,58 @@
   --gray-border: #374151;
   --font-primary: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-display: 'Oswald', sans-serif;
+  --bg-primary: #0a0a0a;
+  --bg-secondary: #111111;
+  --bg-card: #1A1A1A;
+  --bg-elevated: #222222;
+  --text-primary: #ffffff;
+  --text-secondary: #aaaaaa;
+  --text-muted: #666666;
+  --border-color: rgba(255,255,255,0.1);
+  --border-hover: rgba(255,255,255,0.2);
+  --surface: rgba(255,255,255,0.05);
+  --surface-hover: rgba(255,255,255,0.08);
 }
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+html:not(.dark) {
+  --bg-primary: #f5f5f5;
+  --bg-secondary: #ffffff;
+  --bg-card: #ffffff;
+  --bg-elevated: #f0f0f0;
+  --text-primary: #111111;
+  --text-secondary: #444444;
+  --text-muted: #888888;
+  --border-color: rgba(0,0,0,0.1);
+  --border-hover: rgba(0,0,0,0.2);
+  --surface: rgba(0,0,0,0.03);
+  --surface-hover: rgba(0,0,0,0.06);
+  --black: #111111;
+  --black-card: #ffffff;
 }
 
-html {
-  scroll-behavior: smooth;
+html:not(.dark) body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
 }
 
-body {
-  font-family: var(--font-primary);
-  background-color: var(--black);
-  color: var(--white);
-  min-height: 100vh;
-  overflow-x: hidden;
-}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { font-family: var(--font-primary); background-color: var(--black); color: var(--white); min-height: 100vh; overflow-x: hidden; }
+a { text-decoration: none; color: inherit; }
+button { cursor: pointer; border: none; outline: none; font-family: var(--font-primary); }
+input, textarea, select { font-family: var(--font-primary); outline: none; }
 
-a {
-  text-decoration: none;
-  color: inherit;
-}
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: var(--black); }
+::-webkit-scrollbar-thumb { background: var(--red-primary); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--red-light); }
 
-button {
-  cursor: pointer;
-  border: none;
-  outline: none;
-  font-family: var(--font-primary);
-}
+.container { max-width: 1400px; margin: 0 auto; padding: 0 20px; }
 
-input, textarea, select {
-  font-family: var(--font-primary);
-  outline: none;
-}
-
-::-webkit-scrollbar {
-  width: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: var(--black);
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--red-primary);
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: var(--red-light);
-}
-
-.container {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 0 20px;
-}
-
-/* PWA standalone mode */
 @media (display-mode: standalone) {
-  body {
-    -webkit-user-select: none;
-    user-select: none;
-  }
+  body { -webkit-user-select: none; user-select: none; }
 }
 
-/* Safe area for notch phones */
 @supports (padding-top: env(safe-area-inset-top)) {
   body {
     padding-top: env(safe-area-inset-top);

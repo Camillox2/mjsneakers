@@ -1,6 +1,7 @@
 import { useContext, useRef } from 'react'
 import { motion, useMotionValue, useTransform, useSpring } from 'framer-motion'
-import { FiPlus, FiHeart } from 'react-icons/fi'
+import { FiPlus, FiHeart, FiStar, FiShare2 } from 'react-icons/fi'
+import CountdownTimer from '../CountdownTimer/CountdownTimer'
 import { CartContext, WishlistContext } from '../../App'
 import { getImageUrl } from '../../utils/imageHelper'
 import { useToast } from '../Toast/Toast'
@@ -52,6 +53,16 @@ export default function ProductCard({ product, onClick, index }) {
     toggleWishlist(product)
   }
 
+  const handleShare = (e) => {
+    e.stopPropagation()
+    const url = `${window.location.origin}/produto/${product.id}`
+    if (navigator.share) {
+      navigator.share({ title: product.name, url }).catch(() => {})
+    } else {
+      navigator.clipboard?.writeText(url).then(() => addToast('Link copiado!', 'success'))
+    }
+  }
+
   const formatPrice = (price) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
@@ -65,6 +76,11 @@ export default function ProductCard({ product, onClick, index }) {
   const discountActive = discount > 0
   const finalPrice = discountActive ? Number(product.price) * (1 - discount / 100) : Number(product.price)
   const discountLabel = Math.round(discount)
+
+  const avgRating = product.avg_rating ? Number(product.avg_rating) : null
+  const reviewCount = product.review_count ? Number(product.review_count) : 0
+  const promoEnd = product.promo_end ? new Date(product.promo_end) : null
+  const promoActive = promoEnd && promoEnd > new Date() && discountActive
 
   return (
     <motion.div
@@ -94,6 +110,9 @@ export default function ProductCard({ product, onClick, index }) {
           >
             <FiHeart />
           </button>
+          <button className={styles.shareBtn} onClick={handleShare} title="Compartilhar">
+            <FiShare2 />
+          </button>
           <img
             className={styles.productImage}
             src={imageUrl}
@@ -104,6 +123,14 @@ export default function ProductCard({ product, onClick, index }) {
         <div className={styles.overlay}>
           <span className={styles.productBrand}>{product.brand_name}</span>
           <span className={styles.productName}>{product.name}</span>
+          {avgRating !== null && (
+            <div className={styles.ratingRow}>
+              <FiStar className={styles.starIcon} />
+              <span className={styles.ratingVal}>{avgRating.toFixed(1)}</span>
+              {reviewCount > 0 && <span className={styles.reviewCount}>({reviewCount})</span>}
+            </div>
+          )}
+          {promoActive && <CountdownTimer endDate={promoEnd} compact />}
           <div className={styles.priceRow}>
             <div className={styles.priceGroup}>
               {discountActive && <span className={styles.oldPrice}>{formatPrice(product.price)}</span>}

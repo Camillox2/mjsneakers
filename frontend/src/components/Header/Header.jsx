@@ -1,8 +1,8 @@
 import { useContext, useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { FiShoppingCart, FiUser, FiLogOut, FiSearch, FiX, FiHeart } from 'react-icons/fi'
-import { CartContext, AuthContext, SearchContext, WishlistContext } from '../../App'
+import { FiShoppingCart, FiUser, FiLogOut, FiSearch, FiX, FiHeart, FiSun, FiMoon } from 'react-icons/fi'
+import { CartContext, AuthContext, SearchContext, WishlistContext, DarkModeContext } from '../../App'
 import api from '../../services/api'
 import { getImageUrl } from '../../utils/imageHelper'
 import styles from './Header.module.css'
@@ -12,6 +12,7 @@ export default function Header() {
   const { user, logout } = useContext(AuthContext)
   const { setSearchProduct } = useContext(SearchContext)
   const { wishlist, setWishlistOpen } = useContext(WishlistContext)
+  const { darkMode, setDarkMode } = useContext(DarkModeContext)
   const navigate = useNavigate()
   const location = useLocation()
   const [logo, setLogo] = useState(null)
@@ -105,6 +106,16 @@ export default function Header() {
 
         <div className={styles.headerActions}>
           <motion.button
+            className={styles.darkToggle}
+            onClick={() => setDarkMode(d => !d)}
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            title={darkMode ? 'Modo claro' : 'Modo escuro'}
+          >
+            {darkMode ? <FiSun /> : <FiMoon />}
+          </motion.button>
+
+          <motion.button
             className={styles.wishlistBtn}
             onClick={() => setWishlistOpen(true)}
             whileHover={{ scale: 1.1 }}
@@ -150,8 +161,7 @@ export default function Header() {
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
               title="Sair"
-            >
-              <FiLogOut />
+            >              <FiLogOut />
             </motion.button>
           ) : (
             <motion.button
