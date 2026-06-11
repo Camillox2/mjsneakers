@@ -1,5 +1,5 @@
 import { useState, useEffect, createContext } from 'react'
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, useLocation } from 'react-router-dom'
 import Header from './components/Header/Header'
 import Home from './pages/Home/Home'
 import Admin from './pages/Admin/Admin'
@@ -19,6 +19,8 @@ export const WishlistContext = createContext()
 export const DarkModeContext = createContext()
 
 function App() {
+  const location = useLocation()
+  const isAdminRoute = location.pathname.startsWith('/admin')
   const [cart, setCart] = useState([])
   const [cartOpen, setCartOpen] = useState(false)
   const [user, setUser] = useState(null)
@@ -132,7 +134,7 @@ function App() {
           <CartContext.Provider value={{ cart, addToCart, removeFromCart, updateQuantity, clearCart, cartTotal, cartCount, cartOpen, setCartOpen }}>
             <WishlistContext.Provider value={{ wishlist, toggleWishlist, removeFromWishlist, wishlistOpen, setWishlistOpen }}>
               <SearchContext.Provider value={{ searchProduct, setSearchProduct }}>
-                <PromotionTicker position="top" />
+                {!isAdminRoute && <PromotionTicker position="top" />}
                 <Header />
                 <Routes>
                   <Route path="/" element={<Home />} />
@@ -149,8 +151,8 @@ function App() {
                   onAddToCart={(item) => { addToCart(item, item.sizes ? JSON.parse(item.sizes)[0] : '42'); setWishlistOpen(false); setCartOpen(true) }}
                   onProductClick={(item) => { setSearchProduct(item) }}
                 />
-                <BackToTop />
-                <ChatBot />
+                {!isAdminRoute && <BackToTop />}
+                {!isAdminRoute && <ChatBot />}
               </SearchContext.Provider>
             </WishlistContext.Provider>
           </CartContext.Provider>

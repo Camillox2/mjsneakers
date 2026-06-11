@@ -2,7 +2,7 @@
   position: fixed;
   inset: 0;
   background: rgba(0,0,0,0.93);
-  z-index: 3000;
+  z-index: var(--z-lightbox, 1100);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -101,4 +101,19 @@
   bottom: 20px;
   font-size: 13px;
   color: rgba(255,255,255,0.5);
+}
+
+/* ===== Responsivo ===== */
+@media (max-width: 768px) {
+  .close, .zoom { width: 38px; height: 38px; font-size: 17px; top: max(14px, env(safe-area-inset-top)); }
+  .close { right: 14px; }
+  .zoom { right: 60px; }
+  .nav { width: 40px; height: 40px; font-size: 18px; }
+  .navLeft { left: 8px; }
+  .navRight { right: 8px; }
+  .imgWrap { width: 100vw; height: 70dvh; padding: 0 8px; }
+  .img.zoomed { transform: scale(1.6); }
+  .dots { margin-top: 12px; }
+  .dot { width: 10px; height: 10px; } /* alvo de toque maior */
+  .counter { bottom: max(14px, env(safe-area-inset-bottom)); }
 }

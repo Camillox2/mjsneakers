@@ -2,7 +2,7 @@
   position: fixed;
   inset: 0;
   background: rgba(0,0,0,0.7);
-  z-index: 2100;
+  z-index: var(--z-sizeguide, 900);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -15,8 +15,22 @@
   padding: 28px;
   width: 100%;
   max-width: 420px;
-  max-height: 90vh;
+  max-height: 90dvh;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  animation: scaleIn 0.25s var(--ease-out, ease-out);
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@media (max-width: 480px) {
+  .overlay { padding: 12px; }
+  .modal { padding: 20px 16px; border-radius: 14px; }
+  .title { font-size: 16px; }
+  .table th, .table td { padding: 7px 8px; font-size: 13px; }
 }
 .header {
   display: flex;

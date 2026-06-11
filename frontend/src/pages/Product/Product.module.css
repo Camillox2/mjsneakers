@@ -437,3 +437,15 @@
   margin-top: 0.35rem;
   display: block;
 }
+
+/* ===== Responsivo ===== */
+@media (max-width: 480px) {
+  .page { padding: 1rem; }
+  .name { font-size: 1.25rem; }
+  .price { font-size: 1.4rem; }
+  .actionButtons { flex-wrap: wrap; }
+  .addToCartBtn { min-width: 100%; order: 2; }
+  .wishBtn { width: 100%; height: 44px; order: 1; }
+  .reviewInput, .reviewTextarea { font-size: 16px; } /* evita zoom no iOS */
+  .reviewsSection { margin-top: 2rem; padding-top: 1.5rem; }
+}

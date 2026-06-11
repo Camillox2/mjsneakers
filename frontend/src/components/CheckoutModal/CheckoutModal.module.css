@@ -3,7 +3,7 @@
   inset: 0;
   background: rgba(0, 0, 0, 0.7);
   backdrop-filter: blur(4px);
-  z-index: 3000;
+  z-index: var(--z-checkout, 1000);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -358,4 +358,42 @@
 .submitBtn:disabled {
   opacity: 0.5;
   cursor: default;
+}
+
+/* ===== Responsivo ===== */
+@media (max-width: 768px) {
+  .overlay {
+    padding: 0;
+    align-items: flex-end;
+  }
+  .modal {
+    max-width: 100%;
+    max-height: 94dvh;
+    border-radius: 18px 18px 0 0;
+    animation: checkoutSlideUp 0.35s var(--ease-out, cubic-bezier(0.22, 1, 0.36, 1));
+  }
+  .header { padding: 1rem 1.25rem; }
+  .stepper { gap: 1rem; padding: 0.75rem 1rem; }
+  .stepCircle { width: 28px; height: 28px; font-size: 0.78rem; }
+  .stepLabel { font-size: 0.62rem; }
+  .body { padding: 1rem 1.25rem; -webkit-overflow-scrolling: touch; }
+  .input { padding: 0.75rem 0.85rem; font-size: 16px; } /* 16px evita zoom automático no iOS */
+  .actions {
+    padding: 0.85rem 1.25rem;
+    padding-bottom: calc(0.85rem + env(safe-area-inset-bottom));
+  }
+  .backBtn, .nextBtn, .submitBtn { padding: 0.7rem 1.2rem; }
+}
+
+@media (max-width: 480px) {
+  .modal { max-height: 100dvh; border-radius: 0; }
+  .row { grid-template-columns: 1fr; gap: 0.75rem; }
+  .stepper { gap: 0.5rem; justify-content: space-around; }
+  .shippingOption { padding: 0.75rem 0.85rem; }
+  .nextBtn, .submitBtn { flex: 1; justify-content: center; }
+}
+
+@keyframes checkoutSlideUp {
+  from { transform: translateY(40px); opacity: 0.6; }
+  to { transform: translateY(0); opacity: 1; }
 }

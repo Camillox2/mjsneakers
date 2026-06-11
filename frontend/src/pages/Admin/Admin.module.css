@@ -225,9 +225,14 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  transition: background 0.3s;
+  transition: background 0.25s, transform 0.2s var(--ease-out, ease), box-shadow 0.25s;
 }
-.addBtn:hover { background: var(--red-dark); }
+.addBtn:hover {
+  background: var(--red-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(220, 38, 38, 0.35);
+}
+.addBtn:active { transform: translateY(0); }
 
 /* Grid */
 .adminGrid {
@@ -241,6 +246,12 @@
   border: 1px solid var(--gray-border);
   border-radius: 14px;
   overflow: hidden;
+  transition: transform 0.25s var(--ease-out, ease), border-color 0.25s, box-shadow 0.25s;
+}
+.adminCard:hover {
+  transform: translateY(-3px);
+  border-color: rgba(220, 38, 38, 0.4);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
 }
 
 .adminCardImg {
@@ -312,6 +323,8 @@
   justify-content: center;
   padding: 40px 20px;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 .formCard {
@@ -403,6 +416,10 @@
   transition: opacity 0.2s;
 }
 .imageSlot:hover .imageSlotRemove { opacity: 1; }
+/* Touch: sem hover, o botão de remover precisa estar sempre visível */
+@media (hover: none) {
+  .imageSlotRemove { opacity: 1; }
+}
 
 .imageSlotAdd { color: var(--gray-light); font-size: 1.5rem; }
 
@@ -498,6 +515,7 @@
 /* Reviews Table */
 .tableWrap {
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   border-radius: 14px;
   border: 1px solid var(--gray-border);
   background: var(--black-card);
@@ -722,6 +740,12 @@
   display: flex;
   align-items: center;
   gap: 16px;
+  transition: transform 0.25s var(--ease-out, ease), border-color 0.25s, box-shadow 0.25s;
+}
+.dashCard:hover {
+  transform: translateY(-2px);
+  border-color: rgba(220, 38, 38, 0.35);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
 }
 
 .dashCardIcon {
@@ -909,7 +933,9 @@
   border: 1px solid var(--gray-border);
   border-radius: 14px;
   overflow: hidden;
+  transition: border-color 0.25s;
 }
+.orderCard:hover { border-color: rgba(220, 38, 38, 0.3); }
 
 .orderHeader {
   display: flex;
@@ -1239,16 +1265,290 @@
   opacity: 0.65;
 }
 
+/* ========================================================
+   PRODUCTS: bulk actions, card selection, inline edit
+   ======================================================== */
+.bulkBar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  background: rgba(220, 38, 38, 0.08);
+  border: 1px solid rgba(220, 38, 38, 0.28);
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--white);
+}
+.bulkBtn {
+  padding: 7px 14px;
+  border-radius: 8px;
+  background: var(--gray-dark);
+  color: var(--white);
+  font-size: 0.78rem;
+  font-weight: 600;
+  transition: background 0.2s;
+}
+.bulkBtn:hover { background: var(--gray-mid); }
+.bulkBtnDanger { background: rgba(220, 38, 38, 0.2); color: #f87171; }
+.bulkBtnDanger:hover { background: rgba(220, 38, 38, 0.35); }
+.bulkBtnClear {
+  margin-left: auto;
+  padding: 7px 14px;
+  border-radius: 8px;
+  background: transparent;
+  border: 1px solid var(--gray-border);
+  color: var(--gray-lighter);
+  font-size: 0.78rem;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+.bulkBtnClear:hover { color: var(--white); border-color: var(--gray-mid); }
+
+.adminCard { position: relative; }
+.adminCardCheckbox {
+  position: absolute;
+  top: 10px; left: 10px;
+  z-index: 3;
+  width: 26px; height: 26px;
+  border-radius: 7px;
+  background: rgba(0, 0, 0, 0.6);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.adminCardCheckbox input {
+  width: 16px; height: 16px;
+  cursor: pointer;
+  accent-color: var(--red-primary);
+}
+.adminCardSelected { outline: 2px solid var(--red-primary); outline-offset: -2px; }
+.adminCardInactive { opacity: 0.55; }
+
+.inlineEditRow { display: flex; align-items: center; gap: 6px; margin: 2px 0; }
+.inlineInput {
+  flex: 1;
+  min-width: 0;
+  background: var(--gray-dark);
+  border: 1px solid var(--red-primary);
+  border-radius: 8px;
+  padding: 6px 10px;
+  color: var(--white);
+  font-size: 0.9rem;
+}
+.inlineSave, .inlineCancel {
+  width: 30px; height: 30px;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 0.9rem;
+}
+.inlineSave { background: rgba(34, 197, 94, 0.18); color: #22C55E; }
+.inlineSave:hover { background: rgba(34, 197, 94, 0.32); }
+.inlineCancel { background: rgba(220, 38, 38, 0.18); color: #f87171; }
+.inlineCancel:hover { background: rgba(220, 38, 38, 0.32); }
+
+.cloneBtn {
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--gray-dark);
+  color: var(--gray-lighter);
+  font-size: 0.85rem;
+  transition: all 0.2s;
+}
+.cloneBtn:hover { background: var(--gray-mid); color: var(--white); }
+
+/* ========================================================
+   ORDERS: export, filters, tracking, notes
+   ======================================================== */
+.exportBtn {
+  padding: 9px 18px;
+  border-radius: 10px;
+  background: var(--gray-dark);
+  color: var(--white);
+  font-size: 0.82rem;
+  font-weight: 600;
+  transition: background 0.2s;
+}
+.exportBtn:hover { background: var(--gray-mid); }
+.exportBtn:disabled { opacity: 0.6; cursor: default; }
+
+.orderFilterRow {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.orderSearchInput {
+  flex: 1;
+  min-width: 200px;
+  background: var(--gray-dark);
+  border: 2px solid transparent;
+  border-radius: 10px;
+  padding: 11px 14px;
+  color: var(--white);
+  font-size: 0.88rem;
+  transition: border-color 0.2s;
+}
+.orderSearchInput:focus { border-color: var(--red-primary); }
+.orderSearchInput::placeholder { color: var(--gray-mid); }
+.orderStatusSel {
+  background: var(--gray-dark);
+  border: 2px solid transparent;
+  border-radius: 10px;
+  padding: 11px 36px 11px 14px;
+  color: var(--white);
+  font-size: 0.88rem;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+}
+.orderStatusSel:focus { border-color: var(--red-primary); }
+.orderStatusSel option { background: #1a1a1a; color: #fff; }
+
+.trackingRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.trackingInput {
+  flex: 1;
+  min-width: 160px;
+  background: var(--gray-dark);
+  border: 1px solid var(--gray-border);
+  border-radius: 8px;
+  padding: 9px 12px;
+  color: var(--white);
+  font-size: 0.85rem;
+  transition: border-color 0.2s;
+}
+.trackingInput:focus { border-color: var(--red-primary); }
+.trackingBtn {
+  width: 38px; height: 38px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  background: var(--red-primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+.trackingBtn:hover { background: var(--red-dark); }
+
+.notesSection { display: flex; flex-direction: column; gap: 8px; }
+.noteItem {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 8px;
+  border: 1px solid rgba(55, 65, 81, 0.3);
+}
+.noteText { font-size: 0.82rem; color: var(--white); }
+.noteDate { font-size: 0.7rem; color: var(--gray-light); flex-shrink: 0; white-space: nowrap; }
+.noteAdd { display: flex; gap: 8px; }
+.noteInput {
+  flex: 1;
+  min-width: 0;
+  background: var(--gray-dark);
+  border: 1px solid var(--gray-border);
+  border-radius: 8px;
+  padding: 9px 12px;
+  color: var(--white);
+  font-size: 0.85rem;
+  transition: border-color 0.2s;
+}
+.noteInput:focus { border-color: var(--red-primary); }
+.noteSaveBtn {
+  width: 38px; height: 38px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  background: rgba(34, 197, 94, 0.18);
+  color: #22C55E;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+.noteSaveBtn:hover { background: rgba(34, 197, 94, 0.3); }
+
+/* ========================================================
+   CATEGORIES inline form + pagination (shared)
+   ======================================================== */
+.inlineFormBox {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 16px;
+  margin-bottom: 16px;
+  background: var(--black-card);
+  border: 1px solid var(--gray-border);
+  border-radius: 12px;
+}
+.inlineFormInput {
+  flex: 1;
+  min-width: 180px;
+  background: var(--gray-dark);
+  border: 2px solid transparent;
+  border-radius: 10px;
+  padding: 11px 14px;
+  color: var(--white);
+  font-size: 0.88rem;
+  transition: border-color 0.2s;
+}
+.inlineFormInput:focus { border-color: var(--red-primary); }
+.inlineFormInput::placeholder { color: var(--gray-mid); }
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 24px 0 8px;
+}
+.pageBtn {
+  padding: 9px 18px;
+  border-radius: 10px;
+  background: var(--gray-dark);
+  color: var(--white);
+  font-size: 0.82rem;
+  font-weight: 600;
+  transition: background 0.2s;
+}
+.pageBtn:hover:not(:disabled) { background: var(--red-primary); }
+.pageBtn:disabled { opacity: 0.4; cursor: default; }
+.pageInfo { font-size: 0.85rem; color: var(--gray-lighter); font-weight: 600; }
+
 /* Responsive */
+@media (max-width: 1100px) {
+  .dashGrid { grid-template-columns: repeat(2, 1fr); }
+  .dashRow { grid-template-columns: 1fr; }
+  .promoFieldsGrid { grid-template-columns: 1fr; }
+}
+
 @media (max-width: 768px) {
   .adminPage { padding: 16px; }
   .panelTitle { font-size: 1.2rem; }
+  .tableWrap .reviewsTable { min-width: 620px; } /* rola na horizontal em vez de esmagar colunas */
   .tabs { overflow: visible; gap: 6px; }
   .tab { padding: 10px 14px; font-size: 0.75rem; white-space: nowrap; }
   .adminGrid { grid-template-columns: 1fr; }
   .formCard { padding: 20px; max-width: 100%; }
   .formRow { grid-template-columns: 1fr; gap: 12px; }
   .formOverlay { padding: 16px 8px; }
+  .input, .select, .textarea { font-size: 16px; } /* evita zoom automático no iOS */
   .sectionHeader { flex-wrap: wrap; gap: 10px; }
   .addBtn { padding: 8px 14px; font-size: 0.8rem; }
   .filterRow { flex-wrap: wrap; }
@@ -1412,7 +1712,7 @@
   font-size: 0.85rem;
   font-weight: 500;
   border-radius: 0;
-  transition: all 0.15s;
+  transition: background 0.2s, color 0.2s, padding-left 0.2s var(--ease-out, ease);
   position: relative;
   white-space: nowrap;
   overflow: hidden;
@@ -1422,6 +1722,7 @@
 .navItem:hover {
   background: rgba(255,255,255,0.05);
   color: var(--white, #fff);
+  padding-left: 20px;
 }
 
 .navItemActive {
@@ -1775,22 +2076,82 @@
 }
 .panelTitle span { color: var(--red-primary, #e31837); }
 
+/* Sidebar backdrop (only visible as a mobile drawer overlay) */
+.sidebarBackdrop { display: none; }
+
 /* Responsive */
 @media (max-width: 900px) {
-  .sidebarOpen { width: 180px; }
+  .sidebarOpen { width: 200px; }
   .reportsGrid { grid-template-columns: 1fr; }
   .chatLayout { grid-template-columns: 1fr; height: auto; }
   .chatSessions { max-height: 200px; border-right: none; border-bottom: 1px solid var(--gray-border); }
-  .mainContent { padding: 16px; }
+  .chatMessages { min-height: 240px; max-height: 45dvh; }
+  .chatMsg { max-width: 85%; }
+  .mainContent { padding: 20px; }
 }
 
-@media (max-width: 640px) {
-  .adminBody { flex-direction: column; }
-  .sidebar { height: auto; width: 100% !important; position: static; border-right: none; border-bottom: 1px solid var(--gray-border); }
-  .sidebarNav { flex-direction: row; flex-wrap: wrap; padding: 6px; gap: 4px; }
-  .navGroup { display: flex; flex-wrap: wrap; gap: 2px; }
-  .navGroupLabel { display: none; }
-  .navItem { padding: 8px 12px; border-radius: 8px; font-size: 0.75rem; }
-  .navItemActive { border-right: none; border-bottom: 2px solid var(--red-primary); }
+/* Mobile: the sidebar slides in as an off-canvas drawer */
+@media (max-width: 768px) {
+  .adminRoot { min-height: calc(100vh - 60px); }
+  .topBar { top: 60px; height: 52px; padding: 0 14px; }
+
+  /* drop the flex layout so the fixed drawer doesn't reserve space */
+  .adminBody { display: block; overflow: visible; }
+
+  .sidebar {
+    position: fixed;
+    top: 112px;            /* 60px global header + 52px admin topbar */
+    left: 0;
+    bottom: 0;
+    height: auto;
+    width: 264px !important;
+    max-width: 84vw;
+    transform: translateX(-100%);
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 210;
+    box-shadow: 8px 0 32px rgba(0, 0, 0, 0.55);
+    border-right: 1px solid var(--gray-border);
+  }
+  .sidebarOpen { transform: translateX(0); width: 264px !important; }
+  .sidebarClosed { transform: translateX(-100%); }
+
+  /* always show the full vertical nav with labels inside the drawer */
+  .sidebarNav { flex-direction: column; padding: 12px 0; gap: 2px; }
+  .navGroup { display: block; padding-bottom: 6px; }
+  .navGroupLabel { display: block; }
+  .navItem { font-size: 0.92rem; padding: 12px 18px; border-radius: 0; }
+  .navItemActive { border-right: 3px solid var(--red-primary); border-bottom: none; }
+
+  .sidebarBackdrop {
+    display: block;
+    position: fixed;
+    top: 112px;
+    left: 0; right: 0; bottom: 0;
+    z-index: 200;
+    background: rgba(0, 0, 0, 0.55);
+    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
+  }
+
+  .mainContent { padding: 16px; width: 100%; }
+}
+
+@media (max-width: 480px) {
+  .topBar { flex-direction: row; align-items: center; padding: 0 10px; gap: 8px; }
+  .topBarSection { display: none; }
+  .panelTitle { font-size: 1rem; letter-spacing: 1px; }
+  .logoutBtn { align-self: center; padding: 8px 12px; font-size: 0.78rem; }
   .mainContent { padding: 12px; }
+  .statusBtns .statusChangeBtn { flex: 1 1 calc(50% - 6px); text-align: center; }
+  .monthBar:nth-child(even) .monthBarLabel { display: none; } /* evita rótulos sobrepostos */
+  .chatInput { flex-wrap: wrap; }
+  .funnelBar { min-width: 90px; padding: 7px 10px; }
+
+  /* full-width inputs so nothing overflows on narrow screens */
+  .orderSearchInput, .orderStatusSel, .inlineFormInput { min-width: 100%; flex: 1 1 100%; }
+  .bulkBar { font-size: 0.8rem; }
+  .bulkBtnClear { margin-left: 0; }
+  .pagination { gap: 10px; }
+  .pageBtn { padding: 8px 14px; }
+  .noteItem { flex-direction: column; gap: 4px; }
 }

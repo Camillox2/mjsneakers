@@ -796,7 +796,8 @@ export default function Admin() {
   const { user, login, logout } = useContext(AuthContext)
   const navigate = useNavigate()
 
-  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [sidebarOpen, setSidebarOpen] = useState(() => typeof window === 'undefined' ? true : window.innerWidth > 768)
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth <= 768)
   const [activeTab, setActiveTab] = useState('dashboard')
   const [products, setProducts] = useState([])
   const [brands, setBrands] = useState([])
@@ -847,6 +848,16 @@ export default function Admin() {
   const [exportingCsv, setExportingCsv] = useState(false)
   const [orderPage, setOrderPage] = useState(1)
   const [orderTotal, setOrderTotal] = useState(0)
+
+  /* Responsive: collapse the sidebar into an off-canvas drawer on mobile */
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 768px)')
+    const apply = (matches) => { setIsMobile(matches); setSidebarOpen(!matches) }
+    apply(mq.matches)
+    const handler = (e) => apply(e.matches)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
 
   const loadProducts = useCallback(async () => {
     try {
@@ -1367,6 +1378,18 @@ export default function Admin() {
       </header>
 
       <div className={styles.adminBody}>
+        <AnimatePresence>
+          {isMobile && sidebarOpen && (
+            <motion.div
+              className={styles.sidebarBackdrop}
+              onClick={() => setSidebarOpen(false)}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            />
+          )}
+        </AnimatePresence>
         {/* Sidebar */}
         <aside className={`${styles.sidebar} ${sidebarOpen ? styles.sidebarOpen : styles.sidebarClosed}`}>
           <nav className={styles.sidebarNav}>
@@ -1377,7 +1400,7 @@ export default function Admin() {
                   <button
                     key={item.key}
                     className={`${styles.navItem} ${activeTab === item.key ? styles.navItemActive : ''}`}
-                    onClick={() => setActiveTab(item.key)}
+                    onClick={() => { setActiveTab(item.key); if (isMobile) setSidebarOpen(false) }}
                     title={!sidebarOpen ? item.label : undefined}
                   >
                     <span className={styles.navIcon}>{item.icon}</span>

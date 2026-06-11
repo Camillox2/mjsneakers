@@ -231,6 +231,11 @@
   .price { font-size: 0.85rem; }
 }
 
+/* Touch: sem hover, os botões precisam estar sempre visíveis */
+@media (hover: none) {
+  .wishBtn, .shareBtn { opacity: 1; }
+}
+
 .shareBtn {
   position: absolute;
   top: 46px;

@@ -2,7 +2,7 @@
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.6);
-  z-index: 2000;
+  z-index: var(--z-wishlist, 800);
 }
 
 .drawer {
@@ -13,7 +13,7 @@
   width: 380px;
   max-width: 90vw;
   background: var(--black-bg, #111);
-  z-index: 2001;
+  z-index: 801;
   display: flex;
   flex-direction: column;
   border-left: 1px solid rgba(255, 255, 255, 0.06);
@@ -207,4 +207,13 @@
 .removeBtn:hover {
   color: #f44336;
   border-color: #f44336;
+}
+
+/* ===== Responsivo ===== */
+@media (max-width: 480px) {
+  .drawer { width: 100vw; max-width: 100vw; border-left: none; }
+  .list { padding: 0.6rem; }
+  .image { width: 58px; height: 58px; }
+  .actions { flex-direction: row; }
+  .cartBtn, .removeBtn { width: 38px; height: 38px; } /* alvo de toque maior */
 }
