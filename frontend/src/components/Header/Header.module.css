@@ -2,10 +2,20 @@
   position: sticky;
   top: 0;
   z-index: 100;
-  background: rgba(17, 17, 17, 0.95);
-  backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(220, 38, 38, 0.2);
+  background: rgba(12, 13, 17, 0.78);
+  backdrop-filter: blur(22px) saturate(1.4);
+  -webkit-backdrop-filter: blur(22px) saturate(1.4);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
   padding: 0 30px;
+}
+.header::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 20%;
+  right: 20%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(220, 38, 38, 0.7), transparent);
 }
 
 .headerInner {

@@ -1,79 +1,185 @@
+/* ============================================================
+   FOOTER 2.0 — colunas + marca d'água gigante
+   ============================================================ */
 .footer {
-  background: var(--black-card);
-  border-top: 1px solid rgba(220, 38, 38, 0.2);
-  padding: 50px 30px 30px;
-  margin-top: 80px;
+  position: relative;
+  margin-top: 90px;
+  background: #0a0b0f;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+.footer::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(227, 24, 55, 0.8), transparent);
+}
+
+.footerGlow {
+  position: absolute;
+  top: -40%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 700px;
+  height: 380px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(227, 24, 55, 0.1), transparent 70%);
+  filter: blur(50px);
+  pointer-events: none;
 }
 
 .footerInner {
+  position: relative;
+  z-index: 1;
   max-width: 1400px;
   margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 20px;
+  padding: 64px 30px 40px;
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1.2fr;
+  gap: 40px;
 }
+
+/* Marca */
+.brandCol { display: flex; flex-direction: column; gap: 14px; align-items: flex-start; }
 
 .footerLogo {
   font-family: var(--font-display);
-  font-size: 2rem;
+  font-size: 2.2rem;
   font-weight: 700;
   letter-spacing: 3px;
   text-transform: uppercase;
+  line-height: 1;
 }
-
 .footerLogo span {
-  color: var(--red-primary);
+  background: linear-gradient(135deg, #ff4d5e, #e31837);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
-.footerEmail {
-  color: var(--gray-lighter);
-  font-size: 0.95rem;
+.footerTagline {
+  color: #8b93a3;
+  font-size: 0.88rem;
+  line-height: 1.65;
+  max-width: 340px;
 }
 
-.footerEmail a {
-  color: var(--red-primary);
-  transition: color 0.3s;
+.socialPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  padding: 9px 18px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: #ddd;
+  font-size: 0.82rem;
+  font-weight: 600;
+  transition: border-color 0.25s, background 0.25s, transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.socialPill:hover {
+  border-color: rgba(227, 24, 55, 0.5);
+  background: rgba(227, 24, 55, 0.08);
+  transform: translateY(-2px);
+}
+.socialPill svg:first-child { color: #ff4d5e; }
+
+/* Colunas */
+.colTitle {
+  display: block;
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 2.5px;
+  color: #5b6372;
+  font-weight: 800;
+  margin-bottom: 16px;
 }
 
-.footerEmail a:hover {
-  color: var(--red-light);
-}
+.linksCol { display: flex; flex-direction: column; align-items: flex-start; }
 
-.footerCredit {
-  color: var(--gray-light);
-  font-size: 0.85rem;
-  text-align: center;
-  margin-top: 10px;
-}
-
-.privacyLink {
-  background: transparent;
-  color: var(--gray-lighter);
-  font-size: 0.8rem;
-  text-decoration: underline;
-  cursor: pointer;
-  margin-top: 8px;
-  transition: color 0.3s;
-  padding: 0;
+.footerLink {
+  position: relative;
+  background: none;
   border: none;
+  padding: 6px 0;
+  color: #aab2c0;
+  font-size: 0.9rem;
+  cursor: pointer;
+  text-align: left;
+  transition: color 0.2s, padding-left 0.25s cubic-bezier(0.22, 1, 0.36, 1);
 }
-
-.privacyLink:hover {
-  color: var(--red-primary);
-}
-
-.divider {
-  width: 60px;
+.footerLink::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%) scaleX(0);
+  transform-origin: left;
+  width: 12px;
   height: 2px;
-  background: var(--red-primary);
   border-radius: 2px;
-  margin: 5px 0;
+  background: #e31837;
+  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.footerLink:hover { color: #fff; padding-left: 20px; }
+.footerLink:hover::before { transform: translateY(-50%) scaleX(1); }
+
+.contactCol { display: flex; flex-direction: column; align-items: flex-start; }
+
+.contactItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  color: #aab2c0;
+  font-size: 0.88rem;
+  transition: color 0.2s;
+}
+.contactItem svg { color: #ff4d5e; flex-shrink: 0; }
+a.contactItem:hover { color: #fff; }
+
+/* Barra inferior */
+.bottomBar {
+  position: relative;
+  z-index: 1;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 20px 30px 26px;
+  text-align: center;
 }
 
-@media (max-width: 768px) {
-  .footer { padding: 35px 20px 25px; margin-top: 50px; }
-  .footerLogo { font-size: 1.5rem; }
-  .footerEmail { font-size: 0.85rem; }
-  .footerCredit { font-size: 0.75rem; }
+.footerCredit { color: #5b6372; font-size: 0.78rem; }
+
+/* Marca d'água gigante */
+.watermark {
+  position: absolute;
+  bottom: -34px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--font-display);
+  font-size: clamp(4rem, 14vw, 11rem);
+  font-weight: 700;
+  letter-spacing: 8px;
+  line-height: 1;
+  white-space: nowrap;
+  color: transparent;
+  -webkit-text-stroke: 1px rgba(255, 255, 255, 0.045);
+  pointer-events: none;
+  user-select: none;
+}
+
+/* ===== Responsivo ===== */
+@media (max-width: 900px) {
+  .footerInner { grid-template-columns: 1fr 1fr; gap: 34px; padding: 50px 24px 34px; }
+  .brandCol { grid-column: 1 / -1; }
+}
+
+@media (max-width: 540px) {
+  .footerInner { grid-template-columns: 1fr; gap: 30px; padding: 44px 20px 28px; }
+  .footerLogo { font-size: 1.8rem; }
+  .bottomBar { padding: 16px 20px 22px; }
+  .watermark { letter-spacing: 4px; bottom: -16px; }
 }

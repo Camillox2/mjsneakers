@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
+import { FiInstagram, FiMail, FiPhone, FiMapPin, FiArrowUpRight } from 'react-icons/fi'
 import api from '../../services/api'
 import PrivacyModal from '../PrivacyModal/PrivacyModal'
 import styles from './Footer.module.css'
@@ -29,71 +30,76 @@ export default function Footer() {
   return (
     <>
       <footer className={styles.footer}>
+        <div className={styles.footerGlow} aria-hidden="true" />
+
         <div className={styles.footerInner}>
+          {/* Marca */}
           <motion.div
-            className={styles.footerLogo}
-            initial={{ opacity: 0, y: 20 }}
+            className={styles.brandCol}
+            initial={{ opacity: 0, y: 18 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            MJ<span>Sneakers</span>
+            <div className={styles.footerLogo}>MJ<span>Sneakers</span></div>
+            <p className={styles.footerTagline}>
+              Os melhores tênis do mercado. 100% originais, envio rápido e troca fácil.
+            </p>
+            {info.instagram && (
+              <a
+                className={styles.socialPill}
+                href={`https://instagram.com/${info.instagram.replace('@', '')}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <FiInstagram /> {info.instagram} <FiArrowUpRight />
+              </a>
+            )}
           </motion.div>
 
-          <div className={styles.divider} />
-
-          <motion.p
-            className={styles.footerEmail}
-            initial={{ opacity: 0 }}
-            whileInView={{ opacity: 1 }}
+          {/* Navegação */}
+          <motion.nav
+            className={styles.linksCol}
+            initial={{ opacity: 0, y: 18 }}
+            whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ delay: 0.1 }}
+            transition={{ delay: 0.08 }}
           >
-            Contato: <a href={`mailto:${info.email}`}>{info.email}</a>
-          </motion.p>
+            <span className={styles.colTitle}>Navegue</span>
+            <a className={styles.footerLink} href="#catalogo">Catálogo</a>
+            <a className={styles.footerLink} href="/rastrear">Rastrear Pedido</a>
+            <button className={styles.footerLink} onClick={() => setShowPrivacy(true)}>
+              Política de Privacidade
+            </button>
+          </motion.nav>
 
-          {info.phone && (
-            <motion.p
-              className={styles.footerEmail}
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.15 }}
-            >
-              Telefone: {info.phone}
-            </motion.p>
-          )}
-
-          {info.instagram && (
-            <motion.p
-              className={styles.footerEmail}
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.15 }}
-            >
-              Instagram: <a href={`https://instagram.com/${info.instagram.replace('@', '')}`} target="_blank" rel="noreferrer">{info.instagram}</a>
-            </motion.p>
-          )}
-
-          <motion.p
-            className={styles.footerCredit}
-            initial={{ opacity: 0 }}
-            whileInView={{ opacity: 1 }}
+          {/* Contato */}
+          <motion.div
+            className={styles.contactCol}
+            initial={{ opacity: 0, y: 18 }}
+            whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ delay: 0.2 }}
+            transition={{ delay: 0.16 }}
           >
-            {info.credit}
-          </motion.p>
-
-          <motion.button
-            className={styles.privacyLink}
-            onClick={() => setShowPrivacy(true)}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            Política de Privacidade
-          </motion.button>
+            <span className={styles.colTitle}>Contato</span>
+            <a className={styles.contactItem} href={`mailto:${info.email}`}>
+              <FiMail /> {info.email}
+            </a>
+            {info.phone && (
+              <span className={styles.contactItem}><FiPhone /> {info.phone}</span>
+            )}
+            {info.address && (
+              <span className={styles.contactItem}><FiMapPin /> {info.address}</span>
+            )}
+          </motion.div>
         </div>
+
+        <div className={styles.bottomBar}>
+          <span className={styles.footerCredit}>
+            © {new Date().getFullYear()} MJSneakers · {info.credit}
+          </span>
+        </div>
+
+        <div className={styles.watermark} aria-hidden="true">MJSNEAKERS</div>
       </footer>
 
       <PrivacyModal isOpen={showPrivacy} onClose={() => setShowPrivacy(false)} />

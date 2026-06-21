@@ -1,4 +1,5 @@
 import { useState, useEffect, useContext, useRef } from 'react'
+import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import api from '../../services/api'
 import { SearchContext } from '../../App'
@@ -165,6 +166,7 @@ export default function Home() {
         <span className={`${styles.orb} ${styles.orb1}`} aria-hidden="true" />
         <span className={`${styles.orb} ${styles.orb2}`} aria-hidden="true" />
         <span className={`${styles.orb} ${styles.orb3}`} aria-hidden="true" />
+        <span className={styles.heroGhost} aria-hidden="true">SNKRS</span>
 
         <motion.div className={styles.heroContent} variants={stagger} initial="hidden" animate="show">
           <motion.span className={styles.heroBadge} variants={fadeUp}>
@@ -180,6 +182,9 @@ export default function Home() {
             <motion.a href="#catalogo" className={styles.heroCtaPrimary} whileHover={{ y: -2 }} whileTap={{ scale: 0.97 }}>
               Explorar Catálogo <FiArrowRight />
             </motion.a>
+            <motion.span whileHover={{ y: -2 }} whileTap={{ scale: 0.97 }}>
+              <Link to="/rastrear" className={styles.heroCtaGhost}>Rastrear Pedido</Link>
+            </motion.span>
           </motion.div>
         </motion.div>
 
@@ -187,6 +192,19 @@ export default function Home() {
           <span className={styles.scrollMouse}><span className={styles.scrollWheel} /></span>
         </a>
       </section>
+
+      {/* ===== MARQUEE DE MARCAS ===== */}
+      <div className={styles.marquee} aria-hidden="true">
+        <div className={styles.marqueeTrack}>
+          {[...Array(2)].flatMap((_, dup) =>
+            ['Nike', 'Adidas', 'Jordan', 'New Balance', 'Puma', 'Yeezy', 'Asics', 'Vans'].map((b, i) => (
+              <span key={`${dup}-${i}`} className={styles.marqueeItem}>
+                {b} <span className={styles.marqueeDot}>✦</span>
+              </span>
+            ))
+          )}
+        </div>
+      </div>
 
       {/* ===== TRUST STRIP ===== */}
       <motion.div
