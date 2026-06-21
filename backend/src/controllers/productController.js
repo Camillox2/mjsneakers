@@ -201,15 +201,15 @@ const productController = {
 
   async create(req, res) {
     try {
-      const { name, description, price, discount_percentage, brand_id, category_id, image_url, image_url_2, image_url_3, image_url_4, sizes, stock, featured, feature_order, meta_title, meta_description, tags, promo_start, promo_end } = req.body;
+      const { name, description, price, discount_percentage, brand_id, category_id, image_url, image_url_2, image_url_3, image_url_4, sizes, stock, featured, feature_order, meta_title, meta_description, tags, promo_start, promo_end, weight_g, height_cm, width_cm, length_cm } = req.body;
       if (stock !== undefined && (!Number.isInteger(Number(stock)) || Number(stock) < 0)) {
         return res.status(400).json({ error: 'stock deve ser um inteiro maior ou igual a zero' });
       }
       const slug = makeSlug(name);
       const [result] = await pool.query(
-        `INSERT INTO products (name, slug, description, price, discount_percentage, brand_id, category_id, image_url, image_url_2, image_url_3, image_url_4, sizes, stock, featured, feature_order, meta_title, meta_description, tags, promo_start, promo_end)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [name, slug, description, price, discount_percentage || 0, brand_id || null, category_id || null, image_url, image_url_2, image_url_3, image_url_4, sizes, stock || 0, featured || false, feature_order || 0, meta_title, meta_description, tags, promo_start || null, promo_end || null]
+        `INSERT INTO products (name, slug, description, price, discount_percentage, brand_id, category_id, image_url, image_url_2, image_url_3, image_url_4, sizes, stock, featured, feature_order, meta_title, meta_description, tags, promo_start, promo_end, weight_g, height_cm, width_cm, length_cm)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [name, slug, description, price, discount_percentage || 0, brand_id || null, category_id || null, image_url, image_url_2, image_url_3, image_url_4, sizes, stock || 0, featured || false, feature_order || 0, meta_title, meta_description, tags, promo_start || null, promo_end || null, weight_g || 300, height_cm || 0, width_cm || 0, length_cm || 0]
       );
       res.status(201).json({ id: result.insertId, message: 'Produto criado' });
     } catch (error) {
@@ -220,7 +220,7 @@ const productController = {
 
   async update(req, res) {
     try {
-      const { name, description, price, discount_percentage, brand_id, category_id, image_url, image_url_2, image_url_3, image_url_4, sizes, stock, active, featured, feature_order, meta_title, meta_description, tags, promo_start, promo_end } = req.body;
+      const { name, description, price, discount_percentage, brand_id, category_id, image_url, image_url_2, image_url_3, image_url_4, sizes, stock, active, featured, feature_order, meta_title, meta_description, tags, promo_start, promo_end, weight_g, height_cm, width_cm, length_cm } = req.body;
       if (stock !== undefined && (!Number.isInteger(Number(stock)) || Number(stock) < 0)) {
         return res.status(400).json({ error: 'stock deve ser um inteiro maior ou igual a zero' });
       }
@@ -235,9 +235,10 @@ const productController = {
          sizes=COALESCE(?,sizes), stock=COALESCE(?,stock), active=COALESCE(?,active),
          featured=COALESCE(?,featured), feature_order=COALESCE(?,feature_order),
          meta_title=COALESCE(?,meta_title), meta_description=COALESCE(?,meta_description),
-         tags=COALESCE(?,tags), promo_start=COALESCE(?,promo_start), promo_end=COALESCE(?,promo_end)
+         tags=COALESCE(?,tags), promo_start=COALESCE(?,promo_start), promo_end=COALESCE(?,promo_end),
+         weight_g=COALESCE(?,weight_g), height_cm=COALESCE(?,height_cm), width_cm=COALESCE(?,width_cm), length_cm=COALESCE(?,length_cm)
          WHERE id=?`,
-        [name, slug, description, price, discount_percentage, brand_id, category_id, image_url, image_url_2, image_url_3, image_url_4, sizes, stock, active, featured, feature_order, meta_title, meta_description, tags, promo_start, promo_end, req.params.id]
+        [name, slug, description, price, discount_percentage, brand_id, category_id, image_url, image_url_2, image_url_3, image_url_4, sizes, stock, active, featured, feature_order, meta_title, meta_description, tags, promo_start, promo_end, weight_g, height_cm, width_cm, length_cm, req.params.id]
       );
       // If stock went from 0 to >0, notify subscribers
       if (stock > 0 && oldStock[0]?.[0]?.stock === 0) {

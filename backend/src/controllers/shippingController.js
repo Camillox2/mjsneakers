@@ -228,11 +228,12 @@ const shippingController = {
       const {
         zone_id = null, name, type, price = 0, free_above = null,
         estimated_days_min = 3, estimated_days_max = 10,
-        max_weight_g = null, sort_order = 0, active = true,
+        max_weight_g = null, sort_order = 0, active,
       } = req.body;
       const [result] = await pool.query(
         `UPDATE shipping_rules SET zone_id = ?, name = ?, type = ?, price = ?, free_above = ?,
-          estimated_days_min = ?, estimated_days_max = ?, max_weight_g = ?, sort_order = ?, active = ?
+          estimated_days_min = ?, estimated_days_max = ?, max_weight_g = ?, sort_order = ?,
+          active = COALESCE(?, active)
          WHERE id = ?`,
         [zone_id, name, type, price, free_above, estimated_days_min, estimated_days_max,
           max_weight_g, sort_order, active, req.params.id]
@@ -267,7 +268,7 @@ const shippingController = {
       res.json(options);
     } catch (error) {
       console.error('Shipping calculation error:', error);
-      res.status(error.status || 500).json({ error: error.message || 'Erro ao calcular frete' });
+      res.status(error.status || 500).json({ error: error.status ? error.message : 'Erro ao calcular frete' });
     }
   },
 
@@ -296,7 +297,7 @@ const shippingController = {
       });
     } catch (error) {
       console.error('Shipping estimate error:', error);
-      res.status(error.status || 500).json({ error: error.message || 'Erro ao estimar frete' });
+      res.status(error.status || 500).json({ error: error.status ? error.message : 'Erro ao estimar frete' });
     }
   },
 

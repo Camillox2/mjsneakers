@@ -1,14 +1,65 @@
 import { useState, useContext, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
-import { FiPlus, FiEdit2, FiTrash2, FiLogOut, FiPackage, FiImage, FiStar, FiCheck, FiX, FiBarChart2, FiShoppingBag, FiSettings, FiChevronDown, FiChevronUp, FiAlertTriangle, FiTrendingUp, FiBox, FiUsers, FiDollarSign, FiSave, FiTag, FiPercent, FiType, FiFileText, FiShield, FiSliders, FiMenu, FiMessageSquare, FiGift, FiPieChart, FiHome, FiList, FiZap, FiActivity, FiBell, FiMail } from 'react-icons/fi'
+import { FiPlus, FiEdit2, FiTrash2, FiLogOut, FiPackage, FiImage, FiStar, FiCheck, FiX, FiBarChart2, FiShoppingBag, FiSettings, FiChevronDown, FiChevronUp, FiAlertTriangle, FiTrendingUp, FiBox, FiUsers, FiDollarSign, FiSave, FiTag, FiPercent, FiType, FiFileText, FiShield, FiSliders, FiMenu, FiMessageSquare, FiGift, FiPieChart, FiHome, FiList, FiZap, FiActivity, FiBell, FiMail, FiTruck, FiPrinter, FiInfo } from 'react-icons/fi'
+import { FaWhatsapp } from 'react-icons/fa'
 import api from '../../services/api'
 import { AuthContext } from '../../App'
 import { getImageUrl } from '../../utils/imageHelper'
 import StockManager from './tabs/StockManager'
+import ShippingManager from './tabs/ShippingManager'
 import styles from './Admin.module.css'
 
 const formatPrice = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
+
+/* Monta o HTML da etiqueta de envio para impressão (window.open + print). */
+function buildLabelHTML(data) {
+  const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
+  const a = data.address || {}
+  const store = data.store || {}
+  const tracking = data.tracking_code || 'SEM RASTREIO'
+  const generatedAt = data.generated_at ? new Date(data.generated_at).toLocaleString('pt-BR') : new Date().toLocaleString('pt-BR')
+  const qr = `https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(`https://pizzant.com.br/rastreio?id=${data.order_id}`)}`
+  const itemsRows = (data.items || [])
+    .map(it => `<tr><td>${esc(it.name)}</td><td style="text-align:center">${esc(it.size)}</td><td style="text-align:center">${esc(it.quantity)}</td></tr>`)
+    .join('')
+
+  return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>Etiqueta #${esc(data.order_id)}</title>
+<style>
+  @media print { @page { margin: 0; } body { margin: 0; } .noPrint { display: none !important; } }
+  body { font-family: Arial, sans-serif; background: #fff; color: #000; padding: 12px; }
+  .label { width: 10cm; padding: 16px; border: 2px solid #000; border-radius: 6px; margin: 0 auto; box-sizing: border-box; }
+  .head { text-align: center; border-bottom: 1px solid #ccc; padding-bottom: 8px; margin-bottom: 8px; }
+  .dest { margin-bottom: 12px; font-size: 13px; line-height: 1.5; }
+  .track { border: 2px solid #000; padding: 8px; text-align: center; border-radius: 4px; margin-bottom: 12px; }
+  .items { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 12px; }
+  .items th, .items td { border: 1px solid #ccc; padding: 3px 5px; }
+  .foot { text-align: center; font-size: 11px; color: #666; }
+  .printBtn { display: block; margin: 12px auto; padding: 8px 18px; font-size: 14px; cursor: pointer; }
+</style></head><body>
+  <div class="label">
+    <div class="head">
+      <strong style="font-size:18px">${esc(store.name || 'Pizzant Drop')}</strong><br>
+      <small>${esc(store.address || '')}${store.address && store.phone ? ' | ' : ''}${esc(store.phone || '')}</small>
+    </div>
+    <div class="dest">
+      <strong>DESTINATÁRIO:</strong><br>
+      ${esc(data.customer_name)}<br>
+      ${esc(a.street)}, ${esc(a.number)} ${esc(a.complement || '')}<br>
+      ${esc(a.neighborhood)} — ${esc(a.city)}/${esc(a.state)}<br>
+      CEP: ${esc(a.cep)}<br>
+      Tel: ${esc(data.customer_phone || '')}
+    </div>
+    <div class="track">
+      <strong style="font-size:20px;letter-spacing:4px">${esc(tracking)}</strong>
+    </div>
+    ${itemsRows ? `<table class="items"><thead><tr><th>Produto</th><th>Tam.</th><th>Qtd</th></tr></thead><tbody>${itemsRows}</tbody></table>` : ''}
+    <img src="${qr}" alt="QR rastreio" style="display:block;margin:0 auto 8px">
+    <div class="foot">Pedido #${esc(data.order_id)} | ${esc(generatedAt)}</div>
+  </div>
+  <button class="printBtn noPrint" onclick="window.print()">Imprimir etiqueta</button>
+</body></html>`
+}
 
 /* ========================================================
    LOGIN SCREEN
@@ -40,7 +91,7 @@ function LoginScreen({ onLogin }) {
         initial={{ opacity: 0, y: 30, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ type: 'spring', damping: 25, stiffness: 300 }}>
-        <h2 className={styles.loginTitle}>Admin <span>MJSneakers</span></h2>
+        <h2 className={styles.loginTitle}>Admin <span>Pizzant</span></h2>
         <p className={styles.loginSub}>Acesse o painel administrativo</p>
         <form className={styles.form} onSubmit={handleSubmit}>
           {error && <motion.div className={styles.error} initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>{error}</motion.div>}
@@ -81,7 +132,12 @@ function ProductFormModal({ product, brands, onSave, onClose }) {
     tags: product?.tags || '',
     promo_start: product?.promo_start ? product.promo_start.slice(0, 16) : '',
     promo_end: product?.promo_end ? product.promo_end.slice(0, 16) : '',
+    weight_g: product?.weight_g ?? '',
+    height_cm: product?.height_cm ?? '',
+    width_cm: product?.width_cm ?? '',
+    length_cm: product?.length_cm ?? '',
   })
+  const [dimOpen, setDimOpen] = useState(false)
   const [images, setImages] = useState(() => {
     const imgs = []
     if (product?.image_url) imgs.push(product.image_url)
@@ -151,6 +207,10 @@ function ProductFormModal({ product, brands, onSave, onClose }) {
         feature_order: parseInt(form.feature_order) || 0,
         promo_start: form.promo_start || null,
         promo_end: form.promo_end || null,
+        weight_g: form.weight_g === '' ? null : parseInt(form.weight_g) || 0,
+        height_cm: form.height_cm === '' ? null : parseFloat(form.height_cm) || 0,
+        width_cm: form.width_cm === '' ? null : parseFloat(form.width_cm) || 0,
+        length_cm: form.length_cm === '' ? null : parseFloat(form.length_cm) || 0,
         image_url: uploadedImages[0] || null,
         image_url_2: uploadedImages[1] || null,
         image_url_3: uploadedImages[2] || null,
@@ -310,6 +370,33 @@ function ProductFormModal({ product, brands, onSave, onClose }) {
             </div>
           </div>
         )}
+
+        {/* Dimensões para frete (colapsável) */}
+        <div className={styles.dimensionsSection}>
+          <div className={styles.dimensionsHeader} onClick={() => setDimOpen(o => !o)}>
+            <span><FiPackage style={{ verticalAlign: '-2px', marginRight: 6 }} /> Dimensões para frete</span>
+            {dimOpen ? <FiChevronUp /> : <FiChevronDown />}
+          </div>
+          <div className={`${styles.dimensionsBody} ${dimOpen ? styles.dimensionsOpen : ''}`}>
+            <div className={styles.inputGroup}>
+              <label className={styles.label}>Peso (g)</label>
+              <input className={styles.input} type="number" min="0" placeholder="300" value={form.weight_g} onChange={e => handleChange('weight_g', e.target.value)} />
+            </div>
+            <div className={styles.inputGroup}>
+              <label className={styles.label}>Altura (cm)</label>
+              <input className={styles.input} type="number" min="0" step="0.1" placeholder="10" value={form.height_cm} onChange={e => handleChange('height_cm', e.target.value)} />
+            </div>
+            <div className={styles.inputGroup}>
+              <label className={styles.label}>Largura (cm)</label>
+              <input className={styles.input} type="number" min="0" step="0.1" placeholder="15" value={form.width_cm} onChange={e => handleChange('width_cm', e.target.value)} />
+            </div>
+            <div className={styles.inputGroup}>
+              <label className={styles.label}>Comprimento (cm)</label>
+              <input className={styles.input} type="number" min="0" step="0.1" placeholder="30" value={form.length_cm} onChange={e => handleChange('length_cm', e.target.value)} />
+            </div>
+            <p className={styles.dimensionsHint}><FiInfo style={{ verticalAlign: '-2px', marginRight: 4 }} /> Usado para calcular frete por peso. Padrão: 300g se não preenchido.</p>
+          </div>
+        </div>
 
         <div className={styles.formActions}>
           <button className={styles.cancelBtn} onClick={onClose}>Cancelar</button>
@@ -844,6 +931,8 @@ export default function Admin() {
   const [inlineEdit, setInlineEdit] = useState({}) // { productId: { field, value } }
   const [orderNote, setOrderNote] = useState({}) // { orderId: text }
   const [orderTracking, setOrderTracking] = useState({}) // { orderId: code }
+  const [orderWaLink, setOrderWaLink] = useState({}) // { orderId: wa_link }
+  const [labelLoading, setLabelLoading] = useState(null) // orderId em geração
   const [orderSearch, setOrderSearch] = useState('')
   const [orderStatusFilter, setOrderStatusFilter] = useState('')
   const [exportingCsv, setExportingCsv] = useState(false)
@@ -1247,9 +1336,27 @@ export default function Admin() {
     const code = orderTracking[orderId]
     if (!code?.trim()) return
     try {
-      await api.put(`/orders/${orderId}/tracking`, { tracking_code: code.trim() })
+      const { data } = await api.put(`/orders/${orderId}/tracking`, { tracking_code: code.trim() })
+      if (data?.wa_link) setOrderWaLink(prev => ({ ...prev, [orderId]: data.wa_link }))
       loadOrders()
     } catch { alert('Erro ao salvar rastreio') }
+  }
+
+  const handleGenerateLabel = async (orderId) => {
+    setLabelLoading(orderId)
+    try {
+      const { data } = await api.post(`/shipping/label/${orderId}/generate`)
+      const win = window.open('', '_blank', 'width=420,height=620')
+      if (!win) { alert('Permita pop-ups para imprimir a etiqueta.'); return }
+      win.document.write(buildLabelHTML(data))
+      win.document.close()
+      win.focus()
+      setTimeout(() => { win.print() }, 400)
+    } catch {
+      alert('Erro ao gerar etiqueta')
+    } finally {
+      setLabelLoading(null)
+    }
   }
 
   /* ---- CSV Export ---- */
@@ -1304,7 +1411,7 @@ export default function Admin() {
       label: 'Catálogo',
       items: [
         { key: 'products', label: 'Produtos', icon: <FiPackage /> },
-        { key: 'stock', label: 'Estoque', icon: <span style={{ fontSize: '1.05rem', lineHeight: 1 }}>📦</span> },
+        { key: 'stock', label: 'Estoque', icon: <FiBox /> },
         { key: 'categories', label: 'Categorias', icon: <FiList /> },
         { key: 'promotions', label: 'Promoções', icon: <FiTag /> },
       ]
@@ -1313,6 +1420,7 @@ export default function Admin() {
       label: 'Vendas',
       items: [
         { key: 'orders', label: 'Pedidos', icon: <FiShoppingBag />, badge: orders.filter(o => o.status === 'pending').length || 0 },
+        { key: 'shipping', label: 'Frete', icon: <FiTruck /> },
         { key: 'customers', label: 'Clientes', icon: <FiUsers /> },
         { key: 'coupons', label: 'Cupons', icon: <FiPercent /> },
         { key: 'loyalty', label: 'Fidelidade', icon: <FiGift /> },
@@ -1852,8 +1960,17 @@ export default function Admin() {
                             value={orderTracking[o.id] ?? o.tracking_code ?? ''}
                             onChange={e => setOrderTracking(prev => ({ ...prev, [o.id]: e.target.value }))}
                           />
-                          <button className={styles.trackingBtn} onClick={() => handleSaveTracking(o.id)}><FiSave /></button>
+                          <button className={styles.trackingBtn} onClick={() => handleSaveTracking(o.id)} title="Salvar rastreio"><FiSave /></button>
+                          <button className={styles.labelBtn} onClick={() => handleGenerateLabel(o.id)} disabled={labelLoading === o.id} title="Gerar etiqueta de envio">
+                            <FiPrinter /> {labelLoading === o.id ? 'Gerando...' : 'Gerar Etiqueta'}
+                          </button>
                         </div>
+
+                        {orderWaLink[o.id] && (
+                          <button className={styles.waNotifyBtn} onClick={() => window.open(orderWaLink[o.id], '_blank', 'noopener')}>
+                            <FaWhatsapp /> Notificar cliente no WhatsApp
+                          </button>
+                        )}
 
                         <div className={styles.orderStatusActions}>
                           <span className={styles.label}>Alterar status:</span>
@@ -2096,11 +2213,11 @@ export default function Admin() {
               <div className={styles.formRow}>
                 <div className={styles.inputGroup}>
                   <label className={styles.label}>Nome da Loja</label>
-                  <input className={styles.input} value={settings.store_name || ''} onChange={e => setSettings(p => ({ ...p, store_name: e.target.value }))} placeholder="MJ Sneakers" />
+                  <input className={styles.input} value={settings.store_name || ''} onChange={e => setSettings(p => ({ ...p, store_name: e.target.value }))} placeholder="Pizzant Drop" />
                 </div>
                 <div className={styles.inputGroup}>
                   <label className={styles.label}>Email</label>
-                  <input className={styles.input} type="email" value={settings.store_email || ''} onChange={e => setSettings(p => ({ ...p, store_email: e.target.value }))} placeholder="contato@mjsneakers.com" />
+                  <input className={styles.input} type="email" value={settings.store_email || ''} onChange={e => setSettings(p => ({ ...p, store_email: e.target.value }))} placeholder="contato@pizzant.com.br" />
                 </div>
               </div>
               <div className={styles.formRow}>
@@ -2120,11 +2237,11 @@ export default function Admin() {
               <div className={styles.formRow}>
                 <div className={styles.inputGroup}>
                   <label className={styles.label}>Instagram</label>
-                  <input className={styles.input} value={settings.store_instagram || ''} onChange={e => setSettings(p => ({ ...p, store_instagram: e.target.value }))} placeholder="@mjsneakers" />
+                  <input className={styles.input} value={settings.store_instagram || ''} onChange={e => setSettings(p => ({ ...p, store_instagram: e.target.value }))} placeholder="@pizzantdrop" />
                 </div>
                 <div className={styles.inputGroup}>
                   <label className={styles.label}>Facebook</label>
-                  <input className={styles.input} value={settings.store_facebook || ''} onChange={e => setSettings(p => ({ ...p, store_facebook: e.target.value }))} placeholder="facebook.com/mjsneakers" />
+                  <input className={styles.input} value={settings.store_facebook || ''} onChange={e => setSettings(p => ({ ...p, store_facebook: e.target.value }))} placeholder="facebook.com/pizzantdrop" />
                 </div>
               </div>
             </div>
@@ -2466,7 +2583,7 @@ export default function Admin() {
               <div className={styles.formRow}>
                 <div className={styles.inputGroup}>
                   <label className={styles.label}>Email</label>
-                  <input className={styles.input} value={appearance.footer_email || ''} onChange={e => setAppearance(p => ({ ...p, footer_email: e.target.value }))} placeholder="contato@mjsneakers.com.br" />
+                  <input className={styles.input} value={appearance.footer_email || ''} onChange={e => setAppearance(p => ({ ...p, footer_email: e.target.value }))} placeholder="contato@pizzant.com.br" />
                 </div>
                 <div className={styles.inputGroup}>
                   <label className={styles.label}>Telefone</label>
@@ -2476,7 +2593,7 @@ export default function Admin() {
               <div className={styles.formRow}>
                 <div className={styles.inputGroup}>
                   <label className={styles.label}>Instagram</label>
-                  <input className={styles.input} value={appearance.footer_instagram || ''} onChange={e => setAppearance(p => ({ ...p, footer_instagram: e.target.value }))} placeholder="@mjsneakers" />
+                  <input className={styles.input} value={appearance.footer_instagram || ''} onChange={e => setAppearance(p => ({ ...p, footer_instagram: e.target.value }))} placeholder="@pizzantdrop" />
                 </div>
                 <div className={styles.inputGroup}>
                   <label className={styles.label}>Crédito</label>
@@ -2572,6 +2689,11 @@ export default function Admin() {
       {/* ===== STOCK TAB ===== */}
       {activeTab === 'stock' && (
         <StockManager />
+      )}
+
+      {/* ===== SHIPPING TAB ===== */}
+      {activeTab === 'shipping' && (
+        <ShippingManager />
       )}
 
         </main>

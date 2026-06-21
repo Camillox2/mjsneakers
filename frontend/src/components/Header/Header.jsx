@@ -15,7 +15,7 @@ export default function Header() {
   const { darkMode, setDarkMode } = useContext(DarkModeContext)
   const navigate = useNavigate()
   const location = useLocation()
-  const [logo, setLogo] = useState(null)
+  const [logo, setLogo] = useState('/pizzantsemfundo.png')
   const [searchOpen, setSearchOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [results, setResults] = useState([])
@@ -24,7 +24,7 @@ export default function Header() {
 
   useEffect(() => {
     api.get('/settings/site_logo').then(({ data }) => {
-      setLogo(data.value)
+      if (data.value) setLogo(data.value)
     }).catch(() => {})
   }, [])
 
@@ -63,9 +63,9 @@ export default function Header() {
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
         >
-          {logo && <img src={logo} alt="MJ Sneakers" className={styles.logoImg} />}
+          <img src={logo} alt="Pizzant Drop" className={styles.logoImg} />
           <div className={styles.logoText}>
-            MJ<span>Sneakers</span>
+            PIZZANT<span>DROP</span>
           </div>
         </motion.div>
 

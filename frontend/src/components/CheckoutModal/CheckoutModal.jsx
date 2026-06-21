@@ -19,7 +19,9 @@ export default function CheckoutModal({ isOpen, onClose, cartItems, coupon, onSu
     name: '', email: '', phone: '',
     cep: '', street: '', number: '', complement: '',
     neighborhood: '', city: '', state: '',
-    shipping_type: '', shipping_price: 0, shipping_days: ''
+    shipping_type: '', shipping_price: 0, shipping_days: '',
+    shipping_name: '', shipping_rule_id: null,
+    estimated_days_min: '', estimated_days_max: '', shipping_is_free: false
   })
 
   const set = (field) => (e) => setForm(prev => ({ ...prev, [field]: e.target.value }))
@@ -33,6 +35,9 @@ export default function CheckoutModal({ isOpen, onClose, cartItems, coupon, onSu
   const couponDiscount = coupon?.discount || 0
   const shipping = Number(form.shipping_price) || 0
   const total = subtotal - couponDiscount + shipping
+  const faltaGratis = shippingOptions
+    .filter(o => o.falta_para_gratis != null)
+    .reduce((min, o) => (min == null ? o.falta_para_gratis : Math.min(min, o.falta_para_gratis)), null)
 
   const validateStep = () => {
     setError('')
@@ -91,13 +96,13 @@ export default function CheckoutModal({ isOpen, onClose, cartItems, coupon, onSu
     if (cep.length !== 8) return
     setShippingLoading(true)
     try {
-      const { data } = await api.post('/shipping/calculate', { cep, products: cartItems })
-      setShippingOptions(Array.isArray(data) ? data : (data.options || []))
+      const items = cartItems.map(i => ({ product_id: i.id, quantity: i.quantity }))
+      const { data } = await api.post('/shipping/calculate', { cep, items, order_total: subtotal })
+      const opts = Array.isArray(data) ? data : (data.options || [])
+      setShippingOptions(opts)
+      if (opts.length === 1) selectShipping(opts[0])
     } catch {
-      setShippingOptions([
-        { type: 'PAC', price: 24.90, days: '8-12 dias úteis' },
-        { type: 'SEDEX', price: 39.90, days: '3-5 dias úteis' }
-      ])
+      setShippingOptions([])
     } finally {
       setShippingLoading(false)
     }
@@ -106,9 +111,14 @@ export default function CheckoutModal({ isOpen, onClose, cartItems, coupon, onSu
   const selectShipping = (opt) => {
     setForm(prev => ({
       ...prev,
-      shipping_type: opt.type,
-      shipping_price: opt.price,
-      shipping_days: opt.days
+      shipping_type: opt.name,
+      shipping_name: opt.name,
+      shipping_rule_id: opt.id ?? null,
+      shipping_price: opt.is_free ? 0 : Number(opt.price),
+      shipping_days: `${opt.estimated_days_min}-${opt.estimated_days_max} dias úteis`,
+      estimated_days_min: opt.estimated_days_min,
+      estimated_days_max: opt.estimated_days_max,
+      shipping_is_free: !!opt.is_free
     }))
     setError('')
   }
@@ -129,7 +139,8 @@ export default function CheckoutModal({ isOpen, onClose, cartItems, coupon, onSu
         customer_phone: form.phone.trim(),
         items,
         coupon_code: coupon?.code || null,
-        shipping_type: form.shipping_type,
+        shipping_type: form.shipping_name || form.shipping_type,
+        shipping_rule_id: form.shipping_rule_id || null,
         shipping_price: shipping,
         address_cep: form.cep.replace(/\D/g, ''),
         address_street: form.street,
@@ -234,21 +245,45 @@ export default function CheckoutModal({ isOpen, onClose, cartItems, coupon, onSu
               <div className={styles.shippingSection}>
                 {shippingLoading ? (
                   <div className={styles.shippingLoading}><FiLoader className={styles.spinner} /> Calculando frete...</div>
-                ) : shippingOptions.length > 0 ? (
-                  shippingOptions.map(opt => (
-                    <div
-                      key={opt.type}
-                      className={`${styles.shippingOption} ${form.shipping_type === opt.type ? styles.shippingSelected : ''}`}
-                      onClick={() => selectShipping(opt)}
-                    >
-                      <FiTruck />
-                      <div className={styles.shippingInfo}>
-                        <strong>{opt.type}</strong>
-                        <span>{opt.days}</span>
-                      </div>
-                      <span className={styles.shippingPrice}>{formatPrice(opt.price)}</span>
+                ) : shippingOptions.length === 1 ? (
+                  <div className={styles.singleShip}>
+                    <FiTruck />
+                    <div className={styles.shipInfo}>
+                      <span className={styles.shipName}>{shippingOptions[0].name}</span>
+                      <span className={styles.shipDays}>{shippingOptions[0].estimated_days_min}-{shippingOptions[0].estimated_days_max} dias úteis</span>
                     </div>
-                  ))
+                    <span className={`${styles.shipPrice} ${shippingOptions[0].is_free ? styles.shipFree : ''}`}>
+                      {shippingOptions[0].is_free ? 'GRÁTIS' : formatPrice(shippingOptions[0].price)}
+                    </span>
+                  </div>
+                ) : shippingOptions.length > 0 ? (
+                  <>
+                    {shippingOptions.map((opt, i) => {
+                      const selected = form.shipping_name === opt.name
+                      return (
+                        <div
+                          key={opt.id ?? opt.name ?? i}
+                          className={`${styles.shipOption} ${selected ? styles.shipSelected : ''}`}
+                          onClick={() => selectShipping(opt)}
+                        >
+                          <span className={styles.shipRadio} />
+                          <div className={styles.shipInfo}>
+                            <span className={styles.shipName}>{opt.name}</span>
+                            <span className={styles.shipDays}>{opt.estimated_days_min}-{opt.estimated_days_max} dias úteis</span>
+                          </div>
+                          <span className={`${styles.shipPrice} ${opt.is_free ? styles.shipFree : ''}`}>
+                            {opt.is_free ? 'GRÁTIS' : formatPrice(opt.price)}
+                          </span>
+                          <FiCheck className={styles.shipCheck} />
+                        </div>
+                      )
+                    })}
+                    {faltaGratis != null && (
+                      <div className={styles.faltaGratis}>
+                        Adicione mais {formatPrice(faltaGratis)} ao pedido para frete grátis!
+                      </div>
+                    )}
+                  </>
                 ) : (
                   <p className={styles.noShipping}>Nenhuma opção de frete disponível. Verifique o CEP.</p>
                 )}
@@ -280,7 +315,10 @@ export default function CheckoutModal({ isOpen, onClose, cartItems, coupon, onSu
                 <div className={styles.reviewTotals}>
                   <div className={styles.totalRow}><span>Subtotal</span><span>{formatPrice(subtotal)}</span></div>
                   {couponDiscount > 0 && <div className={styles.totalRow}><span>Cupom ({coupon?.code})</span><span className={styles.discountText}>-{formatPrice(couponDiscount)}</span></div>}
-                  <div className={styles.totalRow}><span>Frete ({form.shipping_type})</span><span>{formatPrice(shipping)}</span></div>
+                  <div className={styles.totalRow}>
+                    <span>{form.shipping_is_free ? 'Frete' : `Frete (${form.shipping_name || form.shipping_type})`}</span>
+                    <span>{form.shipping_is_free ? 'GRÁTIS' : formatPrice(shipping)}</span>
+                  </div>
                   <div className={`${styles.totalRow} ${styles.totalFinal}`}><span>Total</span><span>{formatPrice(total)}</span></div>
                 </div>
               </div>

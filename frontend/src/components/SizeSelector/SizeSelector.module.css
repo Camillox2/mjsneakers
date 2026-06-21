@@ -71,6 +71,9 @@
   font-size: 0.8rem;
   font-weight: 600;
   color: #F59E0B;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .notifyBox {
@@ -114,7 +117,9 @@
 .notifyBtn:hover:not(:disabled) { background: var(--red-dark); }
 .notifyBtn:disabled { opacity: 0.6; cursor: default; }
 .notifyDone {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: 0.85rem;
   font-weight: 600;
   color: #22c55e;

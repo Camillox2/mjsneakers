@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { FiAlertTriangle, FiCheck } from 'react-icons/fi'
 import api from '../../services/api'
 import { parseSizes } from '../../utils/sizes'
 import styles from './SizeSelector.module.css'
@@ -113,7 +114,7 @@ export default function SizeSelector({ productId, fallbackSizes, selected, onSel
           initial={{ opacity: 0, y: -4 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          ⚠️ Apenas {selectedInfo.available} unidades disponíveis neste tamanho!
+          <FiAlertTriangle aria-hidden /> Apenas {selectedInfo.available} unidades disponíveis neste tamanho!
         </motion.p>
       )}
 
@@ -126,7 +127,7 @@ export default function SizeSelector({ productId, fallbackSizes, selected, onSel
             exit={{ opacity: 0, height: 0 }}
           >
             {notified[notifyFor] ? (
-              <span className={styles.notifyDone}>✓ Você será avisado</span>
+              <span className={styles.notifyDone}><FiCheck aria-hidden /> Você será avisado</span>
             ) : (
               <>
                 <label className={styles.notifyLabel}>

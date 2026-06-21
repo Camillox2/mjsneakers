@@ -333,6 +333,76 @@ async function initDatabase() {
   await ensureColumn(connection, 'orders', 'gift_wrap', 'BOOLEAN DEFAULT FALSE');
   await ensureColumn(connection, 'orders', 'gift_message', 'TEXT');
 
+  // ── Visual site editor ──
+  await connection.query(`CREATE TABLE IF NOT EXISTS custom_sections (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    type ENUM('video','lookbook','text_block','html') NOT NULL,
+    title VARCHAR(255),
+    content LONGTEXT,
+    position_after VARCHAR(50),
+    active BOOLEAN DEFAULT TRUE,
+    sort_order INT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  )`);
+
+  await connection.query(`CREATE TABLE IF NOT EXISTS theme_presets (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    config LONGTEXT NOT NULL,
+    is_active BOOLEAN DEFAULT FALSE,
+    thumbnail VARCHAR(500),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  await connection.query(`CREATE TABLE IF NOT EXISTS checkout_events (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    session_id VARCHAR(100),
+    step ENUM('cart','personal_data','address','shipping','confirmed') NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  const visualSettingDefaults = {
+    home_sections_order: ['banner', 'ticker', 'brands', 'featured', 'catalog', 'newsletter', 'bottom_banner'],
+    home_sections_visibility: {
+      banner: true, ticker: true, brands: true, featured: true,
+      catalog: true, newsletter: true, bottom_banner: true,
+    },
+    typography_heading_font: 'Inter',
+    typography_body_font: 'Inter',
+    typography_heading_size: '2.5rem',
+    grid_columns_desktop: '3',
+    show_price_strikethrough: 'true',
+    show_discount_badge: 'true',
+    show_product_rating: 'true',
+    custom_css: '',
+    announcement_bar: { active: false, text: '', bg_color: '#000000', text_color: '#ffffff', link: '' },
+    popup_config: {
+      active: false, trigger: 'time', delay_seconds: 10, title: '', text: '',
+      button_text: '', coupon_code: '', image_url: '',
+    },
+    og_tags: { title: '', description: '', image_url: '' },
+    hero_texts: {
+      headline: '', subtitle: '', cta_primary_text: '', cta_primary_link: '',
+      cta_secondary_text: '', cta_secondary_link: '',
+    },
+    trust_strip: [
+      { icon: '', text: 'Frete Grátis' },
+      { icon: '✅', text: 'Original Garantido' },
+      { icon: '', text: 'Troca Fácil' },
+      { icon: '⚡', text: 'Entrega Rápida' },
+    ],
+    footer_texts: { email: '', phone: '', instagram: '', address: '', credits: '' },
+    active_theme_id: '',
+  };
+  for (const [key, value] of Object.entries(visualSettingDefaults)) {
+    const serialized = typeof value === 'object' ? JSON.stringify(value) : String(value);
+    await connection.query(
+      'INSERT IGNORE INTO site_settings (setting_key, setting_value) VALUES (?, ?)',
+      [key, serialized]
+    );
+  }
+
   // ── Indexes ──
   await ensureIndex(connection, 'products', 'idx_products_active', 'active');
   await ensureIndex(connection, 'products', 'idx_products_brand_id', 'brand_id');
@@ -350,6 +420,8 @@ async function initDatabase() {
   await ensureIndex(connection, 'cart_reservations', 'idx_cart_reservations_session', 'session_id');
   await ensureIndex(connection, 'shipping_rules', 'idx_shipping_rules_zone_active', 'zone_id, active, sort_order');
   await ensureIndex(connection, 'whatsapp_notifications', 'idx_whatsapp_order_created', 'order_id, created_at');
+  await ensureIndex(connection, 'custom_sections', 'idx_custom_sections_active_sort', 'active, sort_order');
+  await ensureIndex(connection, 'checkout_events', 'idx_checkout_events_session_created', 'session_id, created_at');
 
   // ── Seed admin (first run only) ──
   const [users] = await connection.query('SELECT COUNT(*) as count FROM users');

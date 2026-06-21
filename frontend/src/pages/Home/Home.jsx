@@ -166,17 +166,17 @@ export default function Home() {
         <span className={`${styles.orb} ${styles.orb1}`} aria-hidden="true" />
         <span className={`${styles.orb} ${styles.orb2}`} aria-hidden="true" />
         <span className={`${styles.orb} ${styles.orb3}`} aria-hidden="true" />
-        <span className={styles.heroGhost} aria-hidden="true">SNKRS</span>
+        <span className={styles.heroGhost} aria-hidden="true">PIZZANT</span>
 
         <motion.div className={styles.heroContent} variants={stagger} initial="hidden" animate="show">
           <motion.span className={styles.heroBadge} variants={fadeUp}>
             <span className={styles.heroBadgeDot} /> Coleção 2026 · 100% Originais
           </motion.span>
           <motion.h1 className={styles.heroTitle} variants={fadeUp}>
-            MJ<span className={styles.accent}>Sneakers</span>
+            PIZZANT<span className={styles.accent}>DROP</span>
           </motion.h1>
           <motion.p className={styles.heroSub} variants={fadeUp}>
-            Os melhores tênis do mercado
+            Os melhores drops do mercado
           </motion.p>
           <motion.div className={styles.heroCtas} variants={fadeUp}>
             <motion.a href="#catalogo" className={styles.heroCtaPrimary} whileHover={{ y: -2 }} whileTap={{ scale: 0.97 }}>

@@ -15,7 +15,7 @@ const QUICK_MESSAGES = [
 export default function ChatBot() {
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState([
-    { role: 'model', text: 'Olá! 👟 Sou o MJ Bot, assistente da MJ Sneakers. Como posso ajudar?' }
+    { role: 'model', text: 'Olá! 👟 Sou o Pizzant Bot, assistente da Pizzant Drop. Como posso ajudar?' }
   ])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -50,7 +50,7 @@ export default function ChatBot() {
       const { data } = await api.post('/chat', { message: msg, history })
       setMessages(prev => [...prev, { role: 'model', text: data.reply }])
     } catch {
-      setMessages(prev => [...prev, { role: 'model', text: 'Desculpe, tive um problema. Tente novamente ou envie email para contato@mjsneakers.com.br 📧' }])
+      setMessages(prev => [...prev, { role: 'model', text: 'Desculpe, tive um problema. Tente novamente ou envie email para contato@pizzant.com.br 📧' }])
     } finally {
       setLoading(false)
     }

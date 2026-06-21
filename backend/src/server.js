@@ -142,6 +142,8 @@ app.use('/api/loyalty', require('./routes/loyalty'));
 app.use('/api/reports', require('./routes/reports'));
 app.use('/api/stock', stockRoutes);
 app.use('/api/suppliers', supplierRoutes);
+app.use('/api/appearance', require('./routes/appearance'));
+app.use('/api/checkout', require('./routes/checkout'));
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
 

@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   FiSave, FiBell, FiEdit2, FiTrash2, FiPlus, FiUploadCloud,
-  FiDownload, FiTruck,
+  FiDownload, FiTruck, FiCheckCircle, FiTrendingUp, FiFileText,
 } from 'react-icons/fi'
 import api from '../../../services/api'
 import { parseSizes } from '../../../utils/sizes'
@@ -418,7 +418,7 @@ function AlertsTab({ products, onAdjust, onSupplier }) {
   if (!alerts.length) {
     return (
       <div className={styles.empty}>
-        <span className={styles.emoji}>✅</span>
+        <span className={styles.emoji}><FiCheckCircle /></span>
         <p>Todos os estoques estão saudáveis!</p>
       </div>
     )
@@ -527,7 +527,7 @@ function HistoryTab({ products }) {
       {loading ? (
         <div>{[...Array(4)].map((_, i) => <div key={i} className={styles.skeletonCard} style={{ height: 48 }} />)}</div>
       ) : filtered.length === 0 ? (
-        <div className={styles.empty}><span className={styles.emoji}>🗒️</span><p>Nenhuma movimentação registrada.</p></div>
+        <div className={styles.empty}><span className={styles.emoji}><FiFileText /></span><p>Nenhuma movimentação registrada.</p></div>
       ) : (
         <>
           <div className={styles.tableWrap}>
@@ -616,7 +616,7 @@ function ForecastTab({ products }) {
   if (!withDays.length) {
     return (
       <div className={styles.empty}>
-        <span className={styles.emoji}>📈</span>
+        <span className={styles.emoji}><FiTrendingUp /></span>
         <p>Sem dados de previsão de vendas ainda.</p>
       </div>
     )
@@ -703,7 +703,7 @@ function SuppliersTab() {
       </div>
 
       {suppliers.length === 0 ? (
-        <div className={styles.empty}><span className={styles.emoji}>🚚</span><p>Nenhum fornecedor cadastrado.</p></div>
+        <div className={styles.empty}><span className={styles.emoji}><FiTruck /></span><p>Nenhum fornecedor cadastrado.</p></div>
       ) : (
         <div className={styles.tableWrap}>
           <table className={styles.table}>

@@ -32,7 +32,7 @@ export default function PrivacyModal({ isOpen, onClose }) {
 
               <h3>1. Informações que Coletamos</h3>
               <p>
-                A MJ Sneakers coleta informações pessoais fornecidas voluntariamente por você ao 
+                A Pizzant Drop coleta informações pessoais fornecidas voluntariamente por você ao
                 realizar uma compra ou se cadastrar em nosso site. Essas informações podem incluir:
               </p>
               <ul>
@@ -93,7 +93,7 @@ export default function PrivacyModal({ isOpen, onClose }) {
               <h3>7. Contato</h3>
               <p>
                 Para exercer seus direitos ou esclarecer dúvidas sobre esta política, 
-                entre em contato pelo e-mail: contato@mjsneakers.com.br
+                entre em contato pelo e-mail: contato@pizzant.com.br
               </p>
             </div>
           </motion.div>

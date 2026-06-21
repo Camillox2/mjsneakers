@@ -221,6 +221,70 @@
   padding: 1.5rem 0;
 }
 
+/* Cards de opção de frete (PART 5) */
+.shipOption {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 2px solid var(--border-color);
+  border-radius: 12px;
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: all 0.15s;
+  color: var(--text-primary);
+}
+.shipOption:hover { border-color: var(--red-primary); }
+.shipOption.shipSelected {
+  border-color: var(--red-primary);
+  background: color-mix(in srgb, var(--red-primary) 6%, transparent);
+}
+.shipRadio {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--border-hover);
+  flex-shrink: 0;
+  position: relative;
+  transition: border-color 0.15s;
+}
+.shipSelected .shipRadio { border-color: var(--red-primary); }
+.shipSelected .shipRadio::after {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: var(--red-primary);
+}
+.shipInfo { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.shipName { font-weight: 600; font-size: 0.95rem; }
+.shipDays { font-size: 0.8rem; color: var(--text-secondary); opacity: 0.85; }
+.shipPrice { font-weight: 700; font-size: 1rem; white-space: nowrap; }
+.shipPrice.shipFree { color: #22c55e; }
+.shipCheck { color: var(--red-primary); font-size: 1.2rem; opacity: 0; transition: opacity 0.15s; flex-shrink: 0; }
+.shipSelected .shipCheck { opacity: 1; }
+
+.faltaGratis {
+  background: #22c55e15;
+  border: 1px solid #22c55e30;
+  border-radius: 8px;
+  padding: 10px 14px;
+  text-align: center;
+  font-size: 0.85rem;
+  color: #22c55e;
+  margin-top: 4px;
+}
+
+.singleShip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 2px solid var(--red-primary);
+  background: color-mix(in srgb, var(--red-primary) 6%, transparent);
+  border-radius: 12px;
+  padding: 14px 16px;
+  color: var(--text-primary);
+}
+
 /* Review */
 .review {
   display: flex;

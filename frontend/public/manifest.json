@@ -1,7 +1,7 @@
 {
-  "name": "MJ Sneakers",
-  "short_name": "MJSneakers",
-  "description": "Os melhores tênis do mercado - MJ Sneakers",
+  "name": "Pizzant Drop",
+  "short_name": "Pizzant",
+  "description": "Os melhores drops do mercado - Pizzant Drop",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#111111",

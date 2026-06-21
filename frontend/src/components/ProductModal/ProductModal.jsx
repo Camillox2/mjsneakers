@@ -5,6 +5,7 @@ import { CartContext } from '../../App'
 import { getImageUrl } from '../../utils/imageHelper'
 import { useToast } from '../Toast/Toast'
 import SizeSelector from '../SizeSelector/SizeSelector'
+import ShippingEstimate from '../ShippingEstimate/ShippingEstimate'
 import api from '../../services/api'
 import { parseSizes } from '../../utils/sizes'
 import styles from './ProductModal.module.css'
@@ -179,6 +180,8 @@ export default function ProductModal({ product, isOpen, onClose }) {
                   />
                 </motion.div>
               )}
+
+              <ShippingEstimate productId={product.id} />
 
               <motion.button className={styles.addToCartBtn} onClick={handleAddToCart}
                 whileHover={stock > 0 ? { scale: 1.02 } : {}} whileTap={stock > 0 ? { scale: 0.97 } : {}}

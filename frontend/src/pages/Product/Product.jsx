@@ -8,6 +8,7 @@ import { getImageUrl } from '../../utils/imageHelper'
 import { parseSizes } from '../../utils/sizes'
 import { useToast } from '../../components/Toast/Toast'
 import SizeSelector from '../../components/SizeSelector/SizeSelector'
+import ShippingEstimate from '../../components/ShippingEstimate/ShippingEstimate'
 import styles from './Product.module.css'
 
 export default function Product({ wishlist, onToggleWishlist }) {
@@ -155,6 +156,9 @@ export default function Product({ wishlist, onToggleWishlist }) {
               />
             </div>
           )}
+
+          {/* Estimativa de frete */}
+          <ShippingEstimate productId={product.id} />
 
           {product.description && (
             <div className={styles.description}>

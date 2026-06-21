@@ -8,7 +8,7 @@ import styles from './Footer.module.css'
 export default function Footer() {
   const [showPrivacy, setShowPrivacy] = useState(false)
   const [info, setInfo] = useState({
-    email: 'contato@mjsneakers.com.br',
+    email: 'contato@pizzant.com.br',
     credit: 'Feito por DC Digital Foundry by Vitor Camillo',
     phone: '',
     address: '',
@@ -18,7 +18,7 @@ export default function Footer() {
   useEffect(() => {
     api.get('/settings').then(({ data }) => {
       setInfo({
-        email: data.footer_email || data.contact_email || 'contato@mjsneakers.com.br',
+        email: data.footer_email || data.contact_email || 'contato@pizzant.com.br',
         credit: data.footer_credit || 'Feito por DC Digital Foundry by Vitor Camillo',
         phone: data.footer_phone || data.contact_phone || '',
         address: data.footer_address || '',
@@ -40,9 +40,9 @@ export default function Footer() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            <div className={styles.footerLogo}>MJ<span>Sneakers</span></div>
+            <div className={styles.footerLogo}>PIZZANT<span>DROP</span></div>
             <p className={styles.footerTagline}>
-              Os melhores tênis do mercado. 100% originais, envio rápido e troca fácil.
+              Os melhores drops do mercado. 100% originais, envio rápido e troca fácil.
             </p>
             {info.instagram && (
               <a
@@ -95,11 +95,11 @@ export default function Footer() {
 
         <div className={styles.bottomBar}>
           <span className={styles.footerCredit}>
-            © {new Date().getFullYear()} MJSneakers · {info.credit}
+            © {new Date().getFullYear()} Pizzant Drop · {info.credit}
           </span>
         </div>
 
-        <div className={styles.watermark} aria-hidden="true">MJSNEAKERS</div>
+        <div className={styles.watermark} aria-hidden="true">PIZZANT</div>
       </footer>
 
       <PrivacyModal isOpen={showPrivacy} onClose={() => setShowPrivacy(false)} />
