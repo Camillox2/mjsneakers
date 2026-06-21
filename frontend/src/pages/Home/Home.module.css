@@ -213,16 +213,22 @@
   background: linear-gradient(90deg, rgba(220, 38, 38, 0.95), rgba(153, 27, 27, 0.95));
   border-top: 1px solid rgba(255, 255, 255, 0.12);
   border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-  transform: rotate(-1deg) scale(1.02);
+  transform: rotate(-1deg) scale(1.02) translateZ(0);
   margin: 6px -10px 26px;
   padding: 13px 0;
+  /* camada isolada para não participar do stacking context do filho */
+  isolation: isolate;
 }
 
 .marqueeTrack {
   display: flex;
   gap: 0;
   width: max-content;
+  will-change: transform;
   animation: marqueeScroll 26s linear infinite;
+  /* backface-visibility evita aliasing durante composição GPU */
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
 .marquee:hover .marqueeTrack { animation-play-state: paused; }
 
@@ -238,13 +244,15 @@
   letter-spacing: 4px;
   color: #fff;
   white-space: nowrap;
+  /* força pixel inteiro por item para evitar soma fracionária */
+  transform: translateZ(0);
 }
 
 .marqueeDot { font-size: 0.65rem; color: rgba(255, 255, 255, 0.55); }
 
 @keyframes marqueeScroll {
-  from { transform: translateX(0); }
-  to { transform: translateX(-50%); }
+  from { transform: translate3d(0, 0, 0); }
+  to   { transform: translate3d(var(--mq-offset, -50%), 0, 0); }
 }
 
 /* scroll cue */

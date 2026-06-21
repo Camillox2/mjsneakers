@@ -1,4 +1,4 @@
-import { useState, useEffect, useContext, useRef } from 'react'
+import { useState, useEffect, useLayoutEffect, useContext, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import api from '../../services/api'
@@ -62,6 +62,18 @@ export default function Home() {
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [hasMore, setHasMore] = useState(true)
   const loaderRef = useRef(null)
+  const marqueeRef = useRef(null)
+
+  useLayoutEffect(() => {
+    const el = marqueeRef.current
+    if (!el) return
+    const measure = () => {
+      const half = Math.round(el.scrollWidth / 2)
+      el.style.setProperty('--mq-offset', `-${half}px`)
+    }
+    measure()
+    document.fonts.ready.then(measure)
+  }, [])
   const { searchProduct, setSearchProduct } = useContext(SearchContext)
 
   useEffect(() => {
@@ -195,7 +207,7 @@ export default function Home() {
 
       {/* ===== MARQUEE DE MARCAS ===== */}
       <div className={styles.marquee} aria-hidden="true">
-        <div className={styles.marqueeTrack}>
+        <div className={styles.marqueeTrack} ref={marqueeRef}>
           {[...Array(2)].flatMap((_, dup) =>
             ['Nike', 'Adidas', 'Jordan', 'New Balance', 'Puma', 'Yeezy', 'Asics', 'Vans'].map((b, i) => (
               <span key={`${dup}-${i}`} className={styles.marqueeItem}>
