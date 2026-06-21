@@ -17,9 +17,26 @@
 .skeletonImage {
   width: 100%;
   aspect-ratio: 1;
-  background: linear-gradient(110deg, #1a1a1a 8%, #252525 18%, #1a1a1a 33%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s ease-in-out infinite;
+  background: #1a1a1a;
+  position: relative;
+  overflow: hidden;
+}
+
+.skeletonImage::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.045) 40%,
+    rgba(255, 255, 255, 0.08) 50%,
+    rgba(255, 255, 255, 0.045) 60%,
+    transparent 100%
+  );
+  animation: shimmer 1.6s linear infinite;
+  will-change: transform;
 }
 
 .skeletonBody {
@@ -32,9 +49,26 @@
 .skeletonLine {
   height: 12px;
   border-radius: 6px;
-  background: linear-gradient(110deg, #1a1a1a 8%, #252525 18%, #1a1a1a 33%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s ease-in-out infinite;
+  background: #1a1a1a;
+  position: relative;
+  overflow: hidden;
+}
+
+.skeletonLine::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.045) 40%,
+    rgba(255, 255, 255, 0.08) 50%,
+    rgba(255, 255, 255, 0.045) 60%,
+    transparent 100%
+  );
+  animation: shimmer 1.6s linear infinite;
+  will-change: transform;
 }
 
 .skeletonLine:nth-child(1) { width: 40%; }
@@ -42,8 +76,8 @@
 .skeletonLine:nth-child(3) { width: 50%; height: 20px; }
 
 @keyframes shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
 }
 
 @media (max-width: 768px) {

@@ -227,7 +227,7 @@
   content: '';
   position: absolute;
   top: 0;
-  left: -100%;
+  left: 0;
   width: 60%;
   height: 100%;
   background: linear-gradient(
@@ -238,13 +238,14 @@
     rgba(255, 255, 255, 0.08),
     transparent
   );
+  transform: translateX(-200%) skewX(-15deg);
   animation: lightSweep var(--effect-duration) linear infinite;
-  transform: skewX(-15deg);
+  will-change: transform;
 }
 
 @keyframes lightSweep {
-  0% { left: -100%; }
-  100% { left: 200%; }
+  0%   { transform: translateX(-200%) skewX(-15deg); }
+  100% { transform: translateX(300%) skewX(-15deg); }
 }
 
 @media (max-width: 768px) {
