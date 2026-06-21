@@ -5,6 +5,7 @@ import { FiPlus, FiEdit2, FiTrash2, FiLogOut, FiPackage, FiImage, FiStar, FiChec
 import api from '../../services/api'
 import { AuthContext } from '../../App'
 import { getImageUrl } from '../../utils/imageHelper'
+import StockManager from './tabs/StockManager'
 import styles from './Admin.module.css'
 
 const formatPrice = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
@@ -1303,6 +1304,7 @@ export default function Admin() {
       label: 'Catálogo',
       items: [
         { key: 'products', label: 'Produtos', icon: <FiPackage /> },
+        { key: 'stock', label: 'Estoque', icon: <span style={{ fontSize: '1.05rem', lineHeight: 1 }}>📦</span> },
         { key: 'categories', label: 'Categorias', icon: <FiList /> },
         { key: 'promotions', label: 'Promoções', icon: <FiTag /> },
       ]
@@ -2565,6 +2567,11 @@ export default function Admin() {
       {/* ===== REPORTS TAB ===== */}
       {activeTab === 'reports' && (
         <ReportsPanel />
+      )}
+
+      {/* ===== STOCK TAB ===== */}
+      {activeTab === 'stock' && (
+        <StockManager />
       )}
 
         </main>

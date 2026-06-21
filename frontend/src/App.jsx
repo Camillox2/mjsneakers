@@ -11,6 +11,8 @@ import PromotionTicker from './components/PromotionTicker/PromotionTicker'
 import BackToTop from './components/BackToTop/BackToTop'
 import { ToastProvider } from './components/Toast/Toast'
 import ChatBot from './components/ChatBot/ChatBot'
+import { reserveStock, releaseStock } from './utils/stockSession'
+import { parseSizes } from './utils/sizes'
 
 export const CartContext = createContext()
 export const AuthContext = createContext()
@@ -60,7 +62,16 @@ function App() {
     localStorage.setItem('mj_wishlist', JSON.stringify(wishlist))
   }, [wishlist])
 
-  const addToCart = (product, size) => {
+  const addToCart = async (product, size) => {
+    // Reserva o estoque antes de adicionar. Em 409 (esgotou agora) cancela.
+    try {
+      await reserveStock({ product_id: product.id, size, quantity: 1 })
+    } catch (err) {
+      if (err?.response?.status === 409) {
+        return { ok: false, reason: 'out_of_stock' }
+      }
+      // Outros erros (ex.: rota de reserva indisponível) -> segue sem bloquear a venda.
+    }
     setCart(prev => {
       const exists = prev.find(item => item.id === product.id && item.size === size)
       if (exists) {
@@ -72,6 +83,7 @@ function App() {
       }
       return [...prev, { ...product, size, quantity: 1 }]
     })
+    return { ok: true }
   }
 
   const removeFromCart = (productId, size) => {
@@ -92,7 +104,7 @@ function App() {
     )
   }
 
-  const clearCart = () => setCart([])
+  const clearCart = () => { releaseStock(); setCart([]) }
 
   const toggleWishlist = (product) => {
     setWishlist(prev => {
@@ -148,7 +160,7 @@ function App() {
                   onClose={() => setWishlistOpen(false)}
                   items={wishlist}
                   onRemove={removeFromWishlist}
-                  onAddToCart={(item) => { addToCart(item, item.sizes ? JSON.parse(item.sizes)[0] : '42'); setWishlistOpen(false); setCartOpen(true) }}
+                  onAddToCart={(item) => { addToCart(item, parseSizes(item.sizes)[0] || '42'); setWishlistOpen(false); setCartOpen(true) }}
                   onProductClick={(item) => { setSearchProduct(item) }}
                 />
                 {!isAdminRoute && <BackToTop />}

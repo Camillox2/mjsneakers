@@ -1,5 +1,6 @@
 const { pool } = require('../config/db');
 const { sendEmail, orderConfirmationEmail, adminNewOrderEmail, orderStatusEmail } = require('../services/emailService');
+const { createWhatsAppNotification } = require('../utils/whatsapp');
 
 const orderController = {
   async getAll(req, res) {
@@ -94,9 +95,10 @@ const orderController = {
 
       const {
         customer_name, customer_email, customer_phone,
-        items,
+        items, session_id,
         coupon_code, discount_amount,
-        shipping_price, shipping_type,
+        shipping_price, shipping_type, shipping_rule_id,
+        gift_wrap, gift_message,
         address_street, address_number, address_complement,
         address_neighborhood, address_city, address_state, address_cep
       } = req.body;
@@ -106,19 +108,48 @@ const orderController = {
         return res.status(400).json({ error: 'Dados do cliente e itens são obrigatórios' });
       }
 
-      // Validate stock
+      const requestedBySize = new Map();
       for (const item of items) {
+        const key = `${item.product_id}:${item.size}`;
+        const requested = requestedBySize.get(key) || {
+          product_id: item.product_id,
+          size: item.size,
+          quantity: 0,
+        };
+        requested.quantity += item.quantity;
+        requestedBySize.set(key, requested);
+      }
+
+      // Lock and validate each product/size before creating the order.
+      for (const requested of requestedBySize.values()) {
         const [product] = await conn.query(
-          'SELECT id, name, stock, price FROM products WHERE id = ? AND active = TRUE FOR UPDATE',
-          [item.product_id]
+          `SELECT p.id, p.name, ps.stock
+           FROM products p
+           LEFT JOIN product_sizes ps ON ps.product_id = p.id AND ps.size = ?
+           WHERE p.id = ? AND p.active = TRUE
+           FOR UPDATE`,
+          [requested.size, requested.product_id]
         );
         if (product.length === 0) {
           await conn.rollback();
-          return res.status(400).json({ error: `Produto #${item.product_id} não encontrado` });
+          return res.status(400).json({ error: `Produto #${requested.product_id} não encontrado` });
         }
-        if (product[0].stock < item.quantity) {
+        if (product[0].stock === null) {
           await conn.rollback();
-          return res.status(400).json({ error: `Estoque insuficiente para ${product[0].name}. Disponível: ${product[0].stock}` });
+          return res.status(409).json({ error: `Tamanho ${requested.size} indisponível para ${product[0].name}` });
+        }
+
+        const [[reservation]] = await conn.query(
+          `SELECT COALESCE(SUM(quantity), 0) AS reserved
+           FROM cart_reservations
+           WHERE product_id = ? AND size = ? AND reserved_until > NOW()
+             AND (? IS NULL OR session_id <> ?)`,
+          [requested.product_id, requested.size, session_id || null, session_id || null]
+        );
+        const available = Number(product[0].stock) - Number(reservation.reserved);
+        if (available < requested.quantity) {
+          await conn.rollback();
+          return res.status(409).json({ error: `Estoque insuficiente para ${product[0].name}, tamanho ${requested.size}. Disponível: ${available}` });
         }
       }
 
@@ -126,33 +157,62 @@ const orderController = {
       const total = itemsTotal - (discount_amount || 0) + (shipping_price || 0);
 
       const [orderResult] = await conn.query(
-        `INSERT INTO orders
+         `INSERT INTO orders
            (customer_name, customer_email, customer_phone, total, coupon_code, discount_amount,
-            shipping_price, shipping_type, address_street, address_number, address_complement,
-            address_neighborhood, address_city, address_state, address_cep)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          customer_name, customer_email || null, customer_phone, total,
-          coupon_code || null, discount_amount || 0, shipping_price || 0, shipping_type || null,
-          address_street, address_number, address_complement,
-          address_neighborhood, address_city, address_state, address_cep
-        ]
-      );
+             shipping_price, shipping_type, address_street, address_number, address_complement,
+             address_neighborhood, address_city, address_state, address_cep, shipping_rule_id,
+             gift_wrap, gift_message)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         [
+           customer_name, customer_email || null, customer_phone, total,
+           coupon_code || null, discount_amount || 0, shipping_price || 0, shipping_type || null,
+           address_street, address_number, address_complement,
+           address_neighborhood, address_city, address_state, address_cep,
+           shipping_rule_id || null, gift_wrap || false, gift_message || null
+         ]
+       );
 
       const orderId = orderResult.insertId;
       const itemsWithNames = [];
 
       for (const item of items) {
         const [p] = await conn.query('SELECT name FROM products WHERE id=?', [item.product_id]);
+        const [stockRows] = await conn.query(
+          'SELECT stock FROM product_sizes WHERE product_id = ? AND size = ? FOR UPDATE',
+          [item.product_id, item.size]
+        );
+        const quantityBefore = Number(stockRows[0].stock);
+        const quantityAfter = quantityBefore - item.quantity;
+
         await conn.query(
           'INSERT INTO order_items (order_id, product_id, quantity, size, price) VALUES (?, ?, ?, ?, ?)',
           [orderId, item.product_id, item.quantity, item.size, item.price]
         );
+        const [stockUpdate] = await conn.query(
+          `UPDATE product_sizes SET stock = stock - ?
+           WHERE product_id = ? AND size = ? AND stock >= ?`,
+          [item.quantity, item.product_id, item.size, item.quantity]
+        );
+        if (stockUpdate.affectedRows !== 1) {
+          throw new Error(`Estoque concorrente insuficiente para o produto ${item.product_id}, tamanho ${item.size}`);
+        }
         await conn.query(
-          'UPDATE products SET stock = stock - ? WHERE id = ?',
-          [item.quantity, item.product_id]
+          `INSERT INTO stock_history
+            (product_id, size, type, quantity_change, quantity_before, quantity_after, reason, order_id)
+           VALUES (?, ?, 'sale', ?, ?, ?, ?, ?)`,
+          [item.product_id, item.size, -item.quantity, quantityBefore, quantityAfter, 'Venda', orderId]
+        );
+        await conn.query(
+          `UPDATE products SET stock = (
+            SELECT COALESCE(SUM(stock), 0) FROM product_sizes WHERE product_id = ?
+          ) WHERE id = ?`,
+          [item.product_id, item.product_id]
         );
         itemsWithNames.push({ name: p[0]?.name || 'Produto', quantity: item.quantity, price: item.price });
+      }
+
+      if (session_id) {
+        await conn.query('DELETE FROM cart_reservations WHERE session_id = ?', [session_id]);
       }
 
       // Increment coupon usage
@@ -185,12 +245,37 @@ const orderController = {
   },
 
   async updateTracking(req, res) {
+    const connection = await pool.getConnection();
     try {
       const { tracking_code } = req.body;
-      await pool.query('UPDATE orders SET tracking_code = ? WHERE id = ?', [tracking_code, req.params.id]);
-      res.json({ message: 'Código de rastreio atualizado' });
+      await connection.beginTransaction();
+      const [orders] = await connection.query(
+        'SELECT id, customer_name, customer_phone FROM orders WHERE id = ? FOR UPDATE',
+        [req.params.id]
+      );
+      if (orders.length === 0) {
+        await connection.rollback();
+        return res.status(404).json({ error: 'Pedido não encontrado' });
+      }
+
+      await connection.query('UPDATE orders SET tracking_code = ? WHERE id = ?', [tracking_code, req.params.id]);
+      let waLink = null;
+      if (orders[0].customer_phone) {
+        const notification = await createWhatsAppNotification(connection, {
+          ...orders[0],
+          tracking_code,
+        });
+        waLink = notification.wa_link;
+      }
+
+      await connection.commit();
+      res.json({ message: 'Código de rastreio atualizado', wa_link: waLink });
     } catch (error) {
+      await connection.rollback();
+      console.error('Update tracking error:', error);
       res.status(500).json({ error: 'Erro ao atualizar rastreio' });
+    } finally {
+      connection.release();
     }
   },
 
@@ -232,6 +317,8 @@ const orderController = {
 
   async delete(req, res) {
     try {
+      await pool.query('DELETE FROM whatsapp_notifications WHERE order_id = ?', [req.params.id]);
+      await pool.query('DELETE FROM shipping_labels WHERE order_id = ?', [req.params.id]);
       await pool.query('DELETE FROM order_items WHERE order_id = ?', [req.params.id]);
       await pool.query('DELETE FROM orders WHERE id = ?', [req.params.id]);
       res.json({ message: 'Pedido removido' });

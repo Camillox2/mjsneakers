@@ -11,6 +11,11 @@ import styles from './CartDrawer.module.css'
 
 export default function CartDrawer() {
   const { cart, cartOpen, setCartOpen, removeFromCart, updateQuantity, cartTotal, clearCart } = useContext(CartContext)
+  const handleClearCart = () => {
+    clearCart()
+    setCoupon(null)
+    addToast('Carrinho esvaziado.', 'info')
+  }
   const [coupon, setCoupon] = useState(null)
   const [checkoutOpen, setCheckoutOpen] = useState(false)
   const addToast = useToast()
@@ -138,6 +143,9 @@ export default function CartDrawer() {
                 >
                   Finalizar Compra
                 </motion.button>
+                <button className={styles.clearBtn} onClick={handleClearCart}>
+                  <FiTrash2 /> Limpar carrinho
+                </button>
               </div>
             )}
           </motion.div>

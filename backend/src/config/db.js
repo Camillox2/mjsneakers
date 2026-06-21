@@ -221,6 +221,118 @@ async function initDatabase() {
     message TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   )`);
 
+  // ── Advanced stock management ──
+  await connection.query(`CREATE TABLE IF NOT EXISTS product_sizes (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    product_id INT NOT NULL,
+    size VARCHAR(10) NOT NULL,
+    stock INT DEFAULT 0 CHECK (stock >= 0),
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_product_size (product_id, size)
+  )`);
+
+  await connection.query(`CREATE TABLE IF NOT EXISTS stock_history (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    product_id INT NOT NULL,
+    size VARCHAR(10),
+    type ENUM('sale','adjustment','return','import') NOT NULL,
+    quantity_change INT NOT NULL,
+    quantity_before INT NOT NULL,
+    quantity_after INT NOT NULL,
+    reason VARCHAR(255),
+    admin_username VARCHAR(100),
+    order_id INT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+  )`);
+
+  await connection.query(`CREATE TABLE IF NOT EXISTS stock_thresholds (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    product_id INT NOT NULL UNIQUE,
+    threshold INT DEFAULT 5,
+    notify_email VARCHAR(255),
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+  )`);
+
+  await connection.query(`CREATE TABLE IF NOT EXISTS cart_reservations (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    session_id VARCHAR(100) NOT NULL,
+    product_id INT NOT NULL,
+    size VARCHAR(10) NOT NULL,
+    quantity INT DEFAULT 1,
+    reserved_until DATETIME NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+  )`);
+
+  await connection.query(`CREATE TABLE IF NOT EXISTS suppliers (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    contact_name VARCHAR(255),
+    email VARCHAR(255),
+    phone VARCHAR(50),
+    lead_days INT DEFAULT 7,
+    notes TEXT,
+    active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  await ensureColumn(connection, 'products', 'supplier_id', 'INT');
+
+  // ── Advanced shipping management ──
+  await connection.query(`CREATE TABLE IF NOT EXISTS shipping_zones (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    states VARCHAR(200) NOT NULL,
+    active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  await connection.query(`CREATE TABLE IF NOT EXISTS shipping_rules (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    zone_id INT,
+    name VARCHAR(100) NOT NULL,
+    type ENUM('fixed','free','by_weight') DEFAULT 'fixed',
+    price DECIMAL(10,2) DEFAULT 0 CHECK (price >= 0),
+    free_above DECIMAL(10,2) DEFAULT NULL,
+    estimated_days_min INT DEFAULT 3,
+    estimated_days_max INT DEFAULT 10,
+    max_weight_g INT DEFAULT NULL,
+    active BOOLEAN DEFAULT TRUE,
+    sort_order INT DEFAULT 0,
+    FOREIGN KEY (zone_id) REFERENCES shipping_zones(id) ON DELETE SET NULL,
+    CHECK (estimated_days_min <= estimated_days_max)
+  )`);
+
+  await connection.query(`CREATE TABLE IF NOT EXISTS shipping_labels (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id INT NOT NULL UNIQUE,
+    carrier VARCHAR(50),
+    tracking_code VARCHAR(100),
+    generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (order_id) REFERENCES orders(id)
+  )`);
+
+  await connection.query(`CREATE TABLE IF NOT EXISTS whatsapp_notifications (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id INT NOT NULL,
+    phone VARCHAR(20) NOT NULL,
+    message TEXT NOT NULL,
+    wa_link TEXT NOT NULL,
+    status ENUM('pending','sent','failed') DEFAULT 'pending',
+    sent_at DATETIME,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (order_id) REFERENCES orders(id)
+  )`);
+
+  await ensureColumn(connection, 'products', 'weight_g', 'INT DEFAULT 300');
+  await ensureColumn(connection, 'products', 'height_cm', 'DECIMAL(5,1) DEFAULT 0');
+  await ensureColumn(connection, 'products', 'width_cm', 'DECIMAL(5,1) DEFAULT 0');
+  await ensureColumn(connection, 'products', 'length_cm', 'DECIMAL(5,1) DEFAULT 0');
+  await ensureColumn(connection, 'orders', 'shipping_rule_id', 'INT');
+  await ensureColumn(connection, 'orders', 'gift_wrap', 'BOOLEAN DEFAULT FALSE');
+  await ensureColumn(connection, 'orders', 'gift_message', 'TEXT');
+
   // ── Indexes ──
   await ensureIndex(connection, 'products', 'idx_products_active', 'active');
   await ensureIndex(connection, 'products', 'idx_products_brand_id', 'brand_id');
@@ -233,6 +345,11 @@ async function initDatabase() {
   await ensureIndex(connection, 'reviews', 'idx_reviews_product_status', 'product_id, status');
   await ensureIndex(connection, 'coupons', 'idx_coupons_code', 'code');
   await ensureIndex(connection, 'newsletter_subscribers', 'idx_newsletter_email', 'email(191)');
+  await ensureIndex(connection, 'stock_history', 'idx_stock_history_product_created', 'product_id, created_at');
+  await ensureIndex(connection, 'cart_reservations', 'idx_cart_reservations_lookup', 'product_id, size, reserved_until');
+  await ensureIndex(connection, 'cart_reservations', 'idx_cart_reservations_session', 'session_id');
+  await ensureIndex(connection, 'shipping_rules', 'idx_shipping_rules_zone_active', 'zone_id, active, sort_order');
+  await ensureIndex(connection, 'whatsapp_notifications', 'idx_whatsapp_order_created', 'order_id, created_at');
 
   // ── Seed admin (first run only) ──
   const [users] = await connection.query('SELECT COUNT(*) as count FROM users');

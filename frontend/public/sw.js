@@ -1,6 +1,6 @@
 // MJ Sneakers SW v3 — network-first para HTML (deploys aparecem na hora),
 // cache-first apenas para assets com hash (imutáveis).
-const CACHE_NAME = 'mj-sneakers-v3';
+const CACHE_NAME = 'mj-sneakers-v4';
 
 self.addEventListener('install', (event) => {
   // Sem precache de '/' nem index.html — HTML é sempre network-first.
@@ -18,6 +18,21 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   if (request.method !== 'GET') return;
+
+  const url = new URL(request.url);
+
+  // Estoque: SEMPRE rede, NUNCA cache — disponibilidade precisa estar fresca.
+  // Cobre /api/stock/* (inclui /api/stock/product/:id/sizes) e /api/stock-alerts/*.
+  if (url.pathname.startsWith('/api/stock')) {
+    event.respondWith(fetch(request));
+    return;
+  }
+
+  // Painel admin: network-only, sem cache offline.
+  if (url.pathname === '/admin' || url.pathname.startsWith('/admin/')) {
+    event.respondWith(fetch(request));
+    return;
+  }
 
   // API: network-first com fallback ao cache (offline)
   if (request.url.includes('/api/')) {

@@ -4,7 +4,9 @@ import { FiX, FiShoppingCart, FiStar, FiSend } from 'react-icons/fi'
 import { CartContext } from '../../App'
 import { getImageUrl } from '../../utils/imageHelper'
 import { useToast } from '../Toast/Toast'
+import SizeSelector from '../SizeSelector/SizeSelector'
 import api from '../../services/api'
+import { parseSizes } from '../../utils/sizes'
 import styles from './ProductModal.module.css'
 
 const overlayVariants = {
@@ -66,7 +68,7 @@ export default function ProductModal({ product, isOpen, onClose }) {
   if (!product) return null
 
   const images = [product.image_url, product.image_url_2, product.image_url_3, product.image_url_4].filter(Boolean)
-  const sizes = product.sizes ? product.sizes.split(',').map(s => s.trim()) : []
+  const sizes = parseSizes(product.sizes)
   const rawDiscount = Number(product.discount_percentage || 0)
   const discount = Math.min(Math.max(rawDiscount, 0), 90)
   const discountActive = discount > 0
@@ -75,12 +77,18 @@ export default function ProductModal({ product, isOpen, onClose }) {
   const formatPrice = (price) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(price)
   const stock = Number(product.stock || 0)
 
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
     if (stock === 0) return
     const size = selectedSize || sizes[0] || '42'
-    addToCart({ ...product, price: finalPrice }, size)
+    const result = await addToCart({ ...product, price: finalPrice }, size)
+    if (result && result.ok === false) {
+      if (result.reason === 'out_of_stock') {
+        addToast('Ops! Este tamanho acabou de esgotar. Escolha outro ou remova do carrinho.', 'error')
+      }
+      return
+    }
     if (stock <= 3) {
-      addToast(`${product.name} adicionado! Apenas ${stock} unidades restantes.`, 'warning')
+      addToast(`${product.name} adicionado! Apenas ${stock} unidades restantes.`, 'success')
     } else {
       addToast(`${product.name} adicionado ao carrinho!`, 'success')
     }
@@ -163,16 +171,12 @@ export default function ProductModal({ product, isOpen, onClose }) {
 
               {sizes.length > 0 && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.35 }}>
-                  <span className={styles.sizesLabel}>Tamanho</span>
-                  <div className={styles.sizes}>
-                    {sizes.map((size, i) => (
-                      <motion.button key={size} className={`${styles.sizeBtn} ${selectedSize === size ? styles.active : ''}`}
-                        onClick={() => setSelectedSize(size)} whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.95 }}
-                        initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 + i * 0.03 }}>
-                        {size}
-                      </motion.button>
-                    ))}
-                  </div>
+                  <SizeSelector
+                    productId={product.id}
+                    fallbackSizes={sizes}
+                    selected={selectedSize}
+                    onSelect={setSelectedSize}
+                  />
                 </motion.div>
               )}
 

@@ -17,7 +17,11 @@ const productController = {
         SELECT p.*, b.name as brand_name, c.name as category_name,
           COALESCE((SELECT ROUND(AVG(r.rating),1) FROM reviews r WHERE r.product_id=p.id AND r.status='approved'), 0) as avg_rating,
           COALESCE((SELECT COUNT(*) FROM reviews r WHERE r.product_id=p.id AND r.status='approved'), 0) as review_count,
-          COALESCE((SELECT SUM(oi.quantity) FROM order_items oi WHERE oi.product_id=p.id), 0) as total_sold
+          COALESCE((SELECT SUM(oi.quantity) FROM order_items oi WHERE oi.product_id=p.id), 0) as total_sold,
+          COALESCE((
+            SELECT JSON_ARRAYAGG(JSON_OBJECT('size', ps.size, 'stock', ps.stock))
+            FROM product_sizes ps WHERE ps.product_id = p.id
+          ), JSON_ARRAY()) as sizes_stock
         FROM products p
         LEFT JOIN brands b ON p.brand_id = b.id
         LEFT JOIN categories c ON p.category_id = c.id
@@ -198,6 +202,9 @@ const productController = {
   async create(req, res) {
     try {
       const { name, description, price, discount_percentage, brand_id, category_id, image_url, image_url_2, image_url_3, image_url_4, sizes, stock, featured, feature_order, meta_title, meta_description, tags, promo_start, promo_end } = req.body;
+      if (stock !== undefined && (!Number.isInteger(Number(stock)) || Number(stock) < 0)) {
+        return res.status(400).json({ error: 'stock deve ser um inteiro maior ou igual a zero' });
+      }
       const slug = makeSlug(name);
       const [result] = await pool.query(
         `INSERT INTO products (name, slug, description, price, discount_percentage, brand_id, category_id, image_url, image_url_2, image_url_3, image_url_4, sizes, stock, featured, feature_order, meta_title, meta_description, tags, promo_start, promo_end)
@@ -214,6 +221,9 @@ const productController = {
   async update(req, res) {
     try {
       const { name, description, price, discount_percentage, brand_id, category_id, image_url, image_url_2, image_url_3, image_url_4, sizes, stock, active, featured, feature_order, meta_title, meta_description, tags, promo_start, promo_end } = req.body;
+      if (stock !== undefined && (!Number.isInteger(Number(stock)) || Number(stock) < 0)) {
+        return res.status(400).json({ error: 'stock deve ser um inteiro maior ou igual a zero' });
+      }
       const slug = name ? makeSlug(name) : undefined;
       const oldStock = await pool.query('SELECT stock FROM products WHERE id=?', [req.params.id]);
       await pool.query(
@@ -243,6 +253,9 @@ const productController = {
   async updateInline(req, res) {
     try {
       const { price, stock } = req.body;
+      if (stock !== undefined && (!Number.isInteger(Number(stock)) || Number(stock) < 0)) {
+        return res.status(400).json({ error: 'stock deve ser um inteiro maior ou igual a zero' });
+      }
       const fields = [];
       const vals = [];
       if (price !== undefined) { fields.push('price = ?'); vals.push(price); }

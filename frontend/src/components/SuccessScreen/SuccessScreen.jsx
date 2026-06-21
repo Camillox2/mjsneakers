@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 import confetti from 'canvas-confetti'
 import { FiCheckCircle, FiPackage, FiMail } from 'react-icons/fi'
+import { releaseStock, clearCartSession } from '../../utils/stockSession'
 import styles from './SuccessScreen.module.css'
 
 export default function SuccessScreen({ order, onClose }) {
@@ -10,6 +11,9 @@ export default function SuccessScreen({ order, onClose }) {
   useEffect(() => {
     if (hasRun.current) return
     hasRun.current = true
+
+    // Pedido concluído: libera as reservas e zera a sessão de carrinho.
+    releaseStock().finally(clearCartSession)
 
     const end = Date.now() + 2200
     const colors = ['#ffffff', '#aaaaaa', '#cccccc', '#888888']

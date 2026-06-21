@@ -5,12 +5,16 @@ import { FiArrowLeft, FiHeart, FiShoppingBag, FiStar, FiZoomIn } from 'react-ico
 import api from '../../services/api'
 import { CartContext } from '../../App'
 import { getImageUrl } from '../../utils/imageHelper'
+import { parseSizes } from '../../utils/sizes'
+import { useToast } from '../../components/Toast/Toast'
+import SizeSelector from '../../components/SizeSelector/SizeSelector'
 import styles from './Product.module.css'
 
 export default function Product({ wishlist, onToggleWishlist }) {
   const { id } = useParams()
   const navigate = useNavigate()
   const { addToCart } = useContext(CartContext)
+  const addToast = useToast()
 
   const [product, setProduct] = useState(null)
   const [reviews, setReviews] = useState([])
@@ -30,7 +34,7 @@ export default function Product({ wishlist, onToggleWishlist }) {
     ]).then(([pRes, rRes]) => {
       setProduct(pRes.data)
       setReviews(Array.isArray(rRes.data) ? rRes.data : [])
-      const sizes = pRes.data.sizes ? JSON.parse(pRes.data.sizes) : []
+      const sizes = parseSizes(pRes.data.sizes)
       if (sizes.length) setSelectedSize(sizes[0])
     }).catch(() => {
       navigate('/', { replace: true })
@@ -44,9 +48,16 @@ export default function Product({ wishlist, onToggleWishlist }) {
     setZoomPos({ x, y })
   }
 
-  const handleAddToCart = () => {
-    if (!product) return
-    addToCart({ ...product, selectedSize, quantity: 1 })
+  const handleAddToCart = async () => {
+    if (!product || product.stock === 0) return
+    const result = await addToCart(product, selectedSize)
+    if (result && result.ok === false) {
+      if (result.reason === 'out_of_stock') {
+        addToast('Ops! Este tamanho acabou de esgotar. Escolha outro ou remova do carrinho.', 'error')
+      }
+      return
+    }
+    addToast(`${product.name} adicionado ao carrinho!`, 'success')
   }
 
   const handleReviewSubmit = async (e) => {
@@ -74,7 +85,7 @@ export default function Product({ wishlist, onToggleWishlist }) {
 
   const discount = Math.min(Math.max(Number(product.discount_percentage || 0), 0), 90)
   const finalPrice = discount > 0 ? Number(product.price) * (1 - discount / 100) : Number(product.price)
-  const sizes = product.sizes ? JSON.parse(product.sizes) : []
+  const sizes = parseSizes(product.sizes)
   const isWished = wishlist?.some(w => w.id === product.id)
   const avgRating = reviews.length > 0 ? (reviews.reduce((s, r) => s + r.rating, 0) / reviews.length) : 0
   const formatPrice = (p) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(p)
@@ -136,18 +147,12 @@ export default function Product({ wishlist, onToggleWishlist }) {
           {/* Sizes */}
           {sizes.length > 0 && (
             <div className={styles.sizesSection}>
-              <span className={styles.sizeLabel}>Tamanho:</span>
-              <div className={styles.sizes}>
-                {sizes.map(s => (
-                  <button
-                    key={s}
-                    className={`${styles.sizeBtn} ${selectedSize === s ? styles.sizeActive : ''}`}
-                    onClick={() => setSelectedSize(s)}
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
+              <SizeSelector
+                productId={product.id}
+                fallbackSizes={sizes}
+                selected={selectedSize}
+                onSelect={setSelectedSize}
+              />
             </div>
           )}
 

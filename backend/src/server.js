@@ -13,6 +13,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
 const { initDatabase, pool } = require('./config/db');
+const { stockRoutes, supplierRoutes } = require('./routes/stock');
 
 const app = express();
 const server = http.createServer(app);
@@ -139,6 +140,8 @@ app.use('/api/newsletter', require('./routes/newsletter'));
 app.use('/api/stock-alerts', require('./routes/stockAlerts'));
 app.use('/api/loyalty', require('./routes/loyalty'));
 app.use('/api/reports', require('./routes/reports'));
+app.use('/api/stock', stockRoutes);
+app.use('/api/suppliers', supplierRoutes);
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
 
@@ -151,6 +154,13 @@ async function startServer() {
   try {
     await initDatabase();
     server.listen(PORT, () => console.log(`MJ Sneakers API running on port ${PORT}`));
+    setInterval(async () => {
+      try {
+        await pool.query('DELETE FROM cart_reservations WHERE reserved_until < NOW()');
+      } catch (e) {
+        console.error('Cleanup error:', e.message);
+      }
+    }, 5 * 60 * 1000);
   } catch (error) {
     console.error('Failed to start server:', error);
     process.exit(1);
