@@ -1,9 +1,0 @@
-{
-  "drops/violeta.mp4": { "parts": 19, "safe": "drops_violeta_mp4" },
-  "drops/cobalto.mp4": { "parts": 23, "safe": "drops_cobalto_mp4" },
-  "drops/noite.mp4": { "parts": 18, "safe": "drops_noite_mp4" },
-  "drops/violeta.jpg": { "parts": 2, "safe": "drops_violeta_jpg" },
-  "drops/cobalto.jpg": { "parts": 2, "safe": "drops_cobalto_jpg" },
-  "drops/noite.jpg": { "parts": 2, "safe": "drops_noite_jpg" },
-  "brand/wordmark-tight.png": { "parts": 3, "safe": "brand_wordmark-tight_png" }
-}
