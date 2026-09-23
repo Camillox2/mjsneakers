@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { DROPS } from "@/lib/catalog";
+import { packedUrl } from "@/lib/packed-media";
 
 const STAGE = {
   violeta: "bg-stage-violeta",
@@ -30,6 +31,7 @@ export function Reel({ onReserve }: Props) {
   const frameRefs = useRef<(HTMLDivElement | null)[]>([]);
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
   const [index, setIndex] = useState(0);
+  const [spins, setSpins] = useState<Record<string, string>>({});
   const drop = DROPS[index];
 
   useEffect(() => {
@@ -120,6 +122,18 @@ export function Reel({ onReserve }: Props) {
     };
   }, []);
 
+  useEffect(() => {
+    let dead = false;
+    DROPS.forEach((item) => {
+      packedUrl(`/drops/${item.id}.mp4`).then((url) => {
+        if (!dead && url !== `/drops/${item.id}.mp4`) setSpins((current) => ({ ...current, [item.id]: url }));
+      });
+    });
+    return () => {
+      dead = true;
+    };
+  }, []);
+
   const jump = (target: number) => {
     const track = trackRef.current;
     if (!track) return;
@@ -144,7 +158,7 @@ export function Reel({ onReserve }: Props) {
               ref={(node) => {
                 videoRefs.current[i] = node;
               }}
-              src={`/drops/${item.id}.mp4`}
+              src={spins[item.id] ?? `/drops/${item.id}.mp4`}
               poster={item.image}
               muted
               playsInline
