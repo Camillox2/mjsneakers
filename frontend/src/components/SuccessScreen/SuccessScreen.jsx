@@ -1,9 +1,11 @@
 import { useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 import confetti from 'canvas-confetti'
-import { FiCheckCircle, FiPackage, FiMail } from 'react-icons/fi'
+import { FiCheck, FiPackage, FiMail } from 'react-icons/fi'
 import { releaseStock, clearCartSession } from '../../utils/stockSession'
 import styles from './SuccessScreen.module.css'
+
+const EASE = [0.22, 1, 0.36, 1]
 
 export default function SuccessScreen({ order, onClose }) {
   const hasRun = useRef(false)
@@ -15,8 +17,11 @@ export default function SuccessScreen({ order, onClose }) {
     // Pedido concluído: libera as reservas e zera a sessão de carrinho.
     releaseStock().finally(clearCartSession)
 
+    // Confete em tons de cromo; quem pediu menos movimento não recebe.
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return
+
     const end = Date.now() + 2200
-    const colors = ['#ffffff', '#aaaaaa', '#cccccc', '#888888']
+    const colors = ['#ffffff', '#e4e7ec', '#cdd1d8', '#8a9099']
 
     const frame = () => {
       confetti({
@@ -40,54 +45,60 @@ export default function SuccessScreen({ order, onClose }) {
     frame()
   }, [])
 
-  const orderId = order?.id || order?.order_id || '—'
+  const orderId = order?.id || order?.order_id || order?.orderId || null
   const items = order?.items || []
   const total = order?.total != null ? Number(order.total) : null
+  const fmt = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
 
   return (
     <motion.div
       className={styles.container}
-      initial={{ opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ type: 'spring', stiffness: 220, damping: 20 }}
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.45, ease: EASE }}
     >
       <motion.div
         className={styles.iconWrap}
-        initial={{ scale: 0 }}
-        animate={{ scale: 1 }}
-        transition={{ delay: 0.15, type: 'spring', stiffness: 300 }}
+        initial={{ opacity: 0, scale: 0.85 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: 0.12, duration: 0.45, ease: EASE }}
+        aria-hidden
       >
-        <FiCheckCircle className={styles.icon} />
+        <FiCheck className={styles.icon} />
       </motion.div>
 
-      <h2 className={styles.title}>Pedido realizado!</h2>
-      <p className={styles.subtitle}>Obrigado pela sua compra 🎉</p>
+      <h2 className={styles.title}>Pedido feito</h2>
+      <p className={styles.subtitle}>Obrigado pela compra.</p>
 
       <div className={styles.card}>
         <div className={styles.row}>
-          <FiPackage />
-          <span>Pedido <strong>#{orderId}</strong></span>
+          <FiPackage aria-hidden />
+          {orderId ? <span>Pedido <strong>#{orderId}</strong></span> : <span>Pedido registrado</span>}
         </div>
         {items.length > 0 && (
-          <div className={styles.items}>
+          <ul className={styles.items}>
             {items.map((item, i) => (
-              <span key={i} className={styles.item}>{item.product_name || item.name} × {item.quantity}</span>
+              <li key={i} className={styles.item}>
+                <span className={styles.itemName}>{item.product_name || item.name}</span>
+                <span className={styles.itemQty}>× {item.quantity}</span>
+              </li>
             ))}
-          </div>
+          </ul>
         )}
         {total != null && (
           <div className={styles.total}>
-            Total: <strong>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(total)}</strong>
+            <span>Total</span>
+            <strong>{fmt(total)}</strong>
           </div>
         )}
       </div>
 
-      <div className={styles.info}>
-        <FiMail />
-        <span>Você receberá uma confirmação por email em breve</span>
-      </div>
+      <p className={styles.info}>
+        <FiMail aria-hidden />
+        <span>Você recebe a confirmação por e-mail em breve.</span>
+      </p>
 
-      <button className={styles.btn} onClick={onClose}>Continuar comprando</button>
+      <button type="button" className={`pz-btn ${styles.btn}`} onClick={onClose}>Continuar comprando</button>
     </motion.div>
   )
 }

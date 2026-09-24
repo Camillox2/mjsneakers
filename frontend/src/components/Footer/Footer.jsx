@@ -1,11 +1,15 @@
 import { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
+import { Link, useLocation } from 'react-router-dom'
 import { FiInstagram, FiMail, FiPhone, FiMapPin, FiArrowUpRight } from 'react-icons/fi'
-import api from '../../services/api'
+import { BRAND } from '../../config/brand'
+import { scrollToEl, scrollToY } from '../../lib/motion'
+import ChromeLogo from '../ChromeLogo/ChromeLogo'
 import PrivacyModal from '../PrivacyModal/PrivacyModal'
 import styles from './Footer.module.css'
+import { cachedGet, TTL } from '../../services/cache'
 
 export default function Footer() {
+  const { pathname } = useLocation()
   const [showPrivacy, setShowPrivacy] = useState(false)
   const [info, setInfo] = useState({
     email: 'contato@pizzant.com.br',
@@ -16,7 +20,7 @@ export default function Footer() {
   })
 
   useEffect(() => {
-    api.get('/settings').then(({ data }) => {
+    cachedGet('/settings', { ttl: TTL.config, persist: true }).then((data = {}) => {
       setInfo({
         email: data.footer_email || data.contact_email || 'contato@pizzant.com.br',
         credit: data.footer_credit || 'Feito por DC Digital Foundry by Vitor Camillo',
@@ -27,79 +31,84 @@ export default function Footer() {
     }).catch(() => {})
   }, [])
 
+  // A vitrine (#loja) mora na página inicial; lá a rolagem passa pelo Lenis.
+  const goShop = (e) => {
+    const shop = document.getElementById('loja')
+    if (!shop) return // fora do início: o link leva para /#loja
+    e.preventDefault()
+    scrollToEl(shop, -70)
+  }
+
+  const goTop = (e) => {
+    if (pathname !== '/') return
+    e.preventDefault()
+    scrollToY(0)
+  }
+
+  const handle = info.instagram.replace('@', '').trim()
+
   return (
     <>
       <footer className={styles.footer}>
-        <div className={styles.footerGlow} aria-hidden="true" />
-
         <div className={styles.footerInner}>
           {/* Marca */}
-          <motion.div
-            className={styles.brandCol}
-            initial={{ opacity: 0, y: 18 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-          >
-            <div className={styles.footerLogo}>PIZZANT<span>DROP</span></div>
+          <div className={styles.brandCol}>
+            <Link to="/" className={styles.logo} onClick={goTop} aria-label={`${BRAND.name}, início`}>
+              <ChromeLogo small shine={false} />
+            </Link>
             <p className={styles.footerTagline}>
-              Os melhores drops do mercado. 100% originais, envio rápido e troca fácil.
+              Tênis de drop, 100% originais. Envio rápido e troca fácil.
             </p>
-            {info.instagram && (
+            {handle && (
               <a
                 className={styles.socialPill}
-                href={`https://instagram.com/${info.instagram.replace('@', '')}`}
+                href={`https://instagram.com/${handle}`}
                 target="_blank"
                 rel="noreferrer"
               >
-                <FiInstagram /> {info.instagram} <FiArrowUpRight />
+                <FiInstagram aria-hidden="true" /> @{handle} <FiArrowUpRight aria-hidden="true" />
               </a>
             )}
-          </motion.div>
+          </div>
 
           {/* Navegação */}
-          <motion.nav
-            className={styles.linksCol}
-            initial={{ opacity: 0, y: 18 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.08 }}
-          >
-            <span className={styles.colTitle}>Navegue</span>
-            <a className={styles.footerLink} href="#catalogo">Catálogo</a>
-            <a className={styles.footerLink} href="/rastrear">Rastrear Pedido</a>
-            <button className={styles.footerLink} onClick={() => setShowPrivacy(true)}>
-              Política de Privacidade
+          <nav className={styles.linksCol} aria-label="Rodapé">
+            <h2 className={styles.colTitle}>Navegue</h2>
+            <a className={styles.footerLink} href="/#loja" onClick={goShop}>Loja</a>
+            <Link className={styles.footerLink} to="/rastrear">Rastrear pedido</Link>
+            <button type="button" className={styles.footerLink} onClick={() => setShowPrivacy(true)}>
+              Política de privacidade
             </button>
-          </motion.nav>
+          </nav>
 
           {/* Contato */}
-          <motion.div
-            className={styles.contactCol}
-            initial={{ opacity: 0, y: 18 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.16 }}
-          >
-            <span className={styles.colTitle}>Contato</span>
+          <div className={styles.contactCol}>
+            <h2 className={styles.colTitle}>Contato</h2>
             <a className={styles.contactItem} href={`mailto:${info.email}`}>
-              <FiMail /> {info.email}
+              <FiMail aria-hidden="true" /> <span>{info.email}</span>
             </a>
             {info.phone && (
-              <span className={styles.contactItem}><FiPhone /> {info.phone}</span>
+              <a className={styles.contactItem} href={`tel:${info.phone.replace(/[^\d+]/g, '')}`}>
+                <FiPhone aria-hidden="true" /> <span>{info.phone}</span>
+              </a>
             )}
             {info.address && (
-              <span className={styles.contactItem}><FiMapPin /> {info.address}</span>
+              <span className={styles.contactItem}>
+                <FiMapPin aria-hidden="true" /> <span>{info.address}</span>
+              </span>
             )}
-          </motion.div>
+          </div>
         </div>
 
         <div className={styles.bottomBar}>
-          <span className={styles.footerCredit}>
-            © {new Date().getFullYear()} Pizzant Drop · {info.credit}
-          </span>
+          <span>© {new Date().getFullYear()} {BRAND.name}</span>
+          <span>{info.credit}</span>
         </div>
 
-        <div className={styles.watermark} aria-hidden="true">PIZZANT</div>
+        {/* assinatura: o logo cromado de ponta a ponta, com o reflexo passando */}
+        <div className={styles.giant} aria-hidden="true">
+          <ChromeLogo />
+        </div>
       </footer>
 
       <PrivacyModal isOpen={showPrivacy} onClose={() => setShowPrivacy(false)} />

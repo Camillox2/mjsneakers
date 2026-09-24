@@ -1,0 +1,70 @@
+.viewer {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  isolation: isolate;
+}
+
+.poster,
+.canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  transition: opacity 0.4s var(--pz-ease);
+}
+
+.poster { object-fit: contain; }
+
+.canvas {
+  cursor: grab;
+  touch-action: pan-y;
+  outline-offset: -2px;
+}
+
+.canvas:active { cursor: grabbing; }
+
+.hidden { opacity: 0; }
+
+.floor {
+  position: absolute;
+  z-index: 0;
+  left: 18%;
+  right: 18%;
+  bottom: 8%;
+  height: 9%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(0, 0, 0, 0.7), transparent);
+}
+
+.hint {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  bottom: 2%;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  translate: -50% 0;
+  padding: 6px 12px;
+  border-radius: var(--pz-radius-pill);
+  font-size: var(--pz-fs-xs);
+  color: var(--pz-text-2);
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid var(--pz-line);
+  pointer-events: none;
+  transition: opacity 0.4s var(--pz-ease);
+}
+
+.hint svg {
+  width: 30px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.hintGone { opacity: 0; }

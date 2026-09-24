@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { FiClock } from 'react-icons/fi'
 import styles from './CountdownTimer.module.css'
 
 function pad(n) { return String(n).padStart(2, '0') }
@@ -31,19 +32,21 @@ export default function CountdownTimer({ endDate, compact = false }) {
   if (compact) {
     return (
       <span className={styles.compact}>
-        ⏱ {timeLeft.d > 0 ? `${timeLeft.d}d ` : ''}{pad(timeLeft.h)}:{pad(timeLeft.m)}:{pad(timeLeft.s)}
+        <FiClock aria-hidden="true" />
+        <span className="pz-visually-hidden">A oferta acaba em </span>
+        {timeLeft.d > 0 ? `${timeLeft.d}d ` : ''}{pad(timeLeft.h)}:{pad(timeLeft.m)}:{pad(timeLeft.s)}
       </span>
     )
   }
 
   return (
     <div className={styles.timer}>
-      <span className={styles.label}>Oferta termina em:</span>
+      <span className={styles.label}>A oferta acaba em</span>
       <div className={styles.blocks}>
         {timeLeft.d > 0 && (
           <div className={styles.block}>
             <span className={styles.num}>{pad(timeLeft.d)}</span>
-            <span className={styles.unit}>dias</span>
+            <span className={styles.unit}>{timeLeft.d === 1 ? 'dia' : 'dias'}</span>
           </div>
         )}
         <div className={styles.block}>

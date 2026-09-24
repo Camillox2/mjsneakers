@@ -1,13 +1,27 @@
-import { useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useState, useEffect, useId, useRef } from 'react'
+import { motion, AnimatePresence, MotionConfig } from 'framer-motion'
 import { FiX, FiUser, FiMapPin, FiTruck, FiCheck, FiChevronLeft, FiChevronRight, FiLoader } from 'react-icons/fi'
 import api from '../../services/api'
 import SuccessScreen from '../SuccessScreen/SuccessScreen'
 import styles from './CheckoutModal.module.css'
+import { useScrollLock } from '../../lib/useScrollLock'
 
 const STEPS = ['Dados', 'Endereço', 'Frete', 'Revisão']
+const EASE = [0.22, 1, 0.36, 1]
+
+const sheetMotion = {
+  initial: { y: 32, opacity: 0 },
+  animate: { y: 0, opacity: 1, transition: { duration: 0.42, ease: EASE } },
+  exit: { y: 24, opacity: 0, transition: { duration: 0.2, ease: 'easeIn' } },
+}
+const fadeMotion = {
+  initial: { opacity: 0 },
+  animate: { opacity: 1, transition: { duration: 0.3, ease: EASE } },
+  exit: { opacity: 0, transition: { duration: 0.2 } },
+}
 
 export default function CheckoutModal({ isOpen, onClose, cartItems, coupon, onSuccess }) {
+  useScrollLock(isOpen)
   const [step, setStep] = useState(0)
   const [completedOrder, setCompletedOrder] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -26,6 +40,26 @@ export default function CheckoutModal({ isOpen, onClose, cartItems, coupon, onSu
 
   const set = (field) => (e) => setForm(prev => ({ ...prev, [field]: e.target.value }))
 
+  const titleId = useId()
+  const dialogRef = useRef(null)
+  const closeRef = useRef(null)
+
+  // Sair da tela de pedido feito zera o checkout para a próxima compra.
+  const closeSuccess = () => { setCompletedOrder(null); setStep(0); onClose() }
+  closeRef.current = completedOrder ? closeSuccess : onClose
+
+  // Esc fecha; o foco entra no modal quando ele abre.
+  useEffect(() => {
+    if (!isOpen) return
+    const raf = requestAnimationFrame(() => dialogRef.current?.focus({ preventScroll: true }))
+    const onKey = (e) => { if (e.key === 'Escape') closeRef.current?.() }
+    window.addEventListener('keydown', onKey)
+    return () => {
+      cancelAnimationFrame(raf)
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [isOpen])
+
   const subtotal = cartItems.reduce((s, i) => {
     const discount = Math.min(Math.max(Number(i.discount_percentage || 0), 0), 90)
     const price = discount > 0 ? Number(i.price) * (1 - discount / 100) : Number(i.price)
@@ -43,23 +77,23 @@ export default function CheckoutModal({ isOpen, onClose, cartItems, coupon, onSu
     setError('')
     if (step === 0) {
       if (!form.name.trim() || !form.email.trim() || !form.phone.trim()) {
-        setError('Preencha todos os campos')
+        setError('Preencha nome, e-mail e telefone.')
         return false
       }
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
-        setError('E-mail inválido')
+        setError('Confira o e-mail, parece incompleto.')
         return false
       }
     }
     if (step === 1) {
       if (!form.cep || !form.street || !form.number || !form.neighborhood || !form.city || !form.state) {
-        setError('Preencha todos os campos obrigatórios')
+        setError('Preencha os campos marcados com *.')
         return false
       }
     }
     if (step === 2) {
       if (!form.shipping_type) {
-        setError('Selecione uma opção de frete')
+        setError('Escolha uma opção de frete.')
         return false
       }
     }
@@ -154,7 +188,7 @@ export default function CheckoutModal({ isOpen, onClose, cartItems, coupon, onSu
       setCompletedOrder({ ...data, items: cartItems.map(i => ({ product_name: i.name, quantity: i.quantity, price: i.price })) })
       onSuccess && onSuccess(data)
     } catch (err) {
-      setError(err.response?.data?.error || 'Erro ao finalizar pedido')
+      setError(err.response?.data?.error || 'Não deu para fechar o pedido. Tente de novo.')
     } finally {
       setLoading(false)
     }
@@ -164,182 +198,220 @@ export default function CheckoutModal({ isOpen, onClose, cartItems, coupon, onSu
 
   if (!isOpen) return null
 
+  const stepIcon = (i) => {
+    if (i < step) return <FiCheck aria-hidden />
+    if (i === 0) return <FiUser aria-hidden />
+    if (i === 1) return <FiMapPin aria-hidden />
+    if (i === 2) return <FiTruck aria-hidden />
+    return <FiCheck aria-hidden />
+  }
+
   if (completedOrder) {
     return (
-      <AnimatePresence>
-        <motion.div className={styles.overlay} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-          <motion.div className={styles.modal} initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 50, opacity: 0 }}>
-            <SuccessScreen order={completedOrder} onClose={() => { setCompletedOrder(null); onClose() }} />
+      <MotionConfig reducedMotion="user">
+        <AnimatePresence>
+          <motion.div className={styles.overlay} {...fadeMotion} data-lenis-prevent>
+            <motion.div
+              ref={dialogRef}
+              className={`${styles.modal} ${styles.modalSuccess}`}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Pedido feito"
+              tabIndex={-1}
+              {...sheetMotion}
+            >
+              <SuccessScreen order={completedOrder} onClose={closeSuccess} />
+            </motion.div>
           </motion.div>
-        </motion.div>
-      </AnimatePresence>
+        </AnimatePresence>
+      </MotionConfig>
     )
   }
 
   return (
-    <AnimatePresence>
-      <motion.div className={styles.overlay} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}>
-        <motion.div className={styles.modal} initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 50, opacity: 0 }} onClick={e => e.stopPropagation()}>
-          <div className={styles.header}>
-            <h2 className={styles.title}>Finalizar Pedido</h2>
-            <button className={styles.closeBtn} onClick={onClose}><FiX /></button>
-          </div>
+    <MotionConfig reducedMotion="user">
+      <AnimatePresence>
+        <motion.div className={styles.overlay} {...fadeMotion} onClick={onClose} data-lenis-prevent>
+          <motion.div
+            ref={dialogRef}
+            className={styles.modal}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={titleId}
+            tabIndex={-1}
+            {...sheetMotion}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className={styles.header}>
+              <h2 id={titleId} className={styles.title}>Finalizar pedido</h2>
+              <button type="button" className={styles.closeBtn} onClick={onClose} aria-label="Fechar"><FiX aria-hidden /></button>
+            </div>
 
-          <div className={styles.stepper}>
-            {STEPS.map((label, i) => (
-              <div key={label} className={`${styles.stepItem} ${i <= step ? styles.stepActive : ''} ${i < step ? styles.stepDone : ''}`}>
-                <div className={styles.stepCircle}>
-                  {i < step ? <FiCheck /> : i === 0 ? <FiUser size={14} /> : i === 1 ? <FiMapPin size={14} /> : i === 2 ? <FiTruck size={14} /> : <FiCheck size={14} />}
-                </div>
-                <span className={styles.stepLabel}>{label}</span>
-              </div>
-            ))}
-          </div>
+            <ol className={styles.stepper} aria-label={`Etapa ${step + 1} de ${STEPS.length}`}>
+              {STEPS.map((label, i) => (
+                <li
+                  key={label}
+                  className={`${styles.stepItem} ${i <= step ? styles.stepActive : ''} ${i === step ? styles.stepCurrent : ''} ${i < step ? styles.stepDone : ''}`}
+                  aria-current={i === step ? 'step' : undefined}
+                >
+                  <span className={styles.stepCircle}>{stepIcon(i)}</span>
+                  <span className={styles.stepLabel}>{label}</span>
+                </li>
+              ))}
+            </ol>
 
-          <div className={styles.body}>
-            {step === 0 && (
-              <div className={styles.fields}>
-                <label className={styles.label}>Nome completo *
-                  <input className={styles.input} value={form.name} onChange={set('name')} placeholder="João da Silva" />
-                </label>
-                <label className={styles.label}>E-mail *
-                  <input className={styles.input} type="email" value={form.email} onChange={set('email')} placeholder="joao@email.com" />
-                </label>
-                <label className={styles.label}>Telefone / WhatsApp *
-                  <input className={styles.input} value={form.phone} onChange={set('phone')} placeholder="(11) 99999-9999" />
-                </label>
-              </div>
-            )}
-
-            {step === 1 && (
-              <div className={styles.fields}>
-                <label className={styles.label}>CEP *
-                  <input className={styles.input} value={form.cep} onChange={set('cep')} onBlur={handleCepBlur} placeholder="00000-000" maxLength={9} />
-                </label>
-                <label className={styles.label}>Rua *
-                  <input className={styles.input} value={form.street} onChange={set('street')} placeholder="Rua exemplo" />
-                </label>
-                <div className={styles.row}>
-                  <label className={styles.label}>Número *
-                    <input className={styles.input} value={form.number} onChange={set('number')} placeholder="123" />
+            <div className={styles.body}>
+              {step === 0 && (
+                <div className={styles.fields}>
+                  <label className={styles.label}>Nome completo *
+                    <input className={styles.input} value={form.name} onChange={set('name')} placeholder="João da Silva" autoComplete="name" />
                   </label>
-                  <label className={styles.label}>Complemento
-                    <input className={styles.input} value={form.complement} onChange={set('complement')} placeholder="Apto 4B" />
+                  <label className={styles.label}>E-mail *
+                    <input className={styles.input} type="email" value={form.email} onChange={set('email')} placeholder="joao@email.com" autoComplete="email" inputMode="email" />
+                  </label>
+                  <label className={styles.label}>Telefone ou WhatsApp *
+                    <input className={styles.input} type="tel" value={form.phone} onChange={set('phone')} placeholder="(11) 99999-9999" autoComplete="tel" inputMode="tel" />
                   </label>
                 </div>
-                <label className={styles.label}>Bairro *
-                  <input className={styles.input} value={form.neighborhood} onChange={set('neighborhood')} placeholder="Centro" />
-                </label>
-                <div className={styles.row}>
-                  <label className={styles.label}>Cidade *
-                    <input className={styles.input} value={form.city} onChange={set('city')} placeholder="São Paulo" />
-                  </label>
-                  <label className={styles.label}>Estado *
-                    <input className={styles.input} value={form.state} onChange={set('state')} placeholder="SP" maxLength={2} />
-                  </label>
-                </div>
-              </div>
-            )}
+              )}
 
-            {step === 2 && (
-              <div className={styles.shippingSection}>
-                {shippingLoading ? (
-                  <div className={styles.shippingLoading}><FiLoader className={styles.spinner} /> Calculando frete...</div>
-                ) : shippingOptions.length === 1 ? (
-                  <div className={styles.singleShip}>
-                    <FiTruck />
-                    <div className={styles.shipInfo}>
-                      <span className={styles.shipName}>{shippingOptions[0].name}</span>
-                      <span className={styles.shipDays}>{shippingOptions[0].estimated_days_min}-{shippingOptions[0].estimated_days_max} dias úteis</span>
-                    </div>
-                    <span className={`${styles.shipPrice} ${shippingOptions[0].is_free ? styles.shipFree : ''}`}>
-                      {shippingOptions[0].is_free ? 'GRÁTIS' : formatPrice(shippingOptions[0].price)}
-                    </span>
+              {step === 1 && (
+                <div className={styles.fields}>
+                  <label className={styles.label}>CEP *
+                    <input className={styles.input} value={form.cep} onChange={set('cep')} onBlur={handleCepBlur} placeholder="00000-000" maxLength={9} autoComplete="postal-code" inputMode="numeric" />
+                  </label>
+                  <label className={styles.label}>Rua *
+                    <input className={styles.input} value={form.street} onChange={set('street')} placeholder="Rua exemplo" autoComplete="address-line1" />
+                  </label>
+                  <div className={styles.row}>
+                    <label className={styles.label}>Número *
+                      <input className={styles.input} value={form.number} onChange={set('number')} placeholder="123" inputMode="numeric" />
+                    </label>
+                    <label className={styles.label}>Complemento
+                      <input className={styles.input} value={form.complement} onChange={set('complement')} placeholder="Apto 4B" autoComplete="address-line2" />
+                    </label>
                   </div>
-                ) : shippingOptions.length > 0 ? (
-                  <>
-                    {shippingOptions.map((opt, i) => {
-                      const selected = form.shipping_name === opt.name
-                      return (
-                        <div
-                          key={opt.id ?? opt.name ?? i}
-                          className={`${styles.shipOption} ${selected ? styles.shipSelected : ''}`}
-                          onClick={() => selectShipping(opt)}
-                        >
-                          <span className={styles.shipRadio} />
-                          <div className={styles.shipInfo}>
-                            <span className={styles.shipName}>{opt.name}</span>
-                            <span className={styles.shipDays}>{opt.estimated_days_min}-{opt.estimated_days_max} dias úteis</span>
-                          </div>
-                          <span className={`${styles.shipPrice} ${opt.is_free ? styles.shipFree : ''}`}>
-                            {opt.is_free ? 'GRÁTIS' : formatPrice(opt.price)}
-                          </span>
-                          <FiCheck className={styles.shipCheck} />
-                        </div>
-                      )
-                    })}
-                    {faltaGratis != null && (
-                      <div className={styles.faltaGratis}>
-                        Adicione mais {formatPrice(faltaGratis)} ao pedido para frete grátis!
+                  <label className={styles.label}>Bairro *
+                    <input className={styles.input} value={form.neighborhood} onChange={set('neighborhood')} placeholder="Centro" autoComplete="address-level3" />
+                  </label>
+                  <div className={`${styles.row} ${styles.rowCity}`}>
+                    <label className={styles.label}>Cidade *
+                      <input className={styles.input} value={form.city} onChange={set('city')} placeholder="São Paulo" autoComplete="address-level2" />
+                    </label>
+                    <label className={styles.label}>Estado *
+                      <input className={styles.input} value={form.state} onChange={set('state')} placeholder="SP" maxLength={2} autoComplete="address-level1" />
+                    </label>
+                  </div>
+                </div>
+              )}
+
+              {step === 2 && (
+                <div className={styles.shippingSection}>
+                  {shippingLoading ? (
+                    <div className={styles.shippingLoading} role="status"><FiLoader className={styles.spinner} aria-hidden /> Calculando o frete…</div>
+                  ) : shippingOptions.length === 1 ? (
+                    <div className={styles.singleShip}>
+                      <FiTruck aria-hidden className={styles.singleIcon} />
+                      <div className={styles.shipInfo}>
+                        <span className={styles.shipName}>{shippingOptions[0].name}</span>
+                        <span className={styles.shipDays}>{shippingOptions[0].estimated_days_min} a {shippingOptions[0].estimated_days_max} dias úteis</span>
                       </div>
-                    )}
-                  </>
+                      <span className={`${styles.shipPrice} ${shippingOptions[0].is_free ? styles.shipFree : ''}`}>
+                        {shippingOptions[0].is_free ? 'Grátis' : formatPrice(shippingOptions[0].price)}
+                      </span>
+                    </div>
+                  ) : shippingOptions.length > 0 ? (
+                    <>
+                      <div className={styles.shipList} role="radiogroup" aria-label="Opções de frete">
+                        {shippingOptions.map((opt, i) => {
+                          const selected = form.shipping_name === opt.name
+                          return (
+                            <button
+                              type="button"
+                              role="radio"
+                              aria-checked={selected}
+                              key={opt.id ?? opt.name ?? i}
+                              className={`${styles.shipOption} ${selected ? styles.shipSelected : ''}`}
+                              onClick={() => selectShipping(opt)}
+                            >
+                              <span className={styles.shipRadio} aria-hidden />
+                              <span className={styles.shipInfo}>
+                                <span className={styles.shipName}>{opt.name}</span>
+                                <span className={styles.shipDays}>{opt.estimated_days_min} a {opt.estimated_days_max} dias úteis</span>
+                              </span>
+                              <span className={`${styles.shipPrice} ${opt.is_free ? styles.shipFree : ''}`}>
+                                {opt.is_free ? 'Grátis' : formatPrice(opt.price)}
+                              </span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                      {faltaGratis != null && (
+                        <div className={styles.faltaGratis}>
+                          Faltam {formatPrice(faltaGratis)} para o frete sair grátis.
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <p className={styles.noShipping}>Não achamos entrega para esse CEP. Volte e confira o endereço.</p>
+                  )}
+                </div>
+              )}
+
+              {step === 3 && (
+                <div className={styles.review}>
+                  <div className={styles.reviewSection}>
+                    <h4>Seus dados</h4>
+                    <p>{form.name}</p>
+                    <p>{form.email}</p>
+                    <p>{form.phone}</p>
+                  </div>
+                  <div className={styles.reviewSection}>
+                    <h4>Entrega</h4>
+                    <p>{form.street}, {form.number}{form.complement && `, ${form.complement}`}</p>
+                    <p>{form.neighborhood}, {form.city}/{form.state}</p>
+                    <p>CEP {form.cep}</p>
+                  </div>
+                  <div className={styles.reviewSection}>
+                    <h4>Itens ({cartItems.length})</h4>
+                    {cartItems.map((item, idx) => (
+                      <div key={idx} className={styles.reviewItem}>
+                        <span>{item.name} <span className={styles.reviewQty}>× {item.quantity}</span></span>
+                        <span className={styles.num}>{formatPrice(Number(item.price) * item.quantity)}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className={styles.reviewTotals}>
+                    <div className={styles.totalRow}><span>Subtotal</span><span className={styles.num}>{formatPrice(subtotal)}</span></div>
+                    {couponDiscount > 0 && <div className={styles.totalRow}><span>Cupom {coupon?.code}</span><span className={`${styles.num} ${styles.discountText}`}>-{formatPrice(couponDiscount)}</span></div>}
+                    <div className={styles.totalRow}>
+                      <span>{form.shipping_is_free ? 'Frete' : `Frete (${form.shipping_name || form.shipping_type})`}</span>
+                      <span className={styles.num}>{form.shipping_is_free ? 'Grátis' : formatPrice(shipping)}</span>
+                    </div>
+                    <div className={`${styles.totalRow} ${styles.totalFinal}`}><span>Total</span><span className={styles.num}>{formatPrice(total)}</span></div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className={styles.footer}>
+              {error && <p className={styles.error} role="alert">{error}</p>}
+              <div className={styles.actions}>
+                {step > 0 && (
+                  <button type="button" className={`pz-btn-ghost ${styles.backBtn}`} onClick={back}><FiChevronLeft aria-hidden /> Voltar</button>
+                )}
+                {step < 3 ? (
+                  <button type="button" className={`pz-btn ${styles.nextBtn}`} onClick={next}>Continuar <FiChevronRight aria-hidden /></button>
                 ) : (
-                  <p className={styles.noShipping}>Nenhuma opção de frete disponível. Verifique o CEP.</p>
+                  <button type="button" className={`pz-btn ${styles.nextBtn}`} onClick={handleSubmit} disabled={loading}>
+                    {loading ? 'Enviando pedido…' : 'Confirmar pedido'}
+                  </button>
                 )}
               </div>
-            )}
-
-            {step === 3 && (
-              <div className={styles.review}>
-                <div className={styles.reviewSection}>
-                  <h4>Dados pessoais</h4>
-                  <p>{form.name} — {form.email}</p>
-                  <p>{form.phone}</p>
-                </div>
-                <div className={styles.reviewSection}>
-                  <h4>Endereço</h4>
-                  <p>{form.street}, {form.number} {form.complement && `- ${form.complement}`}</p>
-                  <p>{form.neighborhood} — {form.city}/{form.state}</p>
-                  <p>CEP: {form.cep}</p>
-                </div>
-                <div className={styles.reviewSection}>
-                  <h4>Itens ({cartItems.length})</h4>
-                  {cartItems.map((item, idx) => (
-                    <div key={idx} className={styles.reviewItem}>
-                      <span>{item.name} (x{item.quantity})</span>
-                      <span>{formatPrice(Number(item.price) * item.quantity)}</span>
-                    </div>
-                  ))}
-                </div>
-                <div className={styles.reviewTotals}>
-                  <div className={styles.totalRow}><span>Subtotal</span><span>{formatPrice(subtotal)}</span></div>
-                  {couponDiscount > 0 && <div className={styles.totalRow}><span>Cupom ({coupon?.code})</span><span className={styles.discountText}>-{formatPrice(couponDiscount)}</span></div>}
-                  <div className={styles.totalRow}>
-                    <span>{form.shipping_is_free ? 'Frete' : `Frete (${form.shipping_name || form.shipping_type})`}</span>
-                    <span>{form.shipping_is_free ? 'GRÁTIS' : formatPrice(shipping)}</span>
-                  </div>
-                  <div className={`${styles.totalRow} ${styles.totalFinal}`}><span>Total</span><span>{formatPrice(total)}</span></div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className={styles.footer}>
-            {error && <p className={styles.error}>{error}</p>}
-            {step > 0 && (
-              <button className={styles.backBtn} onClick={back}><FiChevronLeft /> Voltar</button>
-            )}
-            {step < 3 ? (
-              <button className={styles.nextBtn} onClick={next}>Próximo <FiChevronRight /></button>
-            ) : (
-              <button className={styles.submitBtn} onClick={handleSubmit} disabled={loading}>
-                {loading ? 'Processando...' : 'Confirmar Pedido'}
-              </button>
-            )}
-          </div>
+            </div>
+          </motion.div>
         </motion.div>
-      </motion.div>
-    </AnimatePresence>
+      </AnimatePresence>
+    </MotionConfig>
   )
 }

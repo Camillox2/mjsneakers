@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
+import { AnimatePresence, motion, MotionConfig } from 'framer-motion'
 import { FiChevronLeft, FiChevronRight } from 'react-icons/fi'
-import api from '../../services/api'
 import { getImageUrl } from '../../utils/imageHelper'
 import styles from './BannerCarousel.module.css'
+import { cachedGet, TTL } from '../../services/cache'
+
+const EASE = [0.22, 1, 0.36, 1]
 
 const speedMap = {
   ultra_slow: 8000,
@@ -19,7 +21,7 @@ const effectDurationMap = {
   super_fast: '1s',
 }
 
-/* Animation variants for each transition type */
+/* Variantes de transição escolhidas no admin (mais contidas que antes) */
 const getVariants = (type) => {
   switch (type) {
     case 'slide':
@@ -30,9 +32,9 @@ const getVariants = (type) => {
       }
     case 'zoom':
       return {
-        enter: { scale: 1.3, opacity: 0 },
+        enter: { scale: 1.08, opacity: 0 },
         center: { scale: 1, opacity: 1 },
-        exit: { scale: 0.7, opacity: 0 },
+        exit: { scale: 0.96, opacity: 0 },
       }
     case 'wave':
       return {
@@ -74,9 +76,10 @@ export default function BannerCarousel() {
   const [banners, setBanners] = useState([])
   const [current, setCurrent] = useState(0)
   const [direction, setDirection] = useState(1)
+  const [paused, setPaused] = useState(false)
 
   useEffect(() => {
-    api.get('/banners').then(({ data }) => setBanners(data)).catch(() => {})
+    cachedGet('/banners', { ttl: TTL.config, persist: true }).then((data) => setBanners(Array.isArray(data) ? data : [])).catch(() => {})
   }, [])
 
   const goTo = useCallback((idx, dir) => {
@@ -94,13 +97,13 @@ export default function BannerCarousel() {
     goTo((current - 1 + banners.length) % banners.length, -1)
   }, [current, banners.length, goTo])
 
-  // Auto-advance
+  // Avança sozinho; para enquanto o mouse ou o foco estão no banner
   useEffect(() => {
-    if (banners.length <= 1) return
+    if (banners.length <= 1 || paused) return
     const speed = banners[current]?.effect_speed || 'slow'
     const interval = setInterval(next, speedMap[speed] || 5000)
     return () => clearInterval(interval)
-  }, [current, banners, next])
+  }, [current, banners, next, paused])
 
   if (banners.length === 0) return null
 
@@ -108,55 +111,81 @@ export default function BannerCarousel() {
   const variants = getVariants(banner?.animation_type)
 
   return (
-    <div className={styles.carousel}>
-      <div className={styles.bannerWrap} style={{ perspective: banner?.animation_type === 'flip' ? '1200px' : undefined }}>
-        <AnimatePresence custom={direction} mode="wait">
-          <motion.div
-            key={current}
-            className={styles.bannerSlide}
-            custom={direction}
-            variants={variants}
-            initial="enter"
-            animate="center"
-            exit="exit"
-            transition={{ duration: 0.6, ease: [0.4, 0, 0.2, 1] }}
-          >
-            {banner.media_type === 'video' && banner.video_url ? (
-              <video className={styles.bannerVideo} src={banner.video_url} autoPlay muted loop playsInline />
-            ) : (
-              <img className={styles.bannerImg} src={getImageUrl(banner.image_url, banner.title || 'Banner')} alt={banner.title} />
-            )}
-          </motion.div>
-        </AnimatePresence>
+    <MotionConfig reducedMotion="user">
+      <section
+        className={styles.carousel}
+        aria-roledescription="carrossel"
+        aria-label="Destaques da loja"
+        onMouseEnter={() => setPaused(true)}
+        onMouseLeave={() => setPaused(false)}
+        onFocus={() => setPaused(true)}
+        onBlur={() => setPaused(false)}
+      >
+        <div className={styles.bannerWrap} style={{ perspective: banner?.animation_type === 'flip' ? '1200px' : undefined }}>
+          <AnimatePresence custom={direction} mode="wait">
+            <motion.div
+              key={current}
+              className={styles.bannerSlide}
+              custom={direction}
+              variants={variants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{ duration: 0.6, ease: EASE }}
+            >
+              {banner.media_type === 'video' && banner.video_url ? (
+                <video className={styles.bannerVideo} src={banner.video_url} autoPlay muted loop playsInline />
+              ) : (
+                <img className={styles.bannerImg} src={getImageUrl(banner.image_url, banner.title || 'Banner')} alt={banner.title || ''} />
+              )}
+            </motion.div>
+          </AnimatePresence>
 
-        <EffectOverlay type={banner.effect_type} speed={banner.effect_speed} />
+          <EffectOverlay type={banner.effect_type} speed={banner.effect_speed} />
 
-        {(banner.title || banner.subtitle) && (
-          <div className={styles.bannerOverlay}>
-            <AnimatePresence mode="wait">
-              <motion.div key={current} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-                {banner.title && <h2 className={styles.bannerTitle}>{banner.title}</h2>}
-                {banner.subtitle && <p className={styles.bannerSub}>{banner.subtitle}</p>}
-              </motion.div>
-            </AnimatePresence>
-          </div>
-        )}
+          {(banner.title || banner.subtitle) && (
+            <div className={styles.bannerOverlay}>
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={current}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.25, ease: EASE }}
+                >
+                  {banner.title && <h2 className={styles.bannerTitle}>{banner.title}</h2>}
+                  {banner.subtitle && <p className={styles.bannerSub}>{banner.subtitle}</p>}
+                </motion.div>
+              </AnimatePresence>
+            </div>
+          )}
 
-        {banners.length > 1 && (
-          <>
-            <button className={`${styles.arrow} ${styles.arrowLeft}`} onClick={prev}><FiChevronLeft /></button>
-            <button className={`${styles.arrow} ${styles.arrowRight}`} onClick={next}><FiChevronRight /></button>
-          </>
-        )}
+          {banners.length > 1 && (
+            <>
+              <button type="button" className={`${styles.arrow} ${styles.arrowLeft}`} onClick={prev} aria-label="Banner anterior">
+                <FiChevronLeft aria-hidden="true" />
+              </button>
+              <button type="button" className={`${styles.arrow} ${styles.arrowRight}`} onClick={next} aria-label="Próximo banner">
+                <FiChevronRight aria-hidden="true" />
+              </button>
+            </>
+          )}
 
-        {banners.length > 1 && (
-          <div className={styles.dots}>
-            {banners.map((_, i) => (
-              <div key={i} className={`${styles.dot} ${i === current ? styles.activeDot : ''}`} onClick={() => goTo(i, i > current ? 1 : -1)} />
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
+          {banners.length > 1 && (
+            <div className={styles.dots} role="group" aria-label="Escolher banner">
+              {banners.map((b, i) => (
+                <button
+                  key={b.id ?? i}
+                  type="button"
+                  className={`${styles.dot} ${i === current ? styles.activeDot : ''}`}
+                  onClick={() => goTo(i, i > current ? 1 : -1)}
+                  aria-label={`Banner ${i + 1} de ${banners.length}`}
+                  aria-current={i === current ? 'true' : undefined}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+    </MotionConfig>
   )
 }

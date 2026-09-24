@@ -1,18 +1,22 @@
-import { useState, useEffect, createContext } from 'react'
-import { Routes, Route, useLocation } from 'react-router-dom'
+import { useState, useEffect, useRef, createContext, lazy, Suspense } from 'react'
+import { Routes, Route, useLocation, useNavigate } from 'react-router-dom'
 import Header from './components/Header/Header'
 import Home from './pages/Home/Home'
-import Admin from './pages/Admin/Admin'
-import Product from './pages/Product/Product'
-import Track from './pages/Track/Track'
+// Admin (com gráficos), produto e rastreio carregam sob demanda: o cliente que
+// abre a loja não baixa o painel inteiro.
+const Admin = lazy(() => import('./pages/Admin/Admin'))
+const Product = lazy(() => import('./pages/Product/Product'))
+const Track = lazy(() => import('./pages/Track/Track'))
 import CartDrawer from './components/Cart/CartDrawer'
 import WishlistDrawer from './components/WishlistDrawer/WishlistDrawer'
-import PromotionTicker from './components/PromotionTicker/PromotionTicker'
 import BackToTop from './components/BackToTop/BackToTop'
+import Footer from './components/Footer/Footer'
 import { ToastProvider } from './components/Toast/Toast'
 import ChatBot from './components/ChatBot/ChatBot'
 import { reserveStock, releaseStock } from './utils/stockSession'
 import { parseSizes } from './utils/sizes'
+import { startSmoothScroll, stopSmoothScroll, scrollToY } from './lib/motion'
+import { clearCache } from './services/cache'
 
 export const CartContext = createContext()
 export const AuthContext = createContext()
@@ -22,6 +26,7 @@ export const DarkModeContext = createContext()
 
 function App() {
   const location = useLocation()
+  const navigate = useNavigate()
   const isAdminRoute = location.pathname.startsWith('/admin')
   const [cart, setCart] = useState([])
   const [cartOpen, setCartOpen] = useState(false)
@@ -33,10 +38,26 @@ function App() {
     return saved !== null ? saved === 'true' : true
   })
 
+  // A loja é sempre escura (tema .pz); o modo claro/escuro vale só no admin.
   useEffect(() => {
-    document.documentElement.classList.toggle('dark', darkMode)
+    const root = document.documentElement
+    root.classList.toggle('pz', !isAdminRoute)
+    root.classList.toggle('dark', isAdminRoute ? darkMode : true)
     localStorage.setItem('mj_dark_mode', darkMode)
-  }, [darkMode])
+  }, [darkMode, isAdminRoute])
+
+  const wasAdmin = useRef(isAdminRoute)
+  useEffect(() => {
+    if (isAdminRoute) stopSmoothScroll()
+    else startSmoothScroll()
+    // voltando do admin, a loja lê configurações e produtos de novo
+    if (wasAdmin.current && !isAdminRoute) clearCache()
+    wasAdmin.current = isAdminRoute
+  }, [isAdminRoute])
+
+  useEffect(() => {
+    if (!location.hash) scrollToY(0, { immediate: true })
+  }, [location.pathname])
 
   useEffect(() => {
     const savedCart = localStorage.getItem('mj_cart')
@@ -64,14 +85,20 @@ function App() {
 
   const addToCart = async (product, size) => {
     // Reserva o estoque antes de adicionar. Em 409 (esgotou agora) cancela.
-    try {
-      await reserveStock({ product_id: product.id, size, quantity: 1 })
-    } catch (err) {
-      if (err?.response?.status === 409) {
-        return { ok: false, reason: 'out_of_stock' }
+    // Exemplar de amostra não existe no backend: não há estoque para reservar.
+    if (!product.sample) {
+      try {
+        await reserveStock({ product_id: product.id, size, quantity: 1 })
+      } catch (err) {
+        if (err?.response?.status === 409) {
+          return { ok: false, reason: 'out_of_stock' }
+        }
+        // Outros erros (ex.: rota de reserva indisponível) -> segue sem bloquear a venda.
       }
-      // Outros erros (ex.: rota de reserva indisponível) -> segue sem bloquear a venda.
     }
+    const pct = Math.min(Math.max(Number(product.discount_percentage || 0), 0), 90)
+    const unit = pct > 0 ? Math.round(Number(product.price) * (1 - pct / 100) * 100) / 100 : Number(product.price)
+    const entry = { ...product, list_price: product.list_price ?? Number(product.price), price: unit, discount_percentage: 0 }
     setCart(prev => {
       const exists = prev.find(item => item.id === product.id && item.size === size)
       if (exists) {
@@ -81,7 +108,7 @@ function App() {
             : item
         )
       }
-      return [...prev, { ...product, size, quantity: 1 }]
+      return [...prev, { ...entry, size, quantity: 1 }]
     })
     return { ok: true }
   }
@@ -146,14 +173,15 @@ function App() {
           <CartContext.Provider value={{ cart, addToCart, removeFromCart, updateQuantity, clearCart, cartTotal, cartCount, cartOpen, setCartOpen }}>
             <WishlistContext.Provider value={{ wishlist, toggleWishlist, removeFromWishlist, wishlistOpen, setWishlistOpen }}>
               <SearchContext.Provider value={{ searchProduct, setSearchProduct }}>
-                {!isAdminRoute && <PromotionTicker position="top" />}
                 <Header />
-                <Routes>
-                  <Route path="/" element={<Home />} />
-                  <Route path="/admin" element={<Admin />} />
-                  <Route path="/produto/:id" element={<Product wishlist={wishlist} onToggleWishlist={toggleWishlist} />} />
-                  <Route path="/rastrear" element={<Track />} />
-                </Routes>
+                <Suspense fallback={<div style={{ minHeight: '100svh' }} aria-busy="true" />}>
+                  <Routes>
+                    <Route path="/" element={<Home />} />
+                    <Route path="/admin" element={<Admin />} />
+                    <Route path="/produto/:id" element={<Product wishlist={wishlist} onToggleWishlist={toggleWishlist} />} />
+                    <Route path="/rastrear" element={<Track />} />
+                  </Routes>
+                </Suspense>
                 <CartDrawer />
                 <WishlistDrawer
                        isOpen={wishlistOpen}
@@ -161,8 +189,13 @@ function App() {
                   items={wishlist}
                   onRemove={removeFromWishlist}
                   onAddToCart={(item) => { addToCart(item, parseSizes(item.sizes)[0] || '42'); setWishlistOpen(false); setCartOpen(true) }}
-                  onProductClick={(item) => { setSearchProduct(item) }}
+                  onProductClick={(item) => {
+                    // no início abre o modal; nas outras páginas vai para a página do produto
+                    if (location.pathname === '/') setSearchProduct(item)
+                    else navigate(`/produto/${item.id}`)
+                  }}
                 />
+                {!isAdminRoute && location.pathname !== '/' && <Footer />}
                 {!isAdminRoute && <BackToTop />}
                 {!isAdminRoute && <ChatBot />}
               </SearchContext.Provider>

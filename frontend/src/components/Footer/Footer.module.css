@@ -1,185 +1,156 @@
-/* ============================================================
-   FOOTER 2.0 — colunas + marca d'água gigante
-   ============================================================ */
+/* Rodapé: preto, fios finos, três colunas que viram uma no celular. */
 .footer {
   position: relative;
-  margin-top: 90px;
-  background: #0a0b0f;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-  overflow: hidden;
-}
-.footer::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, rgba(227, 24, 55, 0.8), transparent);
-}
-
-.footerGlow {
-  position: absolute;
-  top: -40%;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 700px;
-  height: 380px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(227, 24, 55, 0.1), transparent 70%);
-  filter: blur(50px);
-  pointer-events: none;
+  background: var(--pz-black);
+  border-top: 1px solid var(--pz-line);
 }
 
 .footerInner {
-  position: relative;
-  z-index: 1;
-  max-width: 1400px;
+  max-width: 1480px;
   margin: 0 auto;
-  padding: 64px 30px 40px;
+  padding: clamp(48px, 7vw, 88px) var(--pz-gutter) clamp(36px, 5vw, 56px);
   display: grid;
-  grid-template-columns: 1.4fr 1fr 1.2fr;
-  gap: 40px;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1.2fr);
+  gap: clamp(32px, 5vw, 64px);
 }
 
-/* Marca */
-.brandCol { display: flex; flex-direction: column; gap: 14px; align-items: flex-start; }
+/* ---------- marca ---------- */
+.brandCol {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+}
 
-.footerLogo {
-  font-family: var(--font-display);
-  font-size: 2.2rem;
-  font-weight: 700;
-  letter-spacing: 3px;
-  text-transform: uppercase;
-  line-height: 1;
+.logo {
+  display: block;
+  width: clamp(150px, 16vw, 200px);
 }
-.footerLogo span {
-  background: linear-gradient(135deg, #ff4d5e, #e31837);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
+
+.logo > span { width: 100%; }
 
 .footerTagline {
-  color: #8b93a3;
-  font-size: 0.88rem;
-  line-height: 1.65;
-  max-width: 340px;
+  max-width: 34ch;
+  font-size: var(--pz-fs-m);
+  line-height: 1.6;
+  color: var(--pz-text-2);
 }
 
 .socialPill {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  margin-top: 4px;
-  padding: 9px 18px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.04);
-  color: #ddd;
-  font-size: 0.82rem;
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: var(--pz-radius-pill);
+  font-size: var(--pz-fs-s);
   font-weight: 600;
-  transition: border-color 0.25s, background 0.25s, transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+  color: var(--pz-text);
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--pz-line-strong);
+  transition: border-color 0.25s var(--pz-ease), background 0.25s var(--pz-ease);
 }
+
 .socialPill:hover {
-  border-color: rgba(227, 24, 55, 0.5);
-  background: rgba(227, 24, 55, 0.08);
-  transform: translateY(-2px);
+  border-color: rgba(233, 236, 241, 0.55);
+  background: rgba(255, 255, 255, 0.05);
 }
-.socialPill svg:first-child { color: #ff4d5e; }
 
-/* Colunas */
+.socialPill svg { width: 16px; height: 16px; color: var(--pz-text-2); }
+
+/* ---------- colunas ---------- */
 .colTitle {
-  display: block;
-  font-size: 0.66rem;
-  text-transform: uppercase;
-  letter-spacing: 2.5px;
-  color: #5b6372;
-  font-weight: 800;
-  margin-bottom: 16px;
+  margin-bottom: 10px;
+  font-family: var(--pz-sans);
+  font-size: var(--pz-fs-s);
+  font-weight: 600;
+  color: var(--pz-text-3);
 }
 
-.linksCol { display: flex; flex-direction: column; align-items: flex-start; }
+.linksCol,
+.contactCol {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+}
 
 .footerLink {
-  position: relative;
-  background: none;
-  border: none;
-  padding: 6px 0;
-  color: #aab2c0;
-  font-size: 0.9rem;
-  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0;
+  font-family: var(--pz-sans);
+  font-size: var(--pz-fs-m);
   text-align: left;
-  transition: color 0.2s, padding-left 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+  color: var(--pz-text-2);
+  background: none;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 5px;
+  transition: color 0.2s var(--pz-ease), text-decoration-color 0.2s var(--pz-ease);
 }
-.footerLink::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%) scaleX(0);
-  transform-origin: left;
-  width: 12px;
-  height: 2px;
-  border-radius: 2px;
-  background: #e31837;
-  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
-}
-.footerLink:hover { color: #fff; padding-left: 20px; }
-.footerLink:hover::before { transform: translateY(-50%) scaleX(1); }
 
-.contactCol { display: flex; flex-direction: column; align-items: flex-start; }
+.footerLink:hover {
+  color: var(--pz-text);
+  text-decoration-color: var(--pz-line-strong);
+}
 
 .contactItem {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  padding: 6px 0;
-  color: #aab2c0;
-  font-size: 0.88rem;
-  transition: color 0.2s;
+  min-height: 44px;
+  max-width: 100%;
+  font-size: var(--pz-fs-m);
+  color: var(--pz-text-2);
+  transition: color 0.2s var(--pz-ease);
 }
-.contactItem svg { color: #ff4d5e; flex-shrink: 0; }
-a.contactItem:hover { color: #fff; }
 
-/* Barra inferior */
+.contactItem span { overflow-wrap: anywhere; }
+
+.contactItem svg {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  color: var(--pz-text-3);
+}
+
+a.contactItem:hover { color: var(--pz-text); }
+
+/* ---------- barra de baixo ---------- */
 .bottomBar {
-  position: relative;
-  z-index: 1;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
-  padding: 20px 30px 26px;
-  text-align: center;
-}
-
-.footerCredit { color: #5b6372; font-size: 0.78rem; }
-
-/* Marca d'água gigante */
-.watermark {
-  position: absolute;
-  bottom: -34px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-family: var(--font-display);
-  font-size: clamp(4rem, 14vw, 11rem);
-  font-weight: 700;
-  letter-spacing: 8px;
-  line-height: 1;
-  white-space: nowrap;
-  color: transparent;
-  -webkit-text-stroke: 1px rgba(255, 255, 255, 0.045);
-  pointer-events: none;
-  user-select: none;
+  max-width: 1480px;
+  margin: 0 auto;
+  padding: 20px var(--pz-gutter) calc(24px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 6px 24px;
+  font-size: var(--pz-fs-xs);
+  color: var(--pz-text-3);
+  border-top: 1px solid var(--pz-line);
 }
 
 /* ===== Responsivo ===== */
 @media (max-width: 900px) {
-  .footerInner { grid-template-columns: 1fr 1fr; gap: 34px; padding: 50px 24px 34px; }
+  .footerInner { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .brandCol { grid-column: 1 / -1; }
 }
 
 @media (max-width: 540px) {
-  .footerInner { grid-template-columns: 1fr; gap: 30px; padding: 44px 20px 28px; }
-  .footerLogo { font-size: 1.8rem; }
-  .bottomBar { padding: 16px 20px 22px; }
-  .watermark { letter-spacing: 4px; bottom: -16px; }
+  .footerInner { grid-template-columns: 1fr; gap: 32px; }
+  .bottomBar { flex-direction: column; }
 }
+
+/* logo gigante no fim da página */
+.giant {
+  max-width: 1480px;
+  margin: clamp(28px, 4vw, 56px) auto 0;
+  padding: 0 var(--pz-gutter) clamp(20px, 3vw, 40px);
+  opacity: 0.92;
+  -webkit-mask-image: linear-gradient(180deg, #000 55%, transparent 100%);
+  mask-image: linear-gradient(180deg, #000 55%, transparent 100%);
+}
+
+.giant > * { width: 100%; }

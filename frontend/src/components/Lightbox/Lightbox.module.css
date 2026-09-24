@@ -1,119 +1,149 @@
 .overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.93);
   z-index: var(--z-lightbox, 1100);
   display: flex;
   align-items: center;
   justify-content: center;
+  /* fundo sólido: desfocar a página inteira durante a animação travava */
+  background: rgba(0, 0, 0, 0.92);
 }
+
 .content {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   width: 100%;
   height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
 }
-.close, .zoom {
+
+.toolbar {
   position: absolute;
-  top: 20px;
-  background: rgba(255,255,255,0.1);
-  border: none;
-  color: #fff;
-  cursor: pointer;
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 20px;
   z-index: 10;
-  transition: background 0.2s;
+  top: max(20px, env(safe-area-inset-top));
+  right: 20px;
+  display: flex;
+  gap: 8px;
 }
-.close { right: 20px; }
-.zoom { right: 72px; }
-.close:hover, .zoom:hover { background: rgba(255,255,255,0.2); }
+
+/* botões de vidro escuro com fio claro */
+.iconBtn {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 20px;
+  color: var(--pz-text);
+  background: rgba(12, 13, 16, 0.6);
+  border: 1px solid var(--pz-line-strong);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: border-color 0.2s var(--pz-ease), background 0.2s var(--pz-ease);
+}
+
+.iconBtn:hover {
+  border-color: rgba(233, 236, 241, 0.55);
+  background: rgba(31, 34, 39, 0.8);
+}
+
 .nav {
   position: absolute;
+  z-index: 10;
   top: 50%;
-  transform: translateY(-50%);
-  background: rgba(255,255,255,0.1);
-  border: none;
-  color: #fff;
-  cursor: pointer;
+  translate: 0 -50%;
   width: 48px;
   height: 48px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   font-size: 22px;
-  z-index: 10;
-  transition: background 0.2s;
 }
-.nav:hover { background: rgba(255,255,255,0.2); }
+
 .navLeft { left: 20px; }
 .navRight { right: 20px; }
+
 .imgWrap {
-  width: 90vw;
-  height: 80vh;
   display: flex;
   align-items: center;
   justify-content: center;
+  width: min(90vw, 1280px);
+  height: 78vh;
+  height: 78dvh;
   overflow: hidden;
 }
+
 .img {
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
-  border-radius: 8px;
+  border-radius: var(--pz-radius-s);
   cursor: zoom-in;
-  transition: transform 0.3s;
+  user-select: none;
+  transition: transform 0.35s var(--pz-ease);
 }
+
 .img.zoomed {
   transform: scale(2);
   cursor: zoom-out;
 }
+
+.footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin-top: 12px;
+}
+
 .dots {
   display: flex;
-  gap: 8px;
-  margin-top: 16px;
-  z-index: 10;
+  gap: 0;
 }
+
+/* o alvo de toque tem 44px; o ponto visível é pequeno */
 .dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: rgba(255,255,255,0.3);
-  border: none;
-  cursor: pointer;
-  transition: background 0.2s, transform 0.2s;
+  position: relative;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  background: none;
 }
-.dotActive {
-  background: #fff;
-  transform: scale(1.3);
-}
-.counter {
+
+.dot::before {
+  content: '';
   position: absolute;
-  bottom: 20px;
-  font-size: 13px;
-  color: rgba(255,255,255,0.5);
+  top: 50%;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  translate: -50% -50%;
+  border-radius: var(--pz-radius-pill);
+  background: var(--pz-text-3);
+  transition: width 0.3s var(--pz-ease), background 0.3s var(--pz-ease);
+}
+
+.dot:hover::before { background: var(--pz-text-2); }
+
+.dotActive::before {
+  width: 20px;
+  background: var(--pz-chrome-1);
+}
+
+.counter {
+  font-family: var(--pz-sans);
+  font-size: var(--pz-fs-s);
+  font-variant-numeric: tabular-nums;
+  color: var(--pz-text-2);
 }
 
 /* ===== Responsivo ===== */
 @media (max-width: 768px) {
-  .close, .zoom { width: 38px; height: 38px; font-size: 17px; top: max(14px, env(safe-area-inset-top)); }
-  .close { right: 14px; }
-  .zoom { right: 60px; }
-  .nav { width: 40px; height: 40px; font-size: 18px; }
-  .navLeft { left: 8px; }
-  .navRight { right: 8px; }
-  .imgWrap { width: 100vw; height: 70dvh; padding: 0 8px; }
+  .toolbar { right: 12px; top: max(12px, env(safe-area-inset-top)); }
+  .nav { width: 44px; height: 44px; font-size: 20px; top: auto; bottom: max(16px, env(safe-area-inset-bottom)); translate: none; }
+  .navLeft { left: 12px; }
+  .navRight { right: 12px; }
+  .imgWrap { width: 100vw; height: 68dvh; padding: 0 8px; }
   .img.zoomed { transform: scale(1.6); }
-  .dots { margin-top: 12px; }
-  .dot { width: 10px; height: 10px; } /* alvo de toque maior */
-  .counter { bottom: max(14px, env(safe-area-inset-bottom)); }
+  .footer { margin-top: 8px; }
 }

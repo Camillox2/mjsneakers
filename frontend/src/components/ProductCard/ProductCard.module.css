@@ -1,269 +1,353 @@
-.grid {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 10px 20px;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 8px;
-}
+/* Card da loja: vitrine na cor do tênis (--glow), como os mundos do giro.
+   Nada de 3D, desfoque de fundo ou borda desenhada por cima do recorte:
+   são essas combinações que fazem a borda serrilhar e piscar. */
 
 .cardWrapper {
-  perspective: 800px;
+  min-width: 0;
+  height: 100%;
 }
 
 .card {
   position: relative;
-  border-radius: 14px;
-  overflow: hidden;
-  background: var(--black-card);
-  border: 1px solid rgba(55, 65, 81, 0.5);
-  cursor: pointer;
-  transform-style: preserve-3d;
-  will-change: transform;
-}
-
-.imageContainer {
-  position: relative;
-  width: 100%;
-  aspect-ratio: 1;
-  overflow: hidden;
-  background: #0a0a0a;
-}
-
-.discountBadge {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  z-index: 2;
-  background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
-  color: white;
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 0.8px;
-  padding: 5px 9px;
-  border-radius: 999px;
-  box-shadow: 0 8px 24px rgba(220, 38, 38, 0.35);
-}
-
-.outOfStockBadge {
-  position: absolute;
-  bottom: 10px;
-  left: 10px;
-  z-index: 2;
-  background: rgba(244, 67, 54, 0.9);
-  color: white;
-  font-size: 0.65rem;
-  font-weight: 700;
-  padding: 4px 8px;
-  border-radius: 6px;
-}
-
-.lowStockBadge {
-  position: absolute;
-  bottom: 10px;
-  left: 10px;
-  z-index: 2;
-  background: rgba(255, 152, 0, 0.9);
-  color: white;
-  font-size: 0.65rem;
-  font-weight: 700;
-  padding: 4px 8px;
-  border-radius: 6px;
-}
-
-.wishBtn {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  z-index: 3;
-  background: rgba(0, 0, 0, 0.5);
-  border: none;
-  color: #aaa;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  font-size: 0.9rem;
-  transition: all 0.2s;
-  opacity: 0;
-}
-
-.card:hover .wishBtn {
-  opacity: 1;
-}
-
-.wishBtn:hover {
-  color: #e31837;
-  background: rgba(0, 0, 0, 0.7);
-}
-
-.wished {
-  opacity: 1 !important;
-  color: #e31837;
-  background: rgba(227, 24, 55, 0.15);
-}
-
-.addBtnDisabled {
-  opacity: 0.3;
-  cursor: default;
-}
-
-.productImage {
-  width: 100%;
+  flex-direction: column;
   height: 100%;
-  object-fit: cover;
-  transition: transform 0.5s ease;
-}
-
-.card:hover .productImage {
-  transform: scale(1.05);
-}
-
-.overlay {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: linear-gradient(transparent, rgba(0, 0, 0, 0.95));
-  padding: 30px 18px 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.productName {
-  font-weight: 700;
-  font-size: 0.95rem;
-  color: var(--white);
-  white-space: nowrap;
+  border-radius: var(--pz-radius-l);
   overflow: hidden;
-  text-overflow: ellipsis;
+  cursor: pointer;
+  isolation: isolate;
+  background: #0b0c0e;
 }
 
-.productBrand {
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  letter-spacing: 1.5px;
-  color: var(--red-primary);
-  font-weight: 600;
+/* fundo do tênis recortado: a cor dele acesa atrás, escurecendo para baixo */
+.contain {
+  background:
+    radial-gradient(80% 55% at 50% 36%, color-mix(in srgb, var(--glow) 50%, #000) 0%, transparent 72%),
+    linear-gradient(180deg, color-mix(in srgb, var(--glow) 20%, #050506) 0%, #060607 78%);
 }
 
-.priceRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 4px;
-}
-
-.priceGroup {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-
-.oldPrice {
-  font-size: 0.72rem;
-  color: var(--gray-lighter);
-  text-decoration: line-through;
-}
-
-.price {
-  font-family: var(--font-display);
-  font-size: 1.2rem;
-  font-weight: 700;
-  color: var(--white);
-}
-
-.addBtn {
-  background: var(--red-primary);
-  color: var(--white);
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.2rem;
-  transition: all 0.3s;
-  flex-shrink: 0;
-}
-
-.addBtn:hover {
-  background: var(--red-light);
-  transform: scale(1.1);
-}
-
-.hoverOverlay {
+/* brilho extra no hover: só opacidade de uma camada, sem repintar o card */
+.card::before {
+  content: '';
   position: absolute;
   inset: 0;
-  background: rgba(220, 38, 38, 0.03);
+  z-index: 0;
+  background: radial-gradient(60% 42% at 50% 40%, color-mix(in srgb, var(--glow) 38%, transparent), transparent 70%);
   opacity: 0;
-  transition: opacity 0.3s;
+  transition: opacity 0.5s var(--pz-ease);
   pointer-events: none;
 }
 
-.card:hover .hoverOverlay {
-  opacity: 1;
-}
-
-.noProducts {
-  grid-column: 1 / -1;
-  text-align: center;
-  padding: 60px 20px;
-  color: var(--gray-light);
-  font-size: 1.1rem;
-}
-
-@media (max-width: 768px) {
-  .grid { grid-template-columns: repeat(2, 1fr); gap: 6px; padding: 10px 12px; }
-  .productName { font-size: 0.8rem; }
-  .productBrand { font-size: 0.6rem; }
-  .price { font-size: 1rem; }
-  .addBtn { width: 30px; height: 30px; font-size: 1rem; }
-  .overlay { padding: 20px 12px 12px; }
-}
-
-@media (max-width: 380px) {
-  .grid { grid-template-columns: repeat(2, 1fr); gap: 4px; padding: 8px; }
-  .price { font-size: 0.85rem; }
-}
-
-/* Touch: sem hover, os botões precisam estar sempre visíveis */
-@media (hover: none) {
-  .wishBtn, .shareBtn { opacity: 1; }
-}
-
-.shareBtn {
+/* filete de luz na borda, desenhado por dentro (não serrilha) */
+.card::after {
+  content: '';
   position: absolute;
-  top: 46px;
-  right: 10px;
-  background: rgba(0,0,0,0.55);
-  border: none;
-  color: #ccc;
-  cursor: pointer;
-  width: 32px;
-  height: 32px;
+  inset: 0;
+  z-index: 3;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  pointer-events: none;
+}
+
+.card:hover::before { opacity: 1; }
+
+/* ---------- vitrine ---------- */
+.stage {
+  position: relative;
+  z-index: 1;
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+}
+
+.floor {
+  position: absolute;
+  left: 16%;
+  right: 16%;
+  bottom: 15%;
+  height: 7%;
   border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(0, 0, 0, 0.7), transparent);
+  transition: transform 0.5s var(--pz-ease), opacity 0.5s var(--pz-ease);
+}
+
+.cover .floor { display: none; }
+
+.photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.6s var(--pz-ease), opacity 0.15s linear;
+}
+
+.contain .photo {
+  object-fit: contain;
+  padding: 12% 7% 18%;
+}
+
+.cover .photo { object-fit: cover; }
+
+.cover .stage::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.3) 0%, transparent 26%, transparent 70%, rgba(0, 0, 0, 0.45) 100%);
+  pointer-events: none;
+}
+
+.contain:hover .photo { transform: translate3d(0, -3%, 0) scale(1.03); }
+.contain:hover .floor { transform: scaleX(0.84); opacity: 0.6; }
+.cover:hover .photo { transform: scale(1.04); }
+
+.photoHidden { opacity: 0; }
+
+.spin {
+  position: absolute;
+  left: 7%;
+  right: 7%;
+  top: 12%;
+  bottom: 18%;
+  width: 86%;
+  height: 70%;
+  opacity: 0;
+  transform: translate3d(0, -3%, 0) scale(1.03);
+  pointer-events: none;
+}
+
+.spinOn { opacity: 1; }
+
+.spinHint {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  top: 14px;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  translate: -50% 0;
+  color: rgba(255, 255, 255, 0.75);
+  opacity: 0;
+  transition: opacity 0.3s var(--pz-ease);
+}
+
+.spinHint svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .card:hover .spinHint { opacity: 1; }
+}
+
+/* ---------- selos e favoritar ---------- */
+.badges {
+  position: absolute;
+  z-index: 2;
+  top: 12px;
+  left: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.badges span {
+  padding: 4px 10px;
+  border-radius: var(--pz-radius-pill);
+  font-size: var(--pz-fs-xs);
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.badgeOff { color: #0a0a0b; background: var(--pz-chrome-flat); }
+.badgeOut { color: var(--pz-text); background: rgba(0, 0, 0, 0.62); }
+.badgeLow { color: #1a1204; background: var(--pz-warn); }
+
+.wish {
+  position: absolute;
+  z-index: 2;
+  top: 10px;
+  right: 10px;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  font-size: 16px;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.32);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  transition: transform 0.2s var(--pz-ease), background 0.2s;
+}
+
+.wish:hover { transform: scale(1.08); background: rgba(0, 0, 0, 0.5); }
+.wished { color: #0a0a0b; background: var(--pz-chrome-flat); border-color: transparent; }
+.wished svg { fill: currentColor; }
+
+/* ---------- tamanho rápido: sobe da base da vitrine no hover ---------- */
+.quick {
+  position: absolute;
+  z-index: 2;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px;
+  border-radius: var(--pz-radius-m);
+  background: rgba(6, 6, 8, 0.82);
+  transform: translate3d(0, calc(100% + 14px), 0);
+  transition: transform 0.4s var(--pz-ease);
+}
+
+.card:hover .quick,
+.quick:focus-within { transform: translate3d(0, 0, 0); }
+
+.quick button {
+  min-width: 36px;
+  height: 32px;
+  padding: 0 6px;
+  border-radius: 8px;
+  font-size: var(--pz-fs-xs);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--pz-text);
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: background 0.15s, color 0.15s;
+}
+
+.quick button:hover {
+  color: #0a0a0b;
+  background: var(--pz-chrome-flat);
+  border-color: transparent;
+}
+
+@media (hover: none) {
+  .quick { display: none; }
+}
+
+/* ---------- texto ---------- */
+.info {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 3px;
+  padding: 4px 18px 20px;
+}
+
+.meta {
   display: flex;
   align-items: center;
-  justify-content: center;
-  font-size: 13px;
-  opacity: 0;
-  transition: opacity 0.2s, background 0.2s;
-  z-index: 2;
+  gap: 8px;
 }
-.card:hover .shareBtn { opacity: 1; }
-.shareBtn:hover { background: rgba(0,0,0,0.8); color: #fff; }
 
-.ratingRow {
+.brand {
+  font-size: var(--pz-fs-xs);
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.58);
+}
+
+.sample {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.5);
+  padding: 1px 7px;
+  border-radius: var(--pz-radius-pill);
+  border: 1px dashed rgba(255, 255, 255, 0.28);
+}
+
+.name {
+  font-family: var(--pz-serif);
+  font-style: italic;
+  font-weight: 700;
+  font-size: var(--pz-fs-xl);
+  line-height: 1.05;
+  letter-spacing: -0.015em;
+}
+
+.nameBtn {
+  padding: 0;
+  font: inherit;
+  color: var(--pz-text);
+  text-align: left;
+  background: none;
+}
+
+.desc {
+  max-width: 52ch;
+  margin-top: 4px;
+  font-size: var(--pz-fs-s);
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.62);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.rating {
   display: flex;
   align-items: center;
   gap: 4px;
-  margin: 2px 0 4px;
+  font-size: var(--pz-fs-xs);
+  color: var(--pz-text-2);
 }
-.starIcon { color: #f59e0b; font-size: 12px; }
-.ratingVal { font-size: 12px; font-weight: 600; color: #f59e0b; }
-.reviewCount { font-size: 11px; color: rgba(255,255,255,0.5); }
+
+.rating svg { color: var(--pz-chrome-1); fill: currentColor; }
+.reviews { color: var(--pz-text-3); }
+
+.priceRow {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.price {
+  font-size: var(--pz-fs-l);
+  font-weight: 700;
+  font-stretch: 110%;
+  font-variant-numeric: tabular-nums;
+}
+
+.oldPrice {
+  font-size: var(--pz-fs-s);
+  color: rgba(255, 255, 255, 0.45);
+  text-decoration: line-through;
+  font-variant-numeric: tabular-nums;
+}
+
+.soldOut .photo { filter: grayscale(0.9) brightness(0.7); }
+
+/* ---------- card grande (2x2 na grade) ---------- */
+.feature .stage {
+  aspect-ratio: auto;
+  flex: 1;
+  min-height: 340px;
+}
+
+.feature.contain .photo { padding: 8% 10% 14%; }
+.feature .info { padding: 6px 26px 28px; gap: 6px; }
+.feature .name { font-size: var(--pz-fs-2xl); line-height: 1; letter-spacing: -0.02em; }
+.feature .price { font-size: var(--pz-fs-xl); }
+
+@media (max-width: 760px) {
+  .card { border-radius: var(--pz-radius-m); }
+  .info { padding: 2px 12px 14px; }
+  .name { font-size: var(--pz-fs-m); }
+  .price { font-size: var(--pz-fs-m); }
+  .wish { width: 36px; height: 36px; font-size: 14px; }
+  .badges { top: 8px; left: 8px; }
+  .wish { top: 8px; right: 8px; }
+  .feature .stage { min-height: 0; aspect-ratio: 4 / 3; flex: none; }
+  .feature .info { padding: 4px 16px 18px; }
+  .feature .name { font-size: var(--pz-fs-xl); }
+}

@@ -1,0 +1,171 @@
+.wrap {
+  margin-top: clamp(28px, 4vw, 56px);
+}
+
+.stage {
+  position: relative;
+  height: clamp(420px, 62svh, 680px);
+  max-width: 1400px;
+  margin: 0 auto;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+/* a mesma órbita do giro, parada, como trilho das marcas */
+.ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.ring ellipse {
+  fill: none;
+  stroke: rgba(233, 236, 241, 0.22);
+  stroke-width: 1.2;
+  vector-effect: non-scaling-stroke;
+}
+
+.ring .ringDash {
+  stroke: rgba(233, 236, 241, 0.12);
+  stroke-dasharray: 2 7;
+}
+
+/* tênis no centro: entre as marcas de trás (z 1) e as da frente (z 3) */
+.center {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  top: 50%;
+  width: min(46vw, 560px);
+  translate: -50% -50%;
+  pointer-events: auto;
+}
+
+.center::before {
+  content: '';
+  position: absolute;
+  inset: -12% -6%;
+  z-index: -1;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--glow) 34%, transparent), transparent 72%);
+  transition: background 0.6s var(--pz-ease);
+  pointer-events: none;
+}
+
+.shoe {
+  animation: shoeIn 0.6s var(--pz-ease) both;
+}
+
+@keyframes shoeIn {
+  from { opacity: 0; transform: translate3d(0, 14px, 0) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+
+.contain,
+.cover {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--pz-radius-l);
+}
+
+.contain { object-fit: contain; }
+.cover { object-fit: cover; }
+
+.soon {
+  max-width: 22ch;
+  margin: 0 auto;
+  font-family: var(--pz-serif);
+  font-style: italic;
+  font-size: var(--pz-fs-xl);
+  line-height: 1.2;
+  text-align: center;
+  color: var(--pz-text-2);
+  animation: shoeIn 0.5s var(--pz-ease) both;
+}
+
+/* nomes: posição, escala e brilho vêm das animações da órbita (placa de
+   vídeo). Cada marca tem uma cópia atrás do tênis e outra na frente. */
+.brand {
+  position: absolute;
+  left: 0;
+  top: 0;
+  padding: 10px 18px;
+  font-family: var(--pz-serif);
+  font-style: italic;
+  font-weight: 700;
+  font-size: clamp(2rem, 1.2rem + 3vw, 4.25rem);
+  line-height: 1;
+  letter-spacing: -0.03em;
+  white-space: nowrap;
+  color: #c9ccd2;
+  background: none;
+  opacity: 0;
+  will-change: transform, opacity;
+}
+
+.back {
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* frente: o nome cinza e, por cima, o mesmo nome em cromo (entra aos poucos) */
+.fore {
+  z-index: 3;
+  display: grid;
+  justify-items: start;
+  align-items: start;
+}
+
+.fore > span { grid-area: 1 / 1; }
+
+.base { transition: color 0.35s var(--pz-ease); }
+
+.fore:hover .base { color: #fff; }
+
+/* respiro à direita e embaixo: o itálico passa da caixa e o cromo seria cortado */
+.chrome {
+  padding: 0 0.12em 0.08em 0;
+  color: transparent;
+  background: var(--pz-chrome);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  opacity: 0;
+}
+
+/* a escolhida ganha um sublinhado de luz */
+.on::after {
+  content: '';
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  bottom: 2px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--pz-chrome-flat);
+}
+
+.foot {
+  display: flex;
+  justify-content: center;
+  min-height: 52px;
+  margin-top: 8px;
+  padding: 0 var(--pz-gutter);
+  text-align: center;
+}
+
+.hint {
+  align-self: center;
+  font-size: var(--pz-fs-s);
+  color: var(--pz-text-2);
+}
+
+@media (max-width: 760px) {
+  .stage { height: clamp(360px, 92vw, 460px); }
+  .center { width: 68vw; }
+  .brand { font-size: 1.85rem; padding: 8px 12px; }
+}

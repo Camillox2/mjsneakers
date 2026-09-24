@@ -1,6 +1,10 @@
-import { motion, AnimatePresence } from 'framer-motion'
+import { useEffect, useId, useRef } from 'react'
+import { createPortal } from 'react-dom'
+import { motion, AnimatePresence, MotionConfig } from 'framer-motion'
 import { FiX } from 'react-icons/fi'
 import styles from './SizeGuide.module.css'
+
+const EASE = [0.22, 1, 0.36, 1]
 
 const sizeTable = [
   { br: '35', us: '5', uk: '4', cm: '22.5' },
@@ -16,53 +20,105 @@ const sizeTable = [
   { br: '45', us: '12', uk: '10', cm: '28.5' },
 ]
 
+const cm = (v) => v.replace('.', ',')
+
+// Vai para o <body> num portal: aberto de dentro de outro modal (que tem
+// transform), o position: fixed ficaria preso na caixa dele.
 export default function SizeGuide({ isOpen, onClose }) {
-  return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div className={styles.overlay} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}>
-          <motion.div className={styles.modal} initial={{ opacity: 0, scale: 0.92, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.92, y: 20 }} onClick={e => e.stopPropagation()}>
-            <div className={styles.header}>
-              <h3 className={styles.title}>Guia de Tamanhos</h3>
-              <button className={styles.closeBtn} onClick={onClose}><FiX /></button>
-            </div>
+  const titleId = useId()
+  const closeRef = useRef(null)
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
 
-            <p className={styles.tip}>💡 Dica: meça seu pé em cm e compare com a coluna CM abaixo.</p>
+  useEffect(() => {
+    if (!isOpen) return
+    const previous = document.activeElement
+    const raf = requestAnimationFrame(() => closeRef.current?.focus({ preventScroll: true }))
+    // Captura antes dos outros ouvintes: o Esc fecha só o guia, não o modal de baixo.
+    const onKey = (e) => {
+      if (e.key !== 'Escape') return
+      e.stopPropagation()
+      onCloseRef.current?.()
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => {
+      cancelAnimationFrame(raf)
+      window.removeEventListener('keydown', onKey, true)
+      if (previous && typeof previous.focus === 'function') previous.focus({ preventScroll: true })
+    }
+  }, [isOpen])
 
-            <div className={styles.tableWrap}>
-              <table className={styles.table}>
-                <thead>
-                  <tr>
-                    <th>BR</th>
-                    <th>US</th>
-                    <th>UK</th>
-                    <th>CM</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sizeTable.map(row => (
-                    <tr key={row.br}>
-                      <td><strong>{row.br}</strong></td>
-                      <td>{row.us}</td>
-                      <td>{row.uk}</td>
-                      <td>{row.cm}</td>
+  if (typeof document === 'undefined') return null
+
+  return createPortal(
+    <MotionConfig reducedMotion="user">
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            className={styles.overlay}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25, ease: EASE }}
+            onClick={(e) => { e.stopPropagation(); onClose() }}
+            data-lenis-prevent
+          >
+            <motion.div
+              className={styles.modal}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby={titleId}
+              initial={{ opacity: 0, y: 14, scale: 0.985 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 8, scale: 0.99 }}
+              transition={{ duration: 0.35, ease: EASE }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div className={styles.header}>
+                <h3 id={titleId} className={styles.title}>Guia de tamanhos</h3>
+                <button ref={closeRef} type="button" className={styles.closeBtn} onClick={onClose} aria-label="Fechar guia">
+                  <FiX aria-hidden />
+                </button>
+              </div>
+
+              <p className={styles.tip}>Meça o pé em centímetros e procure o número na coluna cm.</p>
+
+              <div className={styles.tableWrap}>
+                <table className={styles.table}>
+                  <thead>
+                    <tr>
+                      <th scope="col">BR</th>
+                      <th scope="col">US</th>
+                      <th scope="col">UK</th>
+                      <th scope="col">cm</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {sizeTable.map(row => (
+                      <tr key={row.br}>
+                        <th scope="row">{row.br}</th>
+                        <td>{cm(row.us)}</td>
+                        <td>{cm(row.uk)}</td>
+                        <td>{cm(row.cm)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
 
-            <div className={styles.howTo}>
-              <h4>Como medir?</h4>
-              <ol>
-                <li>Coloque o pé em uma folha de papel e marque o ponto mais longo.</li>
-                <li>Meça com régua da borda até a marca.</li>
-                <li>Compare o resultado com a coluna CM acima.</li>
-              </ol>
-            </div>
+              <div className={styles.howTo}>
+                <h4>Como medir</h4>
+                <ol>
+                  <li>Pise numa folha de papel, encostado na parede, e marque a ponta do dedo mais comprido.</li>
+                  <li>Meça com uma régua da borda da folha até a marca.</li>
+                  <li>Compare com a coluna cm. Se ficar entre dois números, vá no maior.</li>
+                </ol>
+              </div>
+            </motion.div>
           </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+        )}
+      </AnimatePresence>
+    </MotionConfig>,
+    document.body
   )
 }

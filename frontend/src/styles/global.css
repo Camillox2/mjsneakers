@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Oswald:wght@400;500;600;700&display=swap');
+/* Fontes carregadas no index.html (preconnect + display=swap). */
 
 :root {
   --red-primary: #DC2626;
@@ -149,4 +149,205 @@ img, video { max-width: 100%; }
     padding-left: env(safe-area-inset-left);
     padding-right: env(safe-area-inset-right);
   }
+}
+
+/* ============================================================
+   PIZANTT DROP: tema da loja (classe .pz no <html>, fora do /admin)
+   Cromo é o material da marca; a cor vem de cada tênis.
+   Os tokens antigos (--red-*, --bg-*) são remapeados aqui para a
+   loja; o admin continua com os valores originais.
+   ============================================================ */
+:root {
+  --pz-black: #000000;
+  --pz-surface-1: #0c0d10;
+  --pz-surface-2: #15171b;
+  --pz-surface-3: #1f2227;
+  --pz-line: rgba(233, 236, 241, 0.12);
+  --pz-line-strong: rgba(233, 236, 241, 0.26);
+  --pz-text: #f2f3f5;
+  --pz-text-2: #a9aeb7;
+  --pz-text-3: #6e737c;
+
+  --pz-chrome-1: #f5f6f8;
+  --pz-chrome-2: #cdd1d8;
+  --pz-chrome-3: #8a9099;
+  --pz-chrome-4: #4b505a;
+  /* reflexo de cromo: claro em cima, faixa escura no meio, rebote de luz embaixo */
+  --pz-chrome: linear-gradient(180deg, #fbfcfd 0%, #d9dde3 30%, #7f858f 49%, #b9bec6 58%, #f1f3f5 76%, #a3a9b2 100%);
+  --pz-chrome-flat: linear-gradient(180deg, #f6f7f9 0%, #d6dae0 55%, #bfc4cc 100%);
+  --pz-chrome-edge: linear-gradient(135deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.08) 40%, rgba(255, 255, 255, 0.3) 70%, rgba(255, 255, 255, 0.06));
+
+  --pz-violeta: #2a0f55;
+  --pz-violeta-glow: #b89af0;
+  --pz-cobalto: #0a2db0;
+  --pz-cobalto-glow: #86a6ff;
+  --pz-galeria: #d9dbe0;
+
+  --pz-ok: #7be0a8;
+  --pz-warn: #f2c46b;
+  --pz-danger: #ff7a7a;
+
+  --pz-serif: 'Noto Serif Display', 'Georgia', serif;
+  --pz-sans: 'Archivo', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  /* escala tipográfica (terça menor, títulos fluidos) */
+  --pz-fs-xs: 0.75rem;
+  --pz-fs-s: 0.875rem;
+  --pz-fs-m: 1rem;
+  --pz-fs-l: 1.1875rem;
+  --pz-fs-xl: 1.5rem;
+  --pz-fs-2xl: clamp(1.875rem, 1.35rem + 2.2vw, 2.75rem);
+  --pz-fs-3xl: clamp(2.5rem, 1.6rem + 4.4vw, 4.75rem);
+  --pz-fs-giant: clamp(4.25rem, 1.2rem + 15vw, 16rem);
+
+  --pz-radius-s: 8px;
+  --pz-radius-m: 14px;
+  --pz-radius-l: 22px;
+  --pz-radius-pill: 999px;
+
+  --pz-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --pz-ease-io: cubic-bezier(0.65, 0, 0.35, 1);
+  --pz-gutter: clamp(16px, 4vw, 48px);
+  --pz-header-h: 70px;
+}
+
+html.pz {
+  --red-primary: #e4e7ec;
+  --red-dark: #b9bec6;
+  --red-darker: #8a9099;
+  --red-light: #ffffff;
+  --red-glow: rgba(228, 231, 236, 0.18);
+  --white: var(--pz-text);
+  --white-soft: #e6e8ec;
+  --black: var(--pz-black);
+  --black-card: var(--pz-surface-1);
+  --gray-dark: var(--pz-surface-3);
+  --gray-mid: #5c616a;
+  --gray-light: var(--pz-text-3);
+  --gray-lighter: var(--pz-text-2);
+  --gray-border: var(--pz-line-strong);
+  --font-primary: var(--pz-sans);
+  --font-display: var(--pz-serif);
+  --bg-primary: var(--pz-black);
+  --bg-secondary: #07080a;
+  --bg-card: var(--pz-surface-1);
+  --bg-elevated: var(--pz-surface-2);
+  --text-primary: var(--pz-text);
+  --text-secondary: var(--pz-text-2);
+  --text-muted: var(--pz-text-3);
+  --border-color: var(--pz-line);
+  --border-hover: var(--pz-line-strong);
+  --surface: rgba(233, 236, 241, 0.04);
+  --surface-hover: rgba(233, 236, 241, 0.08);
+  color-scheme: dark;
+  background: var(--pz-black);
+}
+
+html.pz body {
+  background: var(--pz-black);
+  color: var(--pz-text);
+  font-family: var(--pz-sans);
+  font-size: var(--pz-fs-m);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-kerning: normal;
+}
+
+/* Lenis cuida da rolagem suave no computador; o CSS não pode brigar com ela */
+html.pz.lenis,
+html.pz.lenis body { height: auto; }
+html.pz.lenis { scroll-behavior: auto; }
+.lenis.lenis-stopped { overflow: hidden; }
+
+html.pz :focus-visible {
+  outline: 2px solid var(--pz-chrome-1);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+html.pz ::selection { background: rgba(233, 236, 241, 0.9); color: #000; }
+
+html.pz::-webkit-scrollbar-track,
+html.pz ::-webkit-scrollbar-track { background: var(--pz-black); }
+html.pz::-webkit-scrollbar-thumb,
+html.pz ::-webkit-scrollbar-thumb { background: var(--pz-chrome-4); border-radius: 4px; }
+html.pz::-webkit-scrollbar-thumb:hover,
+html.pz ::-webkit-scrollbar-thumb:hover { background: var(--pz-chrome-3); }
+
+/* ===== Peças compartilhadas da loja ===== */
+
+/* Texto cromado: o reflexo corre quando a peça ganha .pz-shine */
+.pz-chrome-text {
+  background: var(--pz-chrome);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Botão principal: placa de cromo com texto preto */
+.pz-btn {
+  --btn-h: 52px;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: var(--btn-h);
+  padding: 0 26px;
+  border-radius: var(--pz-radius-pill);
+  font-family: var(--pz-sans);
+  font-size: var(--pz-fs-m);
+  font-weight: 650;
+  font-stretch: 108%;
+  letter-spacing: 0.01em;
+  color: #0a0a0b;
+  background: var(--pz-chrome-flat);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 0 -1px 0 rgba(0, 0, 0, 0.18), 0 10px 30px -12px rgba(233, 236, 241, 0.45);
+  overflow: hidden;
+  isolation: isolate;
+  transition: transform 0.25s var(--pz-ease), box-shadow 0.25s var(--pz-ease);
+}
+.pz-btn::after {
+  content: '';
+  position: absolute;
+  inset: -40% auto -40% -60%;
+  width: 45%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.95), transparent);
+  transform: skewX(-18deg) translateX(0);
+  transition: transform 0.7s var(--pz-ease);
+  z-index: -1;
+}
+.pz-btn:hover { transform: translateY(-1px); }
+.pz-btn:hover::after { transform: skewX(-18deg) translateX(420%); }
+.pz-btn:active { transform: translateY(0) scale(0.98); }
+.pz-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+.pz-btn svg { width: 18px; height: 18px; flex: none; }
+
+/* Botão secundário: contorno cromado */
+.pz-btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: 52px;
+  padding: 0 24px;
+  border-radius: var(--pz-radius-pill);
+  font-family: var(--pz-sans);
+  font-size: var(--pz-fs-m);
+  font-weight: 600;
+  color: var(--pz-text);
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--pz-line-strong);
+  transition: border-color 0.25s var(--pz-ease), background 0.25s var(--pz-ease);
+}
+.pz-btn-ghost:hover { border-color: rgba(233, 236, 241, 0.55); background: rgba(255, 255, 255, 0.05); }
+
+.pz-visually-hidden {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }

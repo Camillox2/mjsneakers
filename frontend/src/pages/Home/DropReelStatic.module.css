@@ -1,0 +1,75 @@
+.wrap { background: #000; }
+
+.opening {
+  display: grid;
+  place-items: center;
+  min-height: 62svh;
+  padding: calc(var(--pz-header-h) + 32px) var(--pz-gutter) 48px;
+}
+
+.logo { width: min(80vw, 820px); }
+
+.drop {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  align-items: center;
+  gap: clamp(24px, 4vw, 64px);
+  min-height: 86svh;
+  padding: 56px var(--pz-gutter);
+}
+
+.shoe {
+  width: 100%;
+  height: auto;
+  max-height: 62svh;
+  object-fit: contain;
+  filter: drop-shadow(0 40px 40px rgba(0, 0, 0, 0.35));
+}
+
+.name {
+  font-family: var(--pz-serif);
+  font-style: italic;
+  font-weight: 700;
+  font-size: var(--pz-fs-3xl);
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.line {
+  margin-top: 12px;
+  font-size: var(--pz-fs-l);
+  color: var(--ink2);
+  max-width: 34ch;
+}
+
+.specs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 22px;
+  margin-top: 22px;
+}
+
+.specs dt { font-size: var(--pz-fs-xs); color: var(--ink2); }
+.specs dd { font-weight: 650; font-stretch: 90%; }
+
+.buy {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-top: 26px;
+}
+
+.price {
+  font-size: var(--pz-fs-xl);
+  font-weight: 700;
+  font-stretch: 112%;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 760px) {
+  .drop {
+    grid-template-columns: 1fr;
+    min-height: auto;
+    padding: 40px var(--pz-gutter) 56px;
+  }
+}

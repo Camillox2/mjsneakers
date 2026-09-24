@@ -1,19 +1,63 @@
-// MJ Sneakers SW v3 — network-first para HTML (deploys aparecem na hora),
-// cache-first apenas para assets com hash (imutáveis).
-const CACHE_NAME = 'mj-sneakers-v5';
+// Pizantt Drop SW: HTML sempre da rede (deploy aparece na hora), assets do
+// build (com hash) em cache-first, quadros dos giros num cache próprio.
+const CACHE_NAME = 'pizantt-v2';
+const GIROS_CACHE = 'pizantt-giros-v1';
 
-self.addEventListener('install', (event) => {
-  // Sem precache de '/' nem index.html — HTML é sempre network-first.
+self.addEventListener('install', () => {
+  // Sem precache de '/' nem index.html: HTML é sempre network-first.
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
+  const keep = [CACHE_NAME, GIROS_CACHE];
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
-    ).then(() => self.clients.claim())
+    caches.keys()
+      .then((keys) => Promise.all(keys.filter((k) => !keep.includes(k)).map((k) => caches.delete(k))))
+      .then(() => self.clients.claim())
   );
 });
+
+const put = (cacheName, request, res) => {
+  if (res && res.status === 200) {
+    const clone = res.clone();
+    caches.open(cacheName).then((cache) => cache.put(request, clone));
+  }
+  return res;
+};
+
+const networkFirst = (request, cacheName) =>
+  fetch(request).then((res) => put(cacheName, request, res)).catch(() => caches.match(request));
+
+const cacheFirst = (request, cacheName) =>
+  caches.match(request).then((cached) => cached || fetch(request).then((res) => put(cacheName, request, res)));
+
+// Responde do cache na hora e atualiza em segundo plano: arquivo trocado com
+// o mesmo nome (logo, ícone, foto de amostra) aparece na visita seguinte.
+const staleWhileRevalidate = (event, cacheName) => {
+  const { request } = event;
+  const fresh = fetch(request).then((res) => put(cacheName, request, res));
+  event.waitUntil(fresh.catch(() => {}));
+  return caches.match(request).then((cached) => cached || fresh);
+};
+
+// Manifesto novo de um giro: apaga do cache os quadros de outras versões.
+const pruneGiro = async (manifestUrl, res) => {
+  try {
+    const { rev } = await res.clone().json();
+    if (!rev) return;
+    const folder = manifestUrl.pathname.replace(/manifest\.json$/, '');
+    const cache = await caches.open(GIROS_CACHE);
+    const keys = await cache.keys();
+    await Promise.all(
+      keys
+        .map((req) => new URL(req.url))
+        .filter((u) => u.pathname.startsWith(folder) && u.searchParams.has('v') && u.searchParams.get('v') !== rev)
+        .map((u) => cache.delete(u.href))
+    );
+  } catch {
+    /* manifesto sem rev ou inválido: nada a limpar */
+  }
+};
 
 self.addEventListener('fetch', (event) => {
   const { request } = event;
@@ -21,64 +65,62 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(request.url);
 
-  // Estoque: SEMPRE rede, NUNCA cache — disponibilidade precisa estar fresca.
-  // Cobre /api/stock/* (inclui /api/stock/product/:id/sizes) e /api/stock-alerts/*.
-  if (url.pathname.startsWith('/api/stock')) {
+  // Estoque e frete: sempre rede. Disponibilidade e preço de envio precisam estar frescos.
+  if (url.pathname.startsWith('/api/stock') || url.pathname.startsWith('/api/shipping')) {
     event.respondWith(fetch(request));
     return;
   }
 
-  // Frete: SEMPRE rede — estimativas dependem do CEP/carrinho e não devem ser cacheadas.
-  if (url.pathname.startsWith('/api/shipping')) {
-    event.respondWith(fetch(request));
-    return;
-  }
-
-  // Painel admin: network-only, sem cache offline.
+  // Painel admin: só rede, sem cópia offline.
   if (url.pathname === '/admin' || url.pathname.startsWith('/admin/')) {
     event.respondWith(fetch(request));
     return;
   }
 
-  // API: network-first com fallback ao cache (offline)
-  if (request.url.includes('/api/')) {
-    event.respondWith(
-      fetch(request)
-        .then((res) => {
-          const clone = res.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-          return res;
-        })
-        .catch(() => caches.match(request))
-    );
+  // Requisição autenticada (admin, pedidos do cliente): nunca vai para o cache.
+  // Dado pessoal gravado no Cache Storage sobreviveria ao logout.
+  if (request.headers.has('Authorization')) {
+    event.respondWith(fetch(request));
     return;
   }
 
-  // Navegação / HTML: SEMPRE rede primeiro — nunca prende o site numa versão velha
+  if (url.pathname.startsWith('/giros/')) {
+    if (url.pathname.endsWith('/manifest.json')) {
+      event.respondWith(
+        fetch(request)
+          .then((res) => {
+            if (res.ok) event.waitUntil(pruneGiro(url, res));
+            return put(GIROS_CACHE, request, res);
+          })
+          .catch(() => caches.match(request))
+      );
+    } else if (url.searchParams.has('v')) {
+      // quadro versionado (?v=rev do manifesto): imutável
+      event.respondWith(cacheFirst(request, GIROS_CACHE));
+    } else {
+      event.respondWith(staleWhileRevalidate(event, GIROS_CACHE));
+    }
+    return;
+  }
+
+  // API pública (produtos, marcas, banners): rede primeiro, cache se estiver offline.
+  if (url.pathname.includes('/api/')) {
+    event.respondWith(networkFirst(request, CACHE_NAME));
+    return;
+  }
+
+  // Navegação / HTML: sempre rede primeiro, nunca prende o site numa versão velha.
   if (request.mode === 'navigate' || request.destination === 'document') {
-    event.respondWith(
-      fetch(request)
-        .then((res) => {
-          const clone = res.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-          return res;
-        })
-        .catch(() => caches.match(request).then((c) => c || caches.match('/')))
-    );
+    event.respondWith(networkFirst(request, CACHE_NAME).then((res) => res || caches.match('/')));
     return;
   }
 
-  // Assets com hash no nome (js/css/imagens do build): cache-first é seguro
-  event.respondWith(
-    caches.match(request).then((cached) => {
-      if (cached) return cached;
-      return fetch(request).then((res) => {
-        if (res.status === 200) {
-          const clone = res.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-        }
-        return res;
-      });
-    })
-  );
+  // Build do Vite: nome com hash, conteúdo nunca muda.
+  if (url.origin === self.location.origin && url.pathname.startsWith('/assets/')) {
+    event.respondWith(cacheFirst(request, CACHE_NAME));
+    return;
+  }
+
+  // Resto (logo, ícones, amostras, fontes): cache na hora, atualiza por trás.
+  event.respondWith(staleWhileRevalidate(event, CACHE_NAME));
 });

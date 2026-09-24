@@ -1,112 +1,104 @@
+/* Marcas em pílulas. No celular a fileira rola de lado e sangra até a borda. */
 .filtersSection {
-  padding: 30px 0 20px;
-}
-
-.filtersContainer {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 0 20px;
+  padding: 0 0 16px;
 }
 
 .filtersScroll {
   display: flex;
-  gap: 15px;
-  justify-content: center;
   flex-wrap: wrap;
+  gap: 8px;
 }
 
 .filterItem {
-  display: flex;
-  flex-direction: column;
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  padding: 12px 24px;
-  border-radius: 12px;
-  background: var(--black-card);
-  border: 2px solid transparent;
-  transition: border-color 0.3s;
-  min-width: 110px;
+  gap: 10px;
+  height: 48px;
+  padding: 0 18px 0 6px;
+  border-radius: var(--pz-radius-pill);
+  font-family: var(--pz-sans);
+  color: var(--pz-text-2);
+  background: var(--pz-surface-1);
+  border: 1px solid var(--pz-line);
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: color 0.2s var(--pz-ease), border-color 0.2s var(--pz-ease), background 0.2s var(--pz-ease);
 }
 
 .filterItem:hover {
-  border-color: var(--gray-border);
-}
-
-.filterItem.active {
-  border-color: var(--red-primary);
-  background: rgba(220, 38, 38, 0.08);
+  color: var(--pz-text);
+  border-color: var(--pz-line-strong);
 }
 
 .filterIcon {
-  font-size: 1.8rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 50px;
-  height: 50px;
-  color: var(--white);
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-size: 16px;
+  color: var(--pz-text);
+  background: var(--pz-surface-2);
+  overflow: hidden;
+  isolation: isolate;
 }
 
+/* logos pretos em fundo claro viram brancos; o fundo some com "screen" */
 .brandLogo {
-  width: 40px;
-  height: 40px;
+  width: 24px;
+  height: 24px;
   object-fit: contain;
-  filter: invert(1) brightness(2);
-  transition: filter 0.3s;
-}
-
-.filterItem.active .brandLogo {
-  filter: invert(0.5) sepia(1) saturate(10) hue-rotate(0deg) brightness(0.9);
+  filter: invert(1) grayscale(1) brightness(1.4);
+  mix-blend-mode: screen;
 }
 
 .brandInitial {
-  font-size: 1.2rem;
-  font-weight: 800;
-  color: var(--white);
-}
-
-.filterItem.active .brandInitial {
-  color: var(--red-primary);
+  font-family: var(--pz-serif);
+  font-style: italic;
+  font-weight: 700;
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--pz-text);
 }
 
 .filterName {
-  font-size: 0.75rem;
+  font-size: var(--pz-fs-s);
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  color: var(--gray-lighter);
 }
 
-.filterItem.active .filterName {
-  color: var(--red-primary);
+/* marca escolhida: placa de cromo, texto escuro */
+.filterItem.active {
+  color: #0a0a0b;
+  background: var(--pz-chrome-flat);
+  border-color: transparent;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 0 -1px 0 rgba(0, 0, 0, 0.18);
 }
 
-.allFilter {
-  background: var(--red-primary);
-  color: var(--white);
+.filterItem.active .filterIcon {
+  color: #0a0a0b;
+  background: rgba(255, 255, 255, 0.55);
 }
 
-.allFilter .filterName {
-  color: var(--white);
+.filterItem.active .brandLogo {
+  filter: grayscale(1) contrast(1.2);
+  mix-blend-mode: multiply;
 }
 
-.allFilter:hover {
-  border-color: var(--red-light);
-}
+.filterItem.active .brandInitial { color: #0a0a0b; }
 
 @media (max-width: 768px) {
-  .filtersSection { padding: 20px 0 10px; }
-  .filtersScroll { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; padding: 0 12px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
-  .filtersScroll::-webkit-scrollbar { display: none; }
-  .filterItem { min-width: 80px; padding: 10px 16px; flex-shrink: 0; }
-  .filterIcon { width: 36px; height: 36px; font-size: 1.4rem; }
-  .brandLogo { width: 30px; height: 30px; }
-  .filterName { font-size: 0.65rem; }
-}
+  .filtersScroll {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    margin: 0 calc(var(--pz-gutter) * -1);
+    padding: 0 var(--pz-gutter) 4px;
+    scroll-padding: 0 var(--pz-gutter);
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
 
-@media (max-width: 480px) {
-  .filterItem { min-width: 70px; padding: 8px 12px; border-radius: 10px; }
-  .filterIcon { width: 30px; height: 30px; }
-  .filterName { font-size: 0.6rem; letter-spacing: 0.5px; }
+  .filtersScroll::-webkit-scrollbar { display: none; }
+
+  .filterItem { scroll-snap-align: start; }
 }

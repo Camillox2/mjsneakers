@@ -13,7 +13,18 @@ api.interceptors.request.use((config) => {
 });
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Sem backend no ar, o servidor da página devolve o index.html (200) no
+    // lugar do JSON. Tratar como falha evita que um HTML vire "lista de produtos".
+    const type = String(response.headers?.['content-type'] || '')
+    if (type.includes('text/html')) {
+      const err = new Error('API indisponível')
+      err.config = response.config
+      err.unavailable = true
+      return Promise.reject(err)
+    }
+    return response
+  },
   (error) => {
     if (error.response?.status === 401) {
       const isAdminRoute = error.config?.url?.includes('/auth') === false;

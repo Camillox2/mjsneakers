@@ -1,0 +1,43 @@
+.intro {
+  position: relative;
+  padding: clamp(64px, 10vw, 150px) 0 clamp(28px, 4vw, 56px);
+  background:
+    radial-gradient(70% 60% at 50% 0%, rgba(233, 236, 241, 0.07), transparent 70%),
+    #000;
+}
+
+.head {
+  max-width: 1480px;
+  margin: 0 auto;
+  padding: 0 var(--pz-gutter);
+}
+
+/* altura de linha folgada + respiro: itálico pesado com "j" não pode ser cortado */
+.title {
+  display: inline-block;
+  font-family: var(--pz-serif);
+  font-style: italic;
+  font-weight: 800;
+  font-size: var(--pz-fs-giant);
+  line-height: 1.02;
+  letter-spacing: -0.035em;
+  padding: 0.02em 0.14em 0.2em 0.02em;
+  margin-bottom: -0.16em;
+  background: var(--pz-chrome);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+.lead {
+  max-width: 44ch;
+  margin-top: 14px;
+  font-size: var(--pz-fs-l);
+  color: var(--pz-text-2);
+}
+
+.count {
+  color: var(--pz-text);
+  font-variant-numeric: tabular-nums;
+}

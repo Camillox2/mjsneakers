@@ -1,0 +1,4 @@
+.venv/
+mestres/
+previa*.jpg
+__pycache__/

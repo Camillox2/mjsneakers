@@ -1,11 +1,11 @@
 {
-  "name": "Pizzant Drop",
-  "short_name": "Pizzant",
-  "description": "Os melhores drops do mercado - Pizzant Drop",
+  "name": "Pizantt Drop",
+  "short_name": "Pizantt",
+  "description": "Tênis de drop, girando na sua tela antes de chegar no seu pé.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#111111",
-  "theme_color": "#DC2626",
+  "background_color": "#000000",
+  "theme_color": "#000000",
   "orientation": "portrait-primary",
   "icons": [
     {

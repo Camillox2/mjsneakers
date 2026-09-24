@@ -1,8 +1,9 @@
 .overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
   z-index: var(--z-wishlist, 800);
+  /* fundo sólido: desfocar a página inteira durante a animação travava */
+  background: rgba(0, 0, 0, 0.72);
 }
 
 .drawer {
@@ -10,116 +11,168 @@
   top: 0;
   right: 0;
   bottom: 0;
-  width: 380px;
-  max-width: 90vw;
-  background: var(--black-bg, #111);
   z-index: 801;
   display: flex;
   flex-direction: column;
-  border-left: 1px solid rgba(255, 255, 255, 0.06);
+  width: 420px;
+  max-width: 100vw;
+  background: #07080a;
+  /* borda de luz como sombra interna (linha de 1 px deslizando cintila) */
+  box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.1), -40px 0 90px -20px rgba(0, 0, 0, 0.85);
+  will-change: transform;
+  backface-visibility: hidden;
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1rem 1.25rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  gap: 12px;
+  padding: 14px 16px 14px 24px;
+  padding-top: max(14px, env(safe-area-inset-top));
+  border-bottom: 1px solid var(--pz-line);
 }
 
 .headerLeft {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  color: var(--red-primary, #e31837);
-  font-size: 1.1rem;
+  gap: 10px;
 }
 
 .headerLeft h2 {
-  font-size: 1.05rem;
+  font-family: var(--pz-serif);
+  font-style: italic;
   font-weight: 700;
-  color: var(--white);
+  font-size: var(--pz-fs-xl);
+  line-height: 1.1;
+  letter-spacing: -0.015em;
+  color: var(--pz-text);
 }
 
 .count {
-  background: var(--red-primary, #e31837);
-  color: #fff;
-  font-size: 0.68rem;
-  font-weight: 700;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: inline-grid;
+  place-items: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 7px;
+  border-radius: var(--pz-radius-pill);
+  font-size: var(--pz-fs-xs);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  color: var(--pz-text-2);
+  background: var(--pz-surface-2);
+  border: 1px solid var(--pz-line);
 }
 
 .closeBtn {
-  background: none;
-  border: none;
-  color: #888;
-  cursor: pointer;
-  font-size: 1.3rem;
-  display: flex;
-  transition: color 0.2s;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 20px;
+  color: var(--pz-text-2);
+  background: transparent;
+  border: 1px solid var(--pz-line);
+  transition: color 0.2s var(--pz-ease), border-color 0.2s var(--pz-ease);
 }
 
 .closeBtn:hover {
-  color: var(--white);
+  color: var(--pz-text);
+  border-color: var(--pz-line-strong);
 }
 
-/* Empty state */
+/* ---------- vazio ---------- */
 .empty {
   flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-  color: #555;
-  padding: 2rem;
+  gap: 8px;
+  padding: 32px 24px;
   text-align: center;
 }
 
+.emptyIcon {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  margin-bottom: 8px;
+  border-radius: 50%;
+  font-size: 24px;
+  color: var(--pz-text-2);
+  border: 1px solid var(--pz-line);
+  background: var(--pz-surface-1);
+}
+
 .empty p {
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: #888;
+  font-family: var(--pz-serif);
+  font-style: italic;
+  font-weight: 650;
+  font-size: var(--pz-fs-l);
+  color: var(--pz-text);
 }
 
-.empty span {
-  font-size: 0.78rem;
-  color: #666;
+.empty > span:not(.emptyIcon) {
+  max-width: 28ch;
+  margin-bottom: 12px;
+  font-size: var(--pz-fs-s);
+  line-height: 1.5;
+  color: var(--pz-text-2);
 }
 
-/* List */
+/* ---------- lista ---------- */
 .list {
   flex: 1;
-  overflow-y: auto;
-  padding: 0.75rem;
   display: flex;
   flex-direction: column;
-  gap: 0.65rem;
+  gap: 10px;
+  padding: 14px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  list-style: none;
 }
 
 .item {
   display: flex;
-  gap: 0.75rem;
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 12px;
-  padding: 0.65rem;
   align-items: center;
+  gap: 14px;
+  padding: 10px;
+  border-radius: var(--pz-radius-m);
+  background: var(--pz-surface-1);
+  border: 1px solid var(--pz-line);
+}
+
+.thumb {
+  flex-shrink: 0;
+  width: 76px;
+  height: 76px;
+  padding: 0;
+  overflow: hidden;
+  border-radius: 10px;
+  background: var(--pz-surface-2);
+}
+
+.thumbContain {
+  background:
+    radial-gradient(60% 45% at 50% 58%, color-mix(in srgb, var(--glow, #cdd1d8) 34%, transparent), transparent 70%),
+    linear-gradient(180deg, #0f1013, #07080a);
 }
 
 .image {
-  width: 65px;
-  height: 65px;
-  border-radius: 10px;
+  display: block;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
-  background: #1a1a1a;
-  cursor: pointer;
-  flex-shrink: 0;
+}
+
+.thumbContain .image {
+  object-fit: contain;
+  padding: 8%;
 }
 
 .info {
@@ -127,93 +180,99 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  align-items: flex-start;
+  gap: 2px;
 }
 
 .brand {
-  font-size: 0.62rem;
-  color: var(--red-primary, #e31837);
+  font-size: var(--pz-fs-xs);
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  color: var(--pz-text-3);
 }
 
 .name {
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: var(--white);
+  max-width: 100%;
+  padding: 0;
+  font-family: var(--pz-serif);
+  font-style: italic;
+  font-weight: 650;
+  font-size: var(--pz-fs-m);
+  line-height: 1.25;
+  text-align: left;
+  color: var(--pz-text);
+  background: none;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  cursor: pointer;
 }
 
-.name:hover {
-  text-decoration: underline;
-}
+.name:hover { text-decoration: underline; text-underline-offset: 3px; }
 
 .priceRow {
   display: flex;
-  align-items: center;
-  gap: 0.4rem;
-}
-
-.oldPrice {
-  font-size: 0.7rem;
-  color: #666;
-  text-decoration: line-through;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 2px;
 }
 
 .price {
-  font-size: 0.88rem;
+  font-size: var(--pz-fs-m);
   font-weight: 700;
-  color: var(--red-primary, #e31837);
+  font-stretch: 110%;
+  font-variant-numeric: tabular-nums;
+  color: var(--pz-text);
+}
+
+.oldPrice {
+  font-size: var(--pz-fs-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--pz-text-3);
+  text-decoration: line-through;
 }
 
 .outOfStock {
-  font-size: 0.65rem;
-  color: #f44336;
+  font-size: var(--pz-fs-xs);
   font-weight: 600;
+  color: var(--pz-text-2);
 }
 
 .actions {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: 6px;
   flex-shrink: 0;
 }
 
-.cartBtn,
-.removeBtn {
-  background: none;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  color: #999;
-  cursor: pointer;
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.9rem;
-  transition: all 0.2s;
+.iconBtn {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 17px;
+  color: var(--pz-text-2);
+  background: transparent;
+  border: 1px solid var(--pz-line);
+  transition: color 0.2s var(--pz-ease), border-color 0.2s var(--pz-ease), background 0.2s var(--pz-ease);
 }
 
 .cartBtn:hover {
-  color: var(--red-primary, #e31837);
-  border-color: var(--red-primary, #e31837);
+  color: #0a0a0b;
+  background: var(--pz-chrome-flat);
+  border-color: transparent;
 }
 
 .removeBtn:hover {
-  color: #f44336;
-  border-color: #f44336;
+  color: var(--pz-danger);
+  border-color: color-mix(in srgb, var(--pz-danger) 45%, transparent);
 }
 
 /* ===== Responsivo ===== */
 @media (max-width: 480px) {
-  .drawer { width: 100vw; max-width: 100vw; border-left: none; }
-  .list { padding: 0.6rem; }
-  .image { width: 58px; height: 58px; }
-  .actions { flex-direction: row; }
-  .cartBtn, .removeBtn { width: 38px; height: 38px; } /* alvo de toque maior */
+  .drawer { width: 100vw; box-shadow: none; }
+  .header { padding-left: 18px; }
+  .list { padding: 10px; }
+  .item { gap: 10px; }
+  .thumb { width: 64px; height: 64px; }
 }

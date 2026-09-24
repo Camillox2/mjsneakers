@@ -1,0 +1,100 @@
+/* Garantias em números grandes: o número é o recado, o resto explica. */
+.strip {
+  padding: clamp(56px, 8vw, 120px) var(--pz-gutter);
+  border-top: 1px solid var(--pz-line);
+  background:
+    radial-gradient(60% 80% at 50% 100%, rgba(233, 236, 241, 0.06), transparent 70%),
+    #000;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.item {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  padding: 8px clamp(14px, 2.4vw, 36px);
+}
+
+.item + .item { border-left: 1px solid var(--pz-line); }
+
+.top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.icon {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  overflow: visible;
+  fill: none;
+  stroke: var(--pz-chrome-2);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.icon [data-spin] {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.icon [data-speed] { stroke: var(--pz-chrome-3); }
+.icon [data-hand] { transform-origin: 24px 25px; }
+
+@media (hover: hover) {
+  .item:hover [data-spin] { animation: wheel 0.6s linear infinite; }
+  .item:hover [data-speed] { animation: speed 0.6s var(--pz-ease-io) infinite alternate; }
+  .item:hover [data-hand] { animation: hand 2.4s linear infinite; }
+}
+
+@keyframes wheel { to { transform: rotate(360deg); } }
+@keyframes speed { to { transform: translateX(-3px); opacity: 0.4; } }
+@keyframes hand { to { transform: rotate(360deg); } }
+
+.title {
+  font-size: var(--pz-fs-s);
+  font-weight: 600;
+  color: var(--pz-text-2);
+}
+
+.big {
+  font-family: var(--pz-serif);
+  font-style: italic;
+  font-weight: 800;
+  font-size: clamp(2.5rem, 1.4rem + 3.6vw, 5rem);
+  line-height: 0.95;
+  letter-spacing: -0.035em;
+  white-space: nowrap;
+  padding: 0.04em 0.1em 0.12em 0;
+  background: var(--pz-chrome);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  font-variant-numeric: lining-nums;
+}
+
+.sub {
+  max-width: 26ch;
+  font-size: var(--pz-fs-s);
+  line-height: 1.5;
+  color: var(--pz-text-2);
+}
+
+@media (max-width: 1000px) {
+  .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 40px; }
+  .item:nth-child(3) { border-left: 0; }
+}
+
+@media (max-width: 420px) {
+  .item { padding: 6px 12px; }
+  .big { font-size: 2.3rem; }
+}

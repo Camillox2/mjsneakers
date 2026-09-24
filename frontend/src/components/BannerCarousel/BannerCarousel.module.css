@@ -1,18 +1,19 @@
 .carousel {
   position: relative;
   width: 100%;
-  max-width: 1400px;
+  max-width: 1480px;
   margin: 0 auto;
-  padding: 20px 20px 0;
-  overflow: hidden;
+  padding: clamp(24px, 4vw, 48px) var(--pz-gutter) 0;
 }
 
 .bannerWrap {
   position: relative;
-  border-radius: 18px;
+  height: clamp(240px, 36vw, 460px);
   overflow: hidden;
-  height: 380px;
-  background: #0a0a0a;
+  border-radius: var(--pz-radius-l);
+  background: var(--pz-surface-1);
+  border: 1px solid var(--pz-line);
+  isolation: isolate;
 }
 
 .bannerSlide {
@@ -21,156 +22,179 @@
   overflow: hidden;
 }
 
-.bannerImg {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
+.bannerImg,
 .bannerVideo {
+  display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
+/* sombra embaixo só para o texto ler bem sobre qualquer foto */
 .bannerOverlay {
   position: absolute;
-  bottom: 0;
+  z-index: 5;
   left: 0;
   right: 0;
-  padding: 40px 50px;
-  background: linear-gradient(transparent, rgba(0, 0, 0, 0.85));
-  z-index: 5;
+  bottom: 0;
+  padding: clamp(24px, 4vw, 48px) clamp(24px, 5vw, 56px) clamp(56px, 6vw, 64px);
+  background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.82));
+  pointer-events: none;
 }
 
 .bannerTitle {
-  font-family: var(--font-display);
-  font-size: 2.2rem;
+  width: fit-content;
+  max-width: 20ch;
+  margin-bottom: 8px;
+  padding: 0 0.08em 0.06em 0;
+  font-family: var(--pz-serif);
+  font-style: italic;
   font-weight: 700;
-  color: white;
-  letter-spacing: 1px;
-  margin-bottom: 6px;
+  font-size: var(--pz-fs-2xl);
+  line-height: 1.02;
+  letter-spacing: -0.02em;
+  background: var(--pz-chrome);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
 }
 
 .bannerSub {
-  color: var(--gray-lighter);
-  font-size: 1rem;
+  max-width: 52ch;
+  font-size: var(--pz-fs-m);
+  line-height: 1.5;
+  color: var(--pz-text-2);
 }
 
-/* Nav dots */
+/* ---------- pontos: alvo de 44px, ponto pequeno ---------- */
 .dots {
   position: absolute;
-  bottom: 18px;
-  right: 30px;
-  display: flex;
-  gap: 8px;
   z-index: 10;
+  right: clamp(12px, 3vw, 28px);
+  bottom: 6px;
+  display: flex;
 }
 
 .dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.3);
-  cursor: pointer;
-  transition: all 0.3s;
+  position: relative;
+  width: 32px;
+  height: 44px;
+  padding: 0;
+  background: none;
 }
 
-.dot:hover { background: rgba(255, 255, 255, 0.6); }
-.activeDot { background: var(--red-primary) !important; transform: scale(1.2); }
-
-/* Arrows */
-.arrow {
+.dot::before {
+  content: '';
   position: absolute;
   top: 50%;
-  transform: translateY(-50%);
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  translate: -50% -50%;
+  border-radius: var(--pz-radius-pill);
+  background: rgba(233, 236, 241, 0.35);
+  transition: width 0.3s var(--pz-ease), background 0.3s var(--pz-ease);
+}
+
+.dot:hover::before { background: rgba(233, 236, 241, 0.6); }
+
+.activeDot::before {
+  width: 20px;
+  background: var(--pz-chrome-1);
+}
+
+/* ---------- setas ---------- */
+.arrow {
+  position: absolute;
+  z-index: 10;
+  top: 50%;
+  translate: 0 -50%;
+  display: grid;
+  place-items: center;
   width: 44px;
   height: 44px;
+  padding: 0;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.5);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.2rem;
-  z-index: 10;
-  cursor: pointer;
-  backdrop-filter: blur(4px);
-  transition: background 0.3s;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 20px;
+  color: var(--pz-text);
+  background: rgba(10, 10, 12, 0.55);
+  border: 1px solid var(--pz-line-strong);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: border-color 0.2s var(--pz-ease), background 0.2s var(--pz-ease);
 }
-.arrow:hover { background: var(--red-primary); }
-.arrowLeft { left: 16px; }
-.arrowRight { right: 16px; }
 
-/* ===== EFFECTS ===== */
+.arrow:hover {
+  border-color: rgba(233, 236, 241, 0.55);
+  background: rgba(31, 34, 39, 0.75);
+}
 
-/* Sparkle / Cintilante */
+.arrowLeft { left: 14px; }
+.arrowRight { right: 14px; }
+
+/* ===== Efeitos escolhidos no admin (em cromo/branco, sem vermelho) ===== */
+
+/* Cintilante */
 .effectSparkle {
   position: absolute;
   inset: 0;
-  pointer-events: none;
   z-index: 4;
   overflow: hidden;
+  pointer-events: none;
 }
 
 .effectSparkle::before,
 .effectSparkle::after {
   content: '';
   position: absolute;
-  width: 4px;
-  height: 4px;
+  width: 3px;
+  height: 3px;
   border-radius: 50%;
-  background: white;
+  background: #fff;
   box-shadow:
-    20px 40px 0 white, 80px 20px 0 white, 140px 60px 0 white,
-    200px 30px 0 white, 260px 80px 0 white, 320px 15px 0 white,
-    380px 70px 0 white, 440px 25px 0 white, 500px 55px 0 white,
-    560px 35px 0 white, 620px 75px 0 white, 680px 10px 0 white,
-    50px 120px 0 rgba(255,255,255,0.5), 150px 140px 0 rgba(255,255,255,0.5),
-    300px 110px 0 rgba(255,255,255,0.5), 450px 130px 0 rgba(255,255,255,0.5);
+    20px 40px 0 #fff, 80px 20px 0 #fff, 140px 60px 0 #fff,
+    200px 30px 0 #fff, 260px 80px 0 #fff, 320px 15px 0 #fff,
+    380px 70px 0 #fff, 440px 25px 0 #fff, 500px 55px 0 #fff,
+    560px 35px 0 #fff, 620px 75px 0 #fff, 680px 10px 0 #fff,
+    50px 120px 0 rgba(255, 255, 255, 0.5), 150px 140px 0 rgba(255, 255, 255, 0.5),
+    300px 110px 0 rgba(255, 255, 255, 0.5), 450px 130px 0 rgba(255, 255, 255, 0.5);
 }
 
 .effectSparkle::before { animation: sparkleA var(--effect-duration) ease-in-out infinite; }
 .effectSparkle::after { animation: sparkleA var(--effect-duration) ease-in-out infinite reverse; opacity: 0.5; top: 50px; left: 30px; }
 
 @keyframes sparkleA {
-  0%, 100% { opacity: 0.2; transform: scale(0.8); }
-  50% { opacity: 1; transform: scale(1.2); }
+  0%, 100% { opacity: 0.2; }
+  50% { opacity: 0.9; }
 }
 
 /* Cometa */
 .effectComet {
   position: absolute;
   inset: 0;
-  pointer-events: none;
   z-index: 4;
   overflow: hidden;
+  pointer-events: none;
 }
 
-.effectComet::before {
-  content: '';
-  position: absolute;
-  width: 100px;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, white, transparent);
-  top: 30%;
-  left: -120px;
-  animation: cometMove var(--effect-duration) linear infinite;
-  box-shadow: 0 0 10px 2px rgba(255, 255, 255, 0.4);
-}
-
+.effectComet::before,
 .effectComet::after {
   content: '';
   position: absolute;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.9), transparent);
+  animation: cometMove var(--effect-duration) linear infinite;
+}
+
+.effectComet::before { width: 100px; top: 30%; left: -120px; }
+
+.effectComet::after {
   width: 80px;
-  height: 1.5px;
-  background: linear-gradient(90deg, transparent, rgba(220, 38, 38, 0.8), transparent);
   top: 65%;
   left: -100px;
-  animation: cometMove var(--effect-duration) linear infinite;
+  opacity: 0.6;
   animation-delay: calc(var(--effect-duration) / 2);
-  box-shadow: 0 0 8px 2px rgba(220, 38, 38, 0.3);
 }
 
 @keyframes cometMove {
@@ -180,47 +204,44 @@
   100% { left: calc(100% + 120px); opacity: 0; }
 }
 
-/* Glow Pulse */
+/* Brilho pulsante */
 .effectGlowPulse {
   position: absolute;
   inset: 0;
-  pointer-events: none;
   z-index: 4;
-  border-radius: 18px;
+  border-radius: inherit;
+  pointer-events: none;
   animation: glowPulse var(--effect-duration) ease-in-out infinite;
 }
 
 @keyframes glowPulse {
-  0%, 100% { box-shadow: inset 0 0 30px rgba(220, 38, 38, 0.1); }
-  50% { box-shadow: inset 0 0 80px rgba(220, 38, 38, 0.25), 0 0 30px rgba(220, 38, 38, 0.15); }
+  0%, 100% { box-shadow: inset 0 0 30px rgba(233, 236, 241, 0.04); }
+  50% { box-shadow: inset 0 0 80px rgba(233, 236, 241, 0.12); }
 }
 
-/* Neon Border */
+/* Borda acesa */
 .effectNeonBorder {
   position: absolute;
-  inset: -2px;
-  pointer-events: none;
+  inset: 0;
   z-index: 4;
-  border-radius: 20px;
-  animation: neonBorder var(--effect-duration) linear infinite;
+  border-radius: inherit;
+  pointer-events: none;
+  animation: neonBorder var(--effect-duration) ease-in-out infinite;
 }
 
 @keyframes neonBorder {
-  0% { box-shadow: inset 0 0 10px rgba(220, 38, 38, 0.5), 0 0 10px rgba(220, 38, 38, 0.3); }
-  25% { box-shadow: inset 0 0 20px rgba(220, 38, 38, 0.7), 0 0 20px rgba(220, 38, 38, 0.4); }
-  50% { box-shadow: inset 0 0 10px rgba(220, 38, 38, 0.5), 0 0 10px rgba(220, 38, 38, 0.3); }
-  75% { box-shadow: inset 0 0 20px rgba(220, 38, 38, 0.7), 0 0 20px rgba(220, 38, 38, 0.4); }
-  100% { box-shadow: inset 0 0 10px rgba(220, 38, 38, 0.5), 0 0 10px rgba(220, 38, 38, 0.3); }
+  0%, 100% { box-shadow: inset 0 0 0 1px rgba(233, 236, 241, 0.25); }
+  50% { box-shadow: inset 0 0 0 1px rgba(233, 236, 241, 0.6), inset 0 0 24px rgba(233, 236, 241, 0.1); }
 }
 
-/* Light Sweep */
+/* Reflexo que atravessa */
 .effectLightSweep {
   position: absolute;
   inset: 0;
-  pointer-events: none;
   z-index: 4;
   overflow: hidden;
-  border-radius: 18px;
+  border-radius: inherit;
+  pointer-events: none;
 }
 
 .effectLightSweep::before {
@@ -230,27 +251,34 @@
   left: 0;
   width: 60%;
   height: 100%;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.08),
-    rgba(255, 255, 255, 0.15),
-    rgba(255, 255, 255, 0.08),
-    transparent
-  );
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.06), transparent);
   transform: translateX(-200%) skewX(-15deg);
   animation: lightSweep var(--effect-duration) linear infinite;
   will-change: transform;
 }
 
 @keyframes lightSweep {
-  0%   { transform: translateX(-200%) skewX(-15deg); }
+  0% { transform: translateX(-200%) skewX(-15deg); }
   100% { transform: translateX(300%) skewX(-15deg); }
 }
 
 @media (max-width: 768px) {
-  .bannerWrap { height: 240px; border-radius: 14px; }
-  .bannerTitle { font-size: 1.4rem; }
-  .bannerOverlay { padding: 20px 24px; }
-  .arrow { width: 36px; height: 36px; font-size: 1rem; }
+  .bannerWrap { border-radius: var(--pz-radius-m); }
+  .arrow { top: auto; bottom: 8px; translate: none; width: 44px; height: 44px; font-size: 18px; }
+  .arrowLeft { left: 8px; }
+  .arrowRight { right: auto; left: 58px; }
+  .dots { right: 8px; }
+  .bannerOverlay { padding: 20px 20px 64px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .effectSparkle::before,
+  .effectSparkle::after,
+  .effectComet::before,
+  .effectComet::after,
+  .effectGlowPulse,
+  .effectNeonBorder,
+  .effectLightSweep::before { animation: none; }
+  .effectComet,
+  .effectLightSweep { display: none; }
 }

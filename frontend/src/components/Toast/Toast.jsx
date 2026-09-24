@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useCallback } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
-import { FiCheck, FiAlertCircle, FiInfo, FiX } from 'react-icons/fi'
+import { AnimatePresence, MotionConfig, motion } from 'framer-motion'
+import { FiX } from 'react-icons/fi'
 import styles from './Toast.module.css'
 
 const ToastContext = createContext()
@@ -10,6 +10,9 @@ export function useToast() {
 }
 
 let toastId = 0
+
+const EASE = [0.22, 1, 0.36, 1]
+const TYPE_CLASS = { success: styles.toastSuccess, error: styles.toastError, info: styles.toastInfo }
 
 export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([])
@@ -26,29 +29,32 @@ export function ToastProvider({ children }) {
     setToasts(prev => prev.filter(t => t.id !== id))
   }, [])
 
-  const icons = { success: <FiCheck />, error: <FiAlertCircle />, info: <FiInfo /> }
-
   return (
     <ToastContext.Provider value={addToast}>
       {children}
-      <div className={styles.toastContainer}>
-        <AnimatePresence>
-          {toasts.map(t => (
-            <motion.div
-              key={t.id}
-              className={`${styles.toast} ${t.type === 'success' ? styles.toastSuccess : t.type === 'error' ? styles.toastError : styles.toastInfo}`}
-              initial={{ opacity: 0, x: 100, scale: 0.9 }}
-              animate={{ opacity: 1, x: 0, scale: 1 }}
-              exit={{ opacity: 0, x: 100, scale: 0.9 }}
-              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            >
-              <span className={styles.toastIcon}>{icons[t.type]}</span>
-              <span className={styles.toastMsg}>{t.message}</span>
-              <button className={styles.toastClose} onClick={() => removeToast(t.id)}><FiX /></button>
-            </motion.div>
-          ))}
-        </AnimatePresence>
-      </div>
+      <MotionConfig reducedMotion="user">
+        <div className={styles.toastContainer} role="status" aria-live="polite">
+          <AnimatePresence initial={false}>
+            {toasts.map(t => (
+              <motion.div
+                key={t.id}
+                layout
+                className={`${styles.toast} ${TYPE_CLASS[t.type] || styles.toastInfo}`}
+                initial={{ opacity: 0, y: -10, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.98, transition: { duration: 0.18, ease: 'easeIn' } }}
+                transition={{ duration: 0.35, ease: EASE }}
+              >
+                <span className={styles.toastDot} aria-hidden />
+                <span className={styles.toastMsg}>{t.message}</span>
+                <button type="button" className={styles.toastClose} onClick={() => removeToast(t.id)} aria-label="Fechar aviso">
+                  <FiX aria-hidden />
+                </button>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
+      </MotionConfig>
     </ToastContext.Provider>
   )
 }

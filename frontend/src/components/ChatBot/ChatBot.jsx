@@ -1,38 +1,50 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
-import { FiMessageCircle, FiX, FiSend, FiPackage, FiTruck, FiCreditCard, FiRepeat, FiHelpCircle } from 'react-icons/fi'
+import { AnimatePresence, motion, MotionConfig } from 'framer-motion'
+import { FiMessageCircle, FiX, FiSend, FiPackage, FiTruck, FiCreditCard, FiRepeat, FiTag } from 'react-icons/fi'
 import api from '../../services/api'
+import { BRAND } from '../../config/brand'
 import styles from './ChatBot.module.css'
+
+const EASE = [0.22, 1, 0.36, 1]
 
 const QUICK_MESSAGES = [
   { text: 'Quais marcas vocês vendem?', icon: <FiPackage /> },
   { text: 'Como funciona o frete?', icon: <FiTruck /> },
   { text: 'Formas de pagamento?', icon: <FiCreditCard /> },
   { text: 'Como trocar um produto?', icon: <FiRepeat /> },
-  { text: 'Tem cupom de desconto?', icon: <FiHelpCircle /> },
+  { text: 'Tem cupom de desconto?', icon: <FiTag /> },
 ]
+
+const GREETING = `Oi! Aqui é o atendimento da ${BRAND.name}. Pergunte sobre tamanho, frete, troca ou pagamento.`
 
 export default function ChatBot() {
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState([
-    { role: 'model', text: 'Olá! 👟 Sou o Pizzant Bot, assistente da Pizzant Drop. Como posso ajudar?' }
+    { role: 'model', text: GREETING }
   ])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
-  const messagesEndRef = useRef(null)
+  const messagesRef = useRef(null)
   const inputRef = useRef(null)
 
+  // rola só a caixa de mensagens, sem mexer na página
   const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    const box = messagesRef.current
+    if (box) box.scrollTo({ top: box.scrollHeight, behavior: 'smooth' })
   }, [])
 
   useEffect(() => {
     scrollToBottom()
-  }, [messages, scrollToBottom])
+  }, [messages, loading, scrollToBottom])
 
   useEffect(() => {
-    if (open && inputRef.current) {
-      setTimeout(() => inputRef.current?.focus(), 300)
+    if (!open) return
+    const t = setTimeout(() => inputRef.current?.focus(), 300)
+    const onKey = (e) => { if (e.key === 'Escape') setOpen(false) }
+    window.addEventListener('keydown', onKey)
+    return () => {
+      clearTimeout(t)
+      window.removeEventListener('keydown', onKey)
     }
   }, [open])
 
@@ -50,7 +62,7 @@ export default function ChatBot() {
       const { data } = await api.post('/chat', { message: msg, history })
       setMessages(prev => [...prev, { role: 'model', text: data.reply }])
     } catch {
-      setMessages(prev => [...prev, { role: 'model', text: 'Desculpe, tive um problema. Tente novamente ou envie email para contato@pizzant.com.br 📧' }])
+      setMessages(prev => [...prev, { role: 'model', text: 'Não consegui responder agora. Tente de novo ou escreva para contato@pizzant.com.br.' }])
     } finally {
       setLoading(false)
     }
@@ -66,63 +78,63 @@ export default function ChatBot() {
   const showQuickMessages = messages.length <= 1
 
   return (
-    <>
-      {/* Floating Button */}
+    <MotionConfig reducedMotion="user">
+      {/* Botão flutuante */}
       <AnimatePresence>
         {!open && (
           <motion.button
+            type="button"
             className={styles.fab}
             onClick={() => setOpen(true)}
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0, opacity: 0 }}
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            transition={{ type: 'spring', damping: 20, stiffness: 300 }}
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            transition={{ duration: 0.3, ease: EASE }}
+            aria-label="Abrir atendimento"
+            aria-haspopup="dialog"
           >
-            <FiMessageCircle />
-            <span className={styles.fabPulse} />
+            <FiMessageCircle aria-hidden="true" />
           </motion.button>
         )}
       </AnimatePresence>
 
-      {/* Chat Window */}
+      {/* Janela do chat */}
       <AnimatePresence>
         {open && (
           <motion.div
             className={styles.chatWindow}
-            initial={{ opacity: 0, y: 20, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 20, scale: 0.9 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            role="dialog"
+            aria-label={`Atendimento ${BRAND.name}`}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 16 }}
+            transition={{ duration: 0.35, ease: EASE }}
           >
-            {/* Header */}
             <div className={styles.chatHeader}>
               <div className={styles.chatHeaderInfo}>
-                <div className={styles.chatAvatar}>MJ</div>
+                <span className={styles.chatAvatar} aria-hidden="true">{BRAND.short.charAt(0)}</span>
                 <div>
-                  <span className={styles.chatName}>MJ Bot</span>
+                  <span className={styles.chatName}>Atendimento {BRAND.short}</span>
                   <span className={styles.chatStatus}>
-                    <span className={styles.statusDot} /> Online
+                    <span className={styles.statusDot} aria-hidden="true" /> Responde na hora
                   </span>
                 </div>
               </div>
-              <button className={styles.chatClose} onClick={() => setOpen(false)}>
-                <FiX />
+              <button type="button" className={styles.chatClose} onClick={() => setOpen(false)} aria-label="Fechar atendimento">
+                <FiX aria-hidden="true" />
               </button>
             </div>
 
-            {/* Messages */}
-            <div className={styles.chatMessages}>
+            <div className={styles.chatMessages} ref={messagesRef} data-lenis-prevent aria-live="polite">
               {messages.map((msg, i) => (
                 <motion.div
                   key={i}
                   className={`${styles.message} ${msg.role === 'user' ? styles.messageUser : styles.messageBot}`}
-                  initial={{ opacity: 0, y: 10 }}
+                  initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.2 }}
+                  transition={{ duration: 0.25, ease: EASE }}
                 >
-                  {msg.role === 'model' && <div className={styles.msgAvatar}>MJ</div>}
+                  <span className="pz-visually-hidden">{msg.role === 'user' ? 'Você:' : 'Atendimento:'}</span>
                   <div className={`${styles.msgBubble} ${msg.role === 'user' ? styles.bubbleUser : styles.bubbleBot}`}>
                     {msg.text}
                   </div>
@@ -135,47 +147,42 @@ export default function ChatBot() {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                 >
-                  <div className={styles.msgAvatar}>MJ</div>
                   <div className={`${styles.msgBubble} ${styles.bubbleBot}`}>
-                    <div className={styles.typing}>
+                    <span className="pz-visually-hidden">Escrevendo</span>
+                    <div className={styles.typing} aria-hidden="true">
                       <span /><span /><span />
                     </div>
                   </div>
                 </motion.div>
               )}
-
-              <div ref={messagesEndRef} />
             </div>
 
-            {/* Quick Messages */}
-            <AnimatePresence>
+            <AnimatePresence initial={false}>
               {showQuickMessages && (
                 <motion.div
                   className={styles.quickMessages}
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.3, ease: EASE }}
                 >
-                  {QUICK_MESSAGES.map((qm, i) => (
-                    <motion.button
-                      key={i}
-                      className={styles.quickBtn}
-                      onClick={() => sendMessage(qm.text)}
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: i * 0.05 }}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                    >
-                      {qm.icon}
-                      <span>{qm.text}</span>
-                    </motion.button>
-                  ))}
+                  <div className={styles.quickInner}>
+                    {QUICK_MESSAGES.map((qm) => (
+                      <button
+                        key={qm.text}
+                        type="button"
+                        className={styles.quickBtn}
+                        onClick={() => sendMessage(qm.text)}
+                      >
+                        <span aria-hidden="true">{qm.icon}</span>
+                        <span>{qm.text}</span>
+                      </button>
+                    ))}
+                  </div>
                 </motion.div>
               )}
             </AnimatePresence>
 
-            {/* Input */}
             <div className={styles.chatInput}>
               <input
                 ref={inputRef}
@@ -183,21 +190,24 @@ export default function ChatBot() {
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Digite sua mensagem..."
+                placeholder="Escreva sua pergunta"
+                aria-label="Sua mensagem"
                 disabled={loading}
                 maxLength={2000}
               />
               <button
+                type="button"
                 className={styles.sendBtn}
                 onClick={() => sendMessage()}
                 disabled={!input.trim() || loading}
+                aria-label="Enviar"
               >
-                <FiSend />
+                <FiSend aria-hidden="true" />
               </button>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
-    </>
+    </MotionConfig>
   )
 }

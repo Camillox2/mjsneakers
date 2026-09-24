@@ -1,0 +1,670 @@
+/* ============================================================
+   Palco do giro. A seção é alta (uma "tela" por trecho do roteiro)
+   e o palco fica grudado no topo (sticky) enquanto ela passa.
+   Tudo que anima aqui mexe só em transform/opacity.
+   ============================================================ */
+
+.reel {
+  position: relative;
+  height: calc(var(--screens) * 100svh);
+  background: #000;
+}
+
+.stage {
+  position: sticky;
+  top: 0;
+  height: 100svh;
+  overflow: hidden;
+  background: #000;
+  color: var(--ink);
+  isolation: isolate;
+}
+
+/* ---------- céu estrelado da abertura (atrás dos mundos) ---------- */
+.stars {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* ---------- mundos de cor ---------- */
+.world {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  opacity: 0;
+  visibility: hidden;
+  will-change: opacity; /* troca de mundo sem repintar o degradê da tela toda */
+}
+
+.flood {
+  position: absolute;
+  z-index: 1;
+  left: 50%;
+  top: 54%;
+  width: 100vmax;
+  height: 100vmax;
+  margin: -50vmax 0 0 -50vmax;
+  border-radius: 50%;
+  transform: scale(0);
+  will-change: transform;
+  pointer-events: none;
+}
+
+/* ---------- abertura: logo cromado ---------- */
+.logo {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  top: calc(var(--pz-header-h) + 5svh);
+  width: min(76vw, 860px, 118svh);
+  margin-left: calc(min(76vw, 860px, 118svh) / -2);
+  will-change: transform, opacity;
+}
+
+.logoIn {
+  clip-path: inset(100% 0% 0% 0%);
+}
+
+/* ---------- nome gigante atrás do tênis ---------- */
+.name {
+  position: absolute;
+  z-index: 2;
+  will-change: transform, opacity;
+  left: 0;
+  right: 0;
+  top: calc(var(--pz-header-h) + 1svh);
+  display: grid;
+  justify-items: center;
+  font-family: var(--pz-serif);
+  font-style: italic;
+  font-weight: 800;
+  font-size: var(--pz-fs-giant);
+  line-height: 0.9;
+  letter-spacing: -0.035em;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+}
+
+.nameOutline,
+.nameClip {
+  grid-area: 1 / 1;
+}
+
+.nameOutline,
+.nameFill {
+  padding: 0.04em 0.1em 0.16em;
+}
+
+.nameOutline {
+  color: transparent;
+  -webkit-text-stroke: 1.5px var(--line);
+}
+
+/* o cromo entra por translação: a janela (clip) anda para a direita e o
+   texto anda o mesmo tanto para a esquerda, então ele parece parado enquanto
+   é revelado. Só transform: a placa de vídeo faz sem redesenhar o texto. */
+.nameClip {
+  display: block;
+  overflow: hidden;
+  will-change: transform;
+}
+
+.nameFill {
+  display: block;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  will-change: transform;
+}
+
+/* ---------- caixa do tênis (4:3, igual aos quadros) ---------- */
+/* no computador a caixa deixa o canto inferior esquerdo livre para a ficha */
+.box {
+  --box-w: min(80vw, 92svh, 920px);
+  position: absolute;
+  z-index: 3;
+  left: calc(50% - var(--box-w) / 2);
+  top: calc(50% - var(--box-w) * 0.375 - 2svh);
+  width: var(--box-w);
+  height: calc(var(--box-w) * 0.75);
+  will-change: transform;
+}
+
+.layer,
+.sketch,
+.spin,
+.canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.layer { overflow: visible; pointer-events: none; }
+
+.spin {
+  will-change: transform, opacity;
+}
+.spin + .spin { opacity: 0; visibility: hidden; }
+
+.canvas {
+  display: block;
+  opacity: 0;
+}
+
+/* sombra e órbitas herdam a cor da tinta do mundo */
+.orbit {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 1.4;
+  vector-effect: non-scaling-stroke;
+}
+
+.orbitDash {
+  stroke-dasharray: 2 7;
+  opacity: 0.7;
+}
+
+/* sombra no chão e ponto da órbita: só transform/opacity, sem repintura */
+.shadow {
+  position: absolute;
+  left: 50%;
+  top: 90%;
+  width: 88%;
+  height: 7%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(0, 0, 0, 0.55), transparent);
+  transform: translate(-50%, -50%) scale(0.6, 1);
+  will-change: transform;
+  pointer-events: none;
+}
+
+.dotLayer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.dot {
+  position: absolute;
+  left: -5px;
+  top: -5px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--ink);
+  box-shadow: 0 0 12px 2px color-mix(in srgb, var(--ink) 70%, transparent);
+  will-change: transform, opacity;
+}
+
+/* chamadas: tudo em transform (sem redesenho enquanto o tênis gira) */
+.callout {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+}
+
+.leg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100px;
+  height: 1.2px;
+  margin-top: -0.6px;
+  background: var(--ink);
+  opacity: 0.85;
+  transform-origin: 0 50%;
+  transform: scaleX(0);
+  will-change: transform;
+}
+
+.anchor {
+  position: absolute;
+  left: -3.5px;
+  top: -3.5px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ink);
+  will-change: transform;
+}
+
+.anchorRing {
+  position: absolute;
+  inset: -7px;
+  border-radius: 50%;
+  border: 1.2px solid var(--ink);
+  animation: ring 1.6s var(--pz-ease-io) infinite;
+}
+
+@keyframes ring {
+  0% { transform: scale(0.6); opacity: 1; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
+
+/* posição fina (lado e centralização) é feita pelo GSAP com xPercent/yPercent */
+.label {
+  position: absolute;
+  z-index: 4;
+  padding: 6px 12px;
+  border-radius: var(--pz-radius-pill);
+  font-family: var(--pz-sans);
+  font-size: var(--pz-fs-s);
+  font-weight: 600;
+  font-stretch: 92%;
+  white-space: nowrap;
+  color: var(--ink);
+  /* fundo sólido na cor do mundo: nada aparece por trás das letras. Sem
+     desfoque de fundo: redesfocar o tênis girando a cada quadro travava */
+  background: color-mix(in srgb, var(--label-bg, #000) 86%, var(--ink));
+  border: 1px solid color-mix(in srgb, var(--ink) 34%, transparent);
+  opacity: 0;
+  visibility: hidden;
+}
+
+/* croqui que se desenha enquanto os quadros chegam */
+.sketch { overflow: visible; }
+
+.sketchOutline,
+.sketchLine {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.sketchOutline {
+  stroke: var(--pz-chrome-1);
+  stroke-width: 1.6;
+}
+
+.sketchLine {
+  stroke: var(--pz-chrome-3);
+  stroke-width: 1;
+}
+
+/* ---------- ficha do tênis ---------- */
+.info {
+  position: absolute;
+  z-index: 5;
+  left: var(--pz-gutter);
+  bottom: max(5svh, 28px);
+  width: min(360px, calc(100vw - 2 * var(--pz-gutter)));
+  color: var(--ink);
+  opacity: 0;
+  visibility: hidden;
+}
+
+.infoName {
+  font-family: var(--pz-serif);
+  font-style: italic;
+  font-weight: 700;
+  font-size: var(--pz-fs-2xl);
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.infoLine {
+  margin-top: 10px;
+  font-size: var(--pz-fs-l);
+  line-height: 1.45;
+  color: var(--ink2);
+}
+
+.specs {
+  display: flex;
+  gap: 22px;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid color-mix(in srgb, var(--ink) 22%, transparent);
+}
+
+.specs dt {
+  font-size: var(--pz-fs-xs);
+  color: var(--ink2);
+}
+
+.specs dd {
+  margin-top: 2px;
+  font-size: var(--pz-fs-s);
+  font-weight: 650;
+  font-stretch: 90%;
+}
+
+.buy {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-top: 22px;
+}
+
+.price {
+  font-size: var(--pz-fs-xl);
+  font-weight: 700;
+  font-stretch: 112%;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* ---------- navegação entre os tênis ---------- */
+.nav {
+  position: absolute;
+  z-index: 6;
+  right: var(--pz-gutter);
+  bottom: max(5svh, 28px);
+  display: flex;
+  align-items: flex-end;
+  gap: 18px;
+  color: var(--ink);
+  opacity: 0;
+  visibility: hidden;
+}
+
+.navItem {
+  display: grid;
+  gap: 8px;
+  min-width: 76px;
+  padding: 6px 0;
+  background: none;
+  color: inherit;
+  text-align: left;
+}
+
+.navTrack {
+  display: block;
+  height: 2px;
+  background: color-mix(in srgb, var(--ink) 22%, transparent);
+  overflow: hidden;
+}
+
+.navFill {
+  display: block;
+  height: 100%;
+  background: var(--ink);
+  transform: scaleX(0);
+}
+
+.navLabel {
+  font-family: var(--pz-serif);
+  font-style: italic;
+  font-size: var(--pz-fs-m);
+  font-weight: 600;
+}
+
+.navSkip {
+  margin-left: 8px;
+  padding: 10px 16px;
+  border-radius: var(--pz-radius-pill);
+  font-size: var(--pz-fs-s);
+  font-weight: 600;
+  color: inherit;
+  background: transparent;
+  border: 1px solid color-mix(in srgb, var(--ink) 32%, transparent);
+  transition: background 0.25s var(--pz-ease);
+}
+
+.navSkip:hover { background: color-mix(in srgb, var(--ink) 10%, transparent); }
+
+/* ---------- dica de rolagem ---------- */
+.cue {
+  position: absolute;
+  z-index: 6;
+  left: 50%;
+  bottom: max(3.5svh, 20px);
+  translate: -50% 0;
+  font-size: var(--pz-fs-s);
+  color: var(--pz-text-2);
+}
+
+/* a abertura acende o miolo; a rolagem apaga a casca */
+.cueIn {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  opacity: 0;
+  visibility: hidden;
+}
+
+.cueIcon {
+  width: 46px;
+  height: 46px;
+  overflow: visible;
+}
+
+.cueOrbit,
+.cueArrow,
+.cueLine {
+  fill: none;
+  stroke: var(--pz-chrome-2);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.cueOrbit { stroke-dasharray: 3 5; opacity: 0.6; }
+
+.cueArrow {
+  transform-origin: 32px 36px;
+  animation: cueTurn 2.4s var(--pz-ease-io) infinite;
+}
+
+.cueLine {
+  stroke-dasharray: 14;
+  animation: cueDrop 1.8s var(--pz-ease-io) infinite;
+}
+
+@keyframes cueTurn {
+  0%, 20% { transform: rotate(0deg); }
+  70%, 100% { transform: rotate(360deg); }
+}
+
+@keyframes cueDrop {
+  0% { stroke-dashoffset: 14; }
+  50% { stroke-dashoffset: 0; }
+  100% { stroke-dashoffset: -14; }
+}
+
+/* ---------- carregando ---------- */
+.loader {
+  position: absolute;
+  z-index: 7;
+  left: 50%;
+  bottom: max(9svh, 44px);
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  translate: -50% 0;
+}
+
+.loaderNum {
+  font-size: var(--pz-fs-xl);
+  font-weight: 500;
+  font-stretch: 115%;
+  font-variant-numeric: tabular-nums;
+  color: var(--pz-text);
+}
+
+.loaderNum::after {
+  content: '%';
+  margin-left: 2px;
+  font-size: 0.6em;
+  color: var(--pz-text-3);
+}
+
+.loaderBar {
+  display: block;
+  width: 140px;
+  height: 1px;
+  background: var(--pz-line);
+  overflow: hidden;
+}
+
+.loaderBar span {
+  display: block;
+  height: 100%;
+  background: var(--pz-chrome-1);
+  transform-origin: left center;
+  transition: transform 0.3s var(--pz-ease);
+}
+
+.blackout {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  background: #000;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* ---------- celular ---------- */
+@media (max-width: 760px) {
+  .box {
+    --box-w: min(122vw, 64svh);
+    top: calc(44% - var(--box-w) * 0.375);
+  }
+
+  .logo {
+    top: calc(var(--pz-header-h) + 7svh);
+    width: 86vw;
+    margin-left: -43vw;
+  }
+
+  .name {
+    top: calc(var(--pz-header-h) + 3svh);
+  }
+
+  .info {
+    bottom: max(3svh, 18px);
+    width: auto;
+    right: var(--pz-gutter);
+  }
+
+  .infoLine {
+    margin-top: 6px;
+    font-size: var(--pz-fs-m);
+  }
+
+  .specs { display: none; }
+
+  .buy {
+    margin-top: 14px;
+    justify-content: space-between;
+  }
+
+  /* celular: a navegação vira um trilho vertical na borda direita,
+     fora do caminho do nome, do tênis e da ficha */
+  .nav {
+    top: 50%;
+    bottom: auto;
+    right: 8px;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    translate: 0 -50%;
+  }
+
+  .navItem {
+    min-width: 0;
+    width: 24px;
+    height: 44px;
+    padding: 0;
+    place-items: center;
+  }
+
+  .navTrack {
+    width: 2px;
+    height: 30px;
+  }
+
+  .navFill {
+    width: 100%;
+    height: 100%;
+    transform-origin: top center !important;
+  }
+
+  .navLabel,
+  .navSkip { display: none; }
+
+  /* no celular a chamada vira uma etiqueta embaixo do tênis */
+  .leg { display: none; }
+
+  .label {
+    left: 50% !important;
+    top: 90% !important;
+    transform: translate(-50%, 0) !important;
+  }
+}
+
+/* celular baixinho: a ficha perde a frase para não encostar na etiqueta */
+@media (max-width: 760px) and (max-height: 680px) {
+  .infoLine { display: none; }
+  .buy { margin-top: 10px; }
+}
+
+/* tablet em pé e notebook estreito: a navegação sobe para não bater na ficha */
+@media (min-width: 761px) and (max-width: 1100px) {
+  .nav {
+    top: calc(var(--pz-header-h) + 10px);
+    bottom: auto;
+  }
+  .navSkip { display: none; }
+}
+
+@media (max-height: 780px) and (min-width: 761px) {
+  .specs { display: none; }
+  .infoLine { font-size: var(--pz-fs-m); }
+}
+
+/* celular deitado (tela larga e baixa): tênis à direita, ficha enxuta à esquerda */
+@media (max-height: 520px) and (min-width: 561px) {
+  .name {
+    top: calc(var(--pz-header-h) - 6px);
+    font-size: 30svh;
+  }
+  .logo {
+    top: calc(var(--pz-header-h) + 2svh);
+    width: min(46vw, 100svh);
+    margin-left: calc(min(46vw, 100svh) / -2);
+  }
+  .box {
+    --box-w: min(58vw, 108svh);
+    left: calc(62% - var(--box-w) / 2);
+    top: calc(56% - var(--box-w) * 0.375);
+  }
+  .info {
+    width: min(34vw, 320px);
+    right: auto;
+    bottom: 16px;
+  }
+  .infoName { font-size: var(--pz-fs-xl); }
+  .infoLine,
+  .specs { display: none; }
+  .buy { flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+  .nav {
+    top: calc(var(--pz-header-h) + 4px);
+    bottom: auto;
+    right: var(--pz-gutter);
+    left: auto;
+    flex-direction: row;
+    translate: none;
+  }
+  .navSkip { display: none; }
+  .label {
+    left: 50% !important;
+    top: 96% !important;
+    transform: translate(-50%, 0) !important;
+  }
+  .leg { display: none; }
+  .cue { display: none; }
+}

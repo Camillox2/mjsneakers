@@ -1,390 +1,251 @@
-import { useState, useEffect, useLayoutEffect, useContext, useRef } from 'react'
-import { Link } from 'react-router-dom'
-import { motion, AnimatePresence } from 'framer-motion'
-import api from '../../services/api'
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { SearchContext } from '../../App'
+import { GRID_SAMPLES, SAMPLE_PRODUCTS } from '../../data/drops'
+import { mergeBrands, sameBrand } from '../../data/brands'
+import DropReel from './DropReel'
+import ShopIntro from './ShopIntro'
+import FeaturedDrop from './FeaturedDrop'
+import Shop from './Shop'
+import OnFeet from './OnFeet'
+import TrustStrip from '../../components/TrustStrip/TrustStrip'
 import BannerCarousel from '../../components/BannerCarousel/BannerCarousel'
-import BrandFilter from '../../components/BrandFilter/BrandFilter'
-import ProductCard from '../../components/ProductCard/ProductCard'
+import PromotionTicker from '../../components/PromotionTicker/PromotionTicker'
 import ProductModal from '../../components/ProductModal/ProductModal'
-import SkeletonGrid from '../../components/Skeleton/Skeleton'
-import Footer from '../../components/Footer/Footer'
-import FeaturedSection from '../../components/FeaturedSection/FeaturedSection'
-import BottomPromoBanner from '../../components/BottomPromoBanner/BottomPromoBanner'
 import RecentlyViewed from '../../components/RecentlyViewed/RecentlyViewed'
 import Newsletter from '../../components/Newsletter/Newsletter'
-import { FiChevronDown, FiX, FiSliders, FiArrowRight, FiTruck, FiShield, FiRefreshCw, FiZap } from 'react-icons/fi'
-import cardStyles from '../../components/ProductCard/ProductCard.module.css'
+import BottomPromoBanner from '../../components/BottomPromoBanner/BottomPromoBanner'
+import Footer from '../../components/Footer/Footer'
+import { cachedGet, TTL } from '../../services/cache'
+import { prefersReducedMotion, scrollToEl } from '../../lib/motion'
 import styles from './Home.module.css'
 
-const SIZES = ['36','37','38','39','40','41','42','43','44','45','46']
-const SORT_OPTIONS = [
-  { value: '', label: 'Relevância' },
-  { value: 'featured', label: 'Destaques' },
-  { value: 'newest', label: 'Mais recentes' },
-  { value: 'price_asc', label: 'Menor preço' },
-  { value: 'price_desc', label: 'Maior preço' },
-  { value: 'best_sellers', label: 'Mais vendidos' },
-  { value: 'top_rated', label: 'Melhor avaliados' },
-]
-
-const TRUST = [
-  { icon: FiTruck, title: 'Frete Grátis', sub: 'Acima de R$ 299' },
-  { icon: FiShield, title: '100% Original', sub: 'Garantia total' },
-  { icon: FiRefreshCw, title: 'Troca Fácil', sub: 'Até 30 dias' },
-  { icon: FiZap, title: 'Envio Rápido', sub: 'Em até 24h' },
-]
-
-const fadeUp = {
-  hidden: { opacity: 0, y: 28 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] } },
-}
-const stagger = {
-  hidden: {},
-  show: { transition: { staggerChildren: 0.1, delayChildren: 0.05 } },
-}
-
 export default function Home() {
-  const [products, setProducts] = useState([])
-  const [brands, setBrands] = useState([])
-  const [categories, setCategories] = useState([])
-  const [page, setPage] = useState(1)
-  const [totalPages, setTotalPages] = useState(1)
-  const [promo, setPromo] = useState({ enabled: false, tag: '', text: '', buttonText: '', buttonLink: '' })
-  const [activeBrand, setActiveBrand] = useState(null)
-  const [activeCategory, setActiveCategory] = useState(null)
   const [selectedProduct, setSelectedProduct] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [sort, setSort] = useState('')
-  const [minPrice, setMinPrice] = useState('')
-  const [maxPrice, setMaxPrice] = useState('')
-  const [activeSize, setActiveSize] = useState('')
-  const [filtersOpen, setFiltersOpen] = useState(false)
-  const [hasMore, setHasMore] = useState(true)
-  const loaderRef = useRef(null)
-  const marqueeRef = useRef(null)
-
-  useLayoutEffect(() => {
-    const el = marqueeRef.current
-    if (!el) return
-    const measure = () => {
-      const half = Math.round(el.scrollWidth / 2)
-      el.style.setProperty('--mq-offset', `-${half}px`)
-    }
-    measure()
-    document.fonts.ready.then(measure)
-  }, [])
+  const [apiBrands, setApiBrands] = useState([])
+  const [brand, setBrand] = useState(null)
+  const [shopStatus, setShopStatus] = useState({ samples: false, count: 0 })
   const { searchProduct, setSearchProduct } = useContext(SearchContext)
+  const shopRef = useRef(null)
 
   useEffect(() => {
-    if (searchProduct) { setSelectedProduct(searchProduct); setSearchProduct(null) }
+    if (searchProduct) {
+      setSelectedProduct(searchProduct)
+      setSearchProduct(null)
+    }
   }, [searchProduct, setSearchProduct])
 
   useEffect(() => {
-    loadBrands(); loadCategories(); loadPromo()
+    cachedGet('/brands', { ttl: TTL.config, persist: true })
+      .then((data) => Array.isArray(data) && setApiBrands(data))
+      .catch(() => {})
   }, [])
 
+  // marcas do backend; na vitrine de amostras, a lista da loja + a marca das amostras
+  const brands = useMemo(() => {
+    const sampleNames = shopStatus.samples ? [...new Set(GRID_SAMPLES.map((p) => p.brand_name))] : []
+    return mergeBrands(apiBrands, sampleNames)
+  }, [apiBrands, shopStatus.samples])
+
+  // pares que a órbita usa para mostrar o tênis e contar cada marca: as
+  // amostras, ou a primeira página do catálogo real (mesmo pedido da vitrine,
+  // então vem do cache)
+  const [realProducts, setRealProducts] = useState([])
   useEffect(() => {
-    setProducts([]); setPage(1); setHasMore(true)
-  }, [activeBrand, activeCategory, sort, minPrice, maxPrice, activeSize])
+    if (shopStatus.samples) return
+    cachedGet('/products', { params: { page: 1, limit: 20 }, ttl: TTL.list })
+      .then((data) => setRealProducts(Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : []))
+      .catch(() => {})
+  }, [shopStatus.samples])
+  const orbitProducts = shopStatus.samples ? GRID_SAMPLES : realProducts
 
-  useEffect(() => {
-    loadProducts(page, page === 1)
-  }, [page, activeBrand, activeCategory, sort, minPrice, maxPrice, activeSize])
+  const shoeFor = useCallback(
+    (name) => {
+      const list = name ? orbitProducts.filter((p) => sameBrand(p.brand_name, name)) : orbitProducts
+      if (name && !list.length) return null
+      return list.find((p) => p.spin) ?? list[0] ?? null
+    },
+    [orbitProducts],
+  )
+  const countFor = useCallback((name) => orbitProducts.filter((p) => sameBrand(p.brand_name, name)).length, [orbitProducts])
 
-  useEffect(() => {
-    const el = loaderRef.current
-    if (!el) return
-    const observer = new IntersectionObserver(entries => {
-      if (entries[0].isIntersecting && hasMore && !loading) setPage(p => p + 1)
-    }, { threshold: 0.1 })
-    observer.observe(el)
-    return () => observer.disconnect()
-  }, [hasMore, loading])
+  const onShopStatus = useCallback((status) => {
+    setShopStatus((prev) => (prev.samples === status.samples && prev.count === status.count ? prev : status))
+  }, [])
 
-  const loadBrands = async () => {
-    try { const { data } = await api.get('/brands'); setBrands(data) } catch {}
-  }
-  const loadCategories = async () => {
-    try { const { data } = await api.get('/categories'); setCategories(data) } catch {}
-  }
-  const loadProducts = async (currentPage, reset = false) => {
-    try {
-      setLoading(true)
-      const params = { page: currentPage, limit: 20 }
-      if (activeBrand) params.brand_id = activeBrand
-      if (activeCategory) params.category_id = activeCategory
-      if (sort) params.sort = sort
-      if (minPrice) params.min_price = minPrice
-      if (maxPrice) params.max_price = maxPrice
-      if (activeSize) params.size = activeSize
-      const { data } = await api.get('/products', { params })
-      const items = data.data || data
-      const pages = data.pages || 1
-      setProducts(prev => reset ? (Array.isArray(items) ? items : []) : [...prev, ...(Array.isArray(items) ? items : [])])
-      setTotalPages(pages)
-      setHasMore(currentPage < pages)
-    } catch {} finally { setLoading(false) }
-  }
-  const loadPromo = async () => {
-    try {
-      const { data } = await api.get('/settings')
-      setPromo({
-        enabled: data.home_promo_enabled === 'true',
-        tag: data.home_promo_tag || 'Oferta Especial',
-        text: data.home_promo_text || '',
-        buttonText: data.home_promo_button_text || '',
-        buttonLink: data.home_promo_button_link || '',
-      })
-    } catch { setPromo(prev => ({ ...prev, enabled: false })) }
-  }
-  const clearFilters = () => {
-    setActiveBrand(null); setActiveCategory(null); setSort('')
-    setMinPrice(''); setMaxPrice(''); setActiveSize('')
-  }
-  const hasActiveFilters = activeBrand || activeCategory || sort || minPrice || maxPrice || activeSize
-  const promoLink = promo.buttonLink || '#catalogo'
-  const promoExternal = promoLink.startsWith('http')
-  const catalogTitle = activeBrand ? brands.find(b => b.id === activeBrand)?.name || 'Produtos' : 'Todos os Tênis'
+  // O DropReel põe a classe pz-intro (header escondido) só quando há abertura
+  // animada; aqui ela sai quando a abertura termina.
+  const introDone = useCallback(() => {
+    document.documentElement.classList.remove('pz-intro')
+    // veio de outra página pelo link "Loja": vai direto para a vitrine
+    if (window.location.hash === '#loja') scrollToEl(document.getElementById('loja'), -70)
+  }, [])
 
-  const renderCatChip = (id, label) => {
-    const isActive = activeCategory === id
-    return (
-      <button
-        key={id ?? 'all'}
-        className={`${styles.catChip} ${isActive ? styles.catChipActive : ''}`}
-        onClick={() => setActiveCategory(id)}
-      >
-        {isActive && (
-          <motion.span
-            layoutId="catPill"
-            className={styles.catPill}
-            transition={{ type: 'spring', stiffness: 420, damping: 34 }}
-          />
-        )}
-        <span className={styles.catLabel}>{label}</span>
-      </button>
-    )
-  }
+  // marca escolhida na órbita: filtra a vitrine; o botão embaixo leva até ela
+  const seeBrand = useCallback(() => scrollToEl(shopRef.current, -70), [])
+
+  // "Quero esse" no giro: abre o produto real se o drop estiver ligado a um
+  // produto do backend; senão, o exemplar de amostra.
+  const pickDrop = useCallback(async (drop) => {
+    if (drop.productId) {
+      try {
+        const data = await cachedGet(`/products/${drop.productId}`, { ttl: TTL.item })
+        if (data?.id) {
+          setSelectedProduct(data)
+          return
+        }
+      } catch {
+        /* cai para a amostra */
+      }
+    }
+    setSelectedProduct(SAMPLE_PRODUCTS.find((p) => p.spin === drop.id) ?? null)
+  }, [])
 
   return (
-    <main>
-      <BannerCarousel />
+    <main className={styles.home}>
+      <DropReel onPick={pickDrop} onIntroDone={introDone} catalogRef={shopRef} />
 
-      {/* ===== HERO ===== */}
-      <section className={styles.hero}>
-        <div className={styles.heroAurora} aria-hidden="true" />
-        <div className={styles.heroGrid} aria-hidden="true" />
-        <span className={`${styles.orb} ${styles.orb1}`} aria-hidden="true" />
-        <span className={`${styles.orb} ${styles.orb2}`} aria-hidden="true" />
-        <span className={`${styles.orb} ${styles.orb3}`} aria-hidden="true" />
-        <span className={styles.heroGhost} aria-hidden="true">PIZZANT</span>
-
-        <motion.div className={styles.heroContent} variants={stagger} initial="hidden" animate="show">
-          <motion.span className={styles.heroBadge} variants={fadeUp}>
-            <span className={styles.heroBadgeDot} /> Coleção 2026 · 100% Originais
-          </motion.span>
-          <motion.h1 className={styles.heroTitle} variants={fadeUp}>
-            PIZZANT<span className={styles.accent}>DROP</span>
-          </motion.h1>
-          <motion.p className={styles.heroSub} variants={fadeUp}>
-            Os melhores drops do mercado
-          </motion.p>
-          <motion.div className={styles.heroCtas} variants={fadeUp}>
-            <motion.a href="#catalogo" className={styles.heroCtaPrimary} whileHover={{ y: -2 }} whileTap={{ scale: 0.97 }}>
-              Explorar Catálogo <FiArrowRight />
-            </motion.a>
-            <motion.span whileHover={{ y: -2 }} whileTap={{ scale: 0.97 }}>
-              <Link to="/rastrear" className={styles.heroCtaGhost}>Rastrear Pedido</Link>
-            </motion.span>
-          </motion.div>
-        </motion.div>
-
-        <a href="#catalogo" className={styles.scrollCue} aria-label="Rolar para o catálogo">
-          <span className={styles.scrollMouse}><span className={styles.scrollWheel} /></span>
-        </a>
-      </section>
-
-      {/* ===== MARQUEE DE MARCAS ===== */}
-      <div className={styles.marquee} aria-hidden="true">
-        <div className={styles.marqueeTrack} ref={marqueeRef}>
-          {[...Array(2)].flatMap((_, dup) =>
-            ['Nike', 'Adidas', 'Jordan', 'New Balance', 'Puma', 'Yeezy', 'Asics', 'Vans'].map((b, i) => (
-              <span key={`${dup}-${i}`} className={styles.marqueeItem}>
-                {b} <span className={styles.marqueeDot}>✦</span>
-              </span>
-            ))
-          )}
-        </div>
+      <div id="loja">
+        <PromotionTicker position="top" />
+        <ShopIntro
+          brands={brands}
+          active={brand}
+          onBrand={setBrand}
+          count={shopStatus.count}
+          shoeFor={shoeFor}
+          countFor={countFor}
+          onSeeAll={seeBrand}
+        />
       </div>
 
-      {/* ===== TRUST STRIP ===== */}
-      <motion.div
-        className={styles.trustStrip}
-        variants={stagger}
-        initial="hidden"
-        whileInView="show"
-        viewport={{ once: true, amount: 0.3 }}
-      >
-        {TRUST.map(({ icon: Icon, title, sub }) => (
-          <motion.div key={title} className={styles.trustItem} variants={fadeUp}>
-            <span className={styles.trustIcon}><Icon /></span>
-            <div className={styles.trustText}>
-              <span className={styles.trustTitle}>{title}</span>
-              <span className={styles.trustSub}>{sub}</span>
-            </div>
-          </motion.div>
-        ))}
-      </motion.div>
+      <BannerCarousel />
 
-      {promo.enabled && promo.text && (
-        <motion.div
-          className={styles.promoStrip}
-          initial={{ opacity: 0, y: -14 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-        >
-          <div className={styles.promoInfo}>
-            <span className={styles.promoTag}>{promo.tag}</span>
-            <p className={styles.promoText}>{promo.text}</p>
-          </div>
-          {promo.buttonText && (
-            <a href={promoLink} className={styles.promoButton} target={promoExternal ? '_blank' : undefined} rel={promoExternal ? 'noreferrer' : undefined}>
-              {promo.buttonText} <FiArrowRight />
-            </a>
-          )}
-        </motion.div>
-      )}
+      <FeaturedDrop onOpen={setSelectedProduct} />
 
-      <BrandFilter brands={brands} activeBrand={activeBrand} onSelect={(id) => setActiveBrand(id)} />
-
-      {categories.length > 0 && (
-        <div className={styles.categoryRow}>
-          {renderCatChip(null, 'Todas')}
-          {categories.map(c => renderCatChip(c.id, c.name))}
-        </div>
-      )}
-
-      <FeaturedSection onProductClick={setSelectedProduct} />
-
-      {/* ===== CATALOG ===== */}
-      <section className={styles.catalog} id="catalogo">
-        <motion.div
-          className={styles.catalogHeader}
-          variants={fadeUp}
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true, amount: 0.4 }}
-        >
-          <div className={styles.titleWrap}>
-            <span className={styles.titleBar} />
-            <h2 className={styles.sectionTitle}>{catalogTitle}</h2>
-            {!loading && products.length > 0 && (
-              <motion.span
-                key={products.length}
-                className={styles.countPill}
-                initial={{ scale: 0.6, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ type: 'spring', stiffness: 500, damping: 24 }}
-              >
-                {products.length}
-              </motion.span>
-            )}
-          </div>
-          <div className={styles.filterActions}>
-            <AnimatePresence>
-              {hasActiveFilters && (
-                <motion.button
-                  className={styles.clearBtn}
-                  onClick={clearFilters}
-                  initial={{ opacity: 0, scale: 0.85 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.85 }}
-                >
-                  <FiX /> Limpar
-                </motion.button>
-              )}
-            </AnimatePresence>
-            <button className={`${styles.filterToggle} ${filtersOpen ? styles.filterToggleActive : ''}`} onClick={() => setFiltersOpen(o => !o)}>
-              <FiSliders /> Filtros <FiChevronDown className={filtersOpen ? styles.chevronUp : ''} />
-            </button>
-            <div className={styles.selectWrap}>
-              <select className={styles.sortSelect} value={sort} onChange={e => setSort(e.target.value)}>
-                {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
-              <FiChevronDown className={styles.selectChevron} />
-            </div>
-          </div>
-        </motion.div>
-
-        <AnimatePresence>
-          {filtersOpen && (
-            <motion.div className={styles.filtersPanel} initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}>
-              <div className={styles.filtersInner}>
-                <div className={styles.filterGroup}>
-                  <span className={styles.filterLabel}>Preço</span>
-                  <div className={styles.priceRange}>
-                    <input type="number" placeholder="Mín" value={minPrice} onChange={e => setMinPrice(e.target.value)} className={styles.priceInput} />
-                    <span className={styles.priceDash}>—</span>
-                    <input type="number" placeholder="Máx" value={maxPrice} onChange={e => setMaxPrice(e.target.value)} className={styles.priceInput} />
-                  </div>
-                </div>
-                <div className={styles.filterGroup}>
-                  <span className={styles.filterLabel}>Tamanho</span>
-                  <div className={styles.sizeRow}>
-                    {SIZES.map(s => (
-                      <button key={s} className={`${styles.sizeChip} ${activeSize === s ? styles.sizeChipActive : ''}`} onClick={() => setActiveSize(activeSize === s ? '' : s)}>
-                        {s}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {loading && page === 1 ? (
-          <SkeletonGrid count={8} />
-        ) : (
-          <>
-            <div className={cardStyles.grid}>
-              <AnimatePresence mode="popLayout">
-                {products.length > 0 ? (
-                  products.map((product, index) => (
-                    <ProductCard key={`${product.id}-${index}`} product={product} index={index % 20} onClick={setSelectedProduct} />
-                  ))
-                ) : (
-                  <motion.div className={styles.empty} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-                    <FiX className={styles.emptyIcon} />
-                    <p className={styles.emptyTitle}>Nenhum produto encontrado</p>
-                    <p className={styles.emptySub}>Tente ajustar os filtros ou limpar a busca.</p>
-                    {hasActiveFilters && (
-                      <button className={styles.clearBtn} onClick={clearFilters}><FiX /> Limpar filtros</button>
-                    )}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-            <div ref={loaderRef} className={styles.loader}>
-              {loading && hasMore && <span className={styles.spinner} aria-label="Carregando" />}
-            </div>
-          </>
-        )}
-      </section>
+      <div ref={shopRef}>
+        <Shop onProductClick={setSelectedProduct} brands={brands} brand={brand} onBrand={setBrand} onStatus={onShopStatus} />
+      </div>
 
       <RecentlyViewed onProductClick={setSelectedProduct} />
 
-      <div className={styles.newsletterStrip}>
-        <div className={styles.newsletterGlow} aria-hidden="true" />
-        <Newsletter variant="footer" />
-      </div>
+      <OnFeet onOpen={setSelectedProduct} />
+
+      <TrustStrip />
 
       <BottomPromoBanner onProductClick={setSelectedProduct} />
+
+      <section className={styles.newsletter} aria-label="Newsletter">
+        <OrbitBackdrop />
+        <div className={styles.newsletterInner} data-orbit-avoid>
+          <Newsletter variant="footer" />
+        </div>
+      </section>
 
       <ProductModal product={selectedProduct} isOpen={!!selectedProduct} onClose={() => setSelectedProduct(null)} />
 
       <Footer />
     </main>
+  )
+}
+
+// Órbita desenhada atrás da newsletter, com um ponto de luz correndo nela:
+// a mesma assinatura visual do giro, fechando a página.
+// O ponto é um elemento à parte, animado por transform (Web Animations): quem
+// move é a placa de vídeo. Com o animateMotion do SVG + sombra em filtro, o
+// navegador redesenhava o fundo inteiro a cada quadro e as linhas tremiam.
+// A órbita contorna o texto: na faixa do título e do formulário ela some
+// (máscara). Passando por trás das letras, o ponto de luz piscava entre elas.
+const ORBIT_VB = { w: 1200, h: 400, cx: 600, cy: 200, rx: 540, ry: 150, tilt: -4 }
+const ORBIT_LAP = 14000 // ms por volta
+
+function OrbitBackdrop() {
+  const wrapRef = useRef(null)
+  const dotRef = useRef(null)
+  const { w: VW, h: VH, cx, cy, rx, ry, tilt } = ORBIT_VB
+
+  useEffect(() => {
+    const wrap = wrapRef.current
+    const dot = dotRef.current
+    if (!wrap) return undefined
+    const moving = !prefersReducedMotion() && !!dot?.animate
+    let anim = null
+    let visible = false
+
+    // faixa do conteúdo, em % da altura da seção: a máscara apaga a órbita ali
+    const band = () => {
+      const section = wrap.parentElement
+      const inner = section?.querySelector('[data-orbit-avoid]')
+      const H = section?.clientHeight
+      if (!inner || !H) return
+      wrap.style.setProperty('--band-top', `${((inner.offsetTop / H) * 100).toFixed(1)}%`)
+      wrap.style.setProperty('--band-bottom', `${(((inner.offsetTop + inner.offsetHeight) / H) * 100).toFixed(1)}%`)
+    }
+
+    // pontos da elipse (já girada) a passos iguais de comprimento: velocidade
+    // constante, como o animateMotion fazia
+    const build = () => {
+      band()
+      if (!moving) return
+      const W = wrap.clientWidth
+      const H = wrap.clientHeight
+      if (!W || !H) return
+      const sx = W / VW // preserveAspectRatio "none": cada eixo na sua escala
+      const sy = H / VH
+      const a = (tilt * Math.PI) / 180
+      const dense = []
+      for (let k = 0; k <= 720; k += 1) {
+        const th = Math.PI + (k / 720) * Math.PI * 2 // começa na ponta esquerda e sobe
+        const dx = rx * Math.cos(th)
+        const dy = ry * Math.sin(th)
+        dense.push([(cx + dx * Math.cos(a) - dy * Math.sin(a)) * sx, (cy + dx * Math.sin(a) + dy * Math.cos(a)) * sy])
+      }
+      const len = [0]
+      for (let k = 1; k < dense.length; k += 1) len.push(len[k - 1] + Math.hypot(dense[k][0] - dense[k - 1][0], dense[k][1] - dense[k - 1][1]))
+      const total = len[len.length - 1]
+      const frames = []
+      let j = 0
+      for (let k = 0; k <= 120; k += 1) {
+        const want = (k / 120) * total
+        while (j < len.length - 2 && len[j + 1] < want) j += 1
+        const t = (want - len[j]) / Math.max(len[j + 1] - len[j], 1e-6)
+        const x = dense[j][0] + (dense[j + 1][0] - dense[j][0]) * t
+        const y = dense[j][1] + (dense[j + 1][1] - dense[j][1]) * t
+        frames.push({ transform: `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0)` })
+      }
+      const at = anim?.currentTime ?? 0
+      anim?.cancel()
+      anim = dot.animate(frames, { duration: ORBIT_LAP, iterations: Infinity, easing: 'linear' })
+      anim.currentTime = at
+      if (!visible) anim.pause()
+      dot.style.opacity = '1'
+    }
+
+    build()
+    const ro = new ResizeObserver(build)
+    ro.observe(wrap)
+    // fora da tela o ponto para (não gasta nada da placa de vídeo)
+    const io = new IntersectionObserver(([entry]) => {
+      visible = entry.isIntersecting
+      if (visible) anim?.play()
+      else anim?.pause()
+    })
+    io.observe(wrap)
+    return () => {
+      ro.disconnect()
+      io.disconnect()
+      anim?.cancel()
+    }
+  }, [VW, VH, cx, cy, rx, ry, tilt])
+
+  const path = `M${cx - rx} ${cy} A${rx} ${ry} 0 1 1 ${cx + rx} ${cy} A${rx} ${ry} 0 1 1 ${cx - rx} ${cy}`
+  return (
+    <div ref={wrapRef} className={styles.orbit} aria-hidden="true">
+      <svg className={styles.orbitSvg} viewBox={`0 0 ${VW} ${VH}`} preserveAspectRatio="none">
+        <g transform={`rotate(${tilt} ${cx} ${cy})`}>
+          <path d={path} className={styles.orbitLine} />
+          <ellipse cx={cx} cy={cy} rx="585" ry="182" className={styles.orbitDash} />
+        </g>
+      </svg>
+      <span ref={dotRef} className={styles.orbitDot} />
+    </div>
   )
 }

@@ -3,6 +3,8 @@ import api from '../../services/api'
 import styles from './CouponInput.module.css'
 import { FiTag, FiX } from 'react-icons/fi'
 
+const fmt = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(v) || 0)
+
 export default function CouponInput({ subtotal, onApply, onRemove, appliedCoupon }) {
   const [code, setCode] = useState('')
   const [loading, setLoading] = useState(false)
@@ -24,7 +26,7 @@ export default function CouponInput({ subtotal, onApply, onRemove, appliedCoupon
         discount: data.discount
       })
     } catch (err) {
-      setError(err.response?.data?.error || 'Cupom inválido')
+      setError(err.response?.data?.error || 'Esse cupom não vale. Confira o código.')
     } finally {
       setLoading(false)
     }
@@ -43,13 +45,11 @@ export default function CouponInput({ subtotal, onApply, onRemove, appliedCoupon
   if (appliedCoupon) {
     return (
       <div className={styles.applied}>
-        <FiTag />
+        <FiTag aria-hidden />
         <span className={styles.appliedCode}>{appliedCoupon.code}</span>
-        <span className={styles.appliedDiscount}>
-          -R$ {appliedCoupon.discount.toFixed(2).replace('.', ',')}
-        </span>
-        <button className={styles.removeBtn} onClick={handleRemove} title="Remover cupom">
-          <FiX />
+        <span className={styles.appliedDiscount}>-{fmt(appliedCoupon.discount)}</span>
+        <button type="button" className={styles.removeBtn} onClick={handleRemove} aria-label="Remover cupom" title="Remover cupom">
+          <FiX aria-hidden />
         </button>
       </div>
     )
@@ -58,21 +58,27 @@ export default function CouponInput({ subtotal, onApply, onRemove, appliedCoupon
   return (
     <div className={styles.wrapper}>
       <div className={styles.inputRow}>
-        <FiTag className={styles.icon} />
-        <input
-          className={styles.input}
-          type="text"
-          value={code}
-          onChange={(e) => setCode(e.target.value.toUpperCase())}
-          onKeyDown={handleKeyDown}
-          placeholder="Cupom de desconto"
-          maxLength={30}
-        />
-        <button className={styles.btn} onClick={handleApply} disabled={loading || !code.trim()}>
-          {loading ? '...' : 'Aplicar'}
+        <div className={styles.field}>
+          <FiTag className={styles.icon} aria-hidden />
+          <input
+            className={styles.input}
+            type="text"
+            value={code}
+            onChange={(e) => setCode(e.target.value.toUpperCase())}
+            onKeyDown={handleKeyDown}
+            placeholder="Cupom de desconto"
+            aria-label="Cupom de desconto"
+            autoComplete="off"
+            autoCapitalize="characters"
+            spellCheck={false}
+            maxLength={30}
+          />
+        </div>
+        <button type="button" className={styles.btn} onClick={handleApply} disabled={loading || !code.trim()}>
+          {loading ? 'Aplicando…' : 'Aplicar'}
         </button>
       </div>
-      {error && <p className={styles.error}>{error}</p>}
+      {error && <p className={styles.error} role="alert">{error}</p>}
     </div>
   )
 }

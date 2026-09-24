@@ -1,15 +1,21 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useId } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { FiAlertTriangle, FiCheck } from 'react-icons/fi'
 import api from '../../services/api'
-import { parseSizes } from '../../utils/sizes'
+import SizeGuide from '../SizeGuide/SizeGuide'
 import styles from './SizeSelector.module.css'
+
+const EASE = [0.22, 1, 0.36, 1]
+
+// Exemplar de amostra (id "amostra-...") não existe no backend.
+const isSampleId = (id) => typeof id === 'string' && id.startsWith('amostra-')
 
 /*
  * Grade visual de tamanhos com disponibilidade real de estoque.
  * Busca GET /stock/product/:id/sizes -> [{ size, stock, available }].
  * Se a rota ainda não existir, cai no fallback de `fallbackSizes`
  * (tamanhos do produto, tratados como disponíveis) para a loja seguir funcionando.
+ * Amostras usam direto o `fallbackSizes`, sem chamar a API.
  */
 export default function SizeSelector({ productId, fallbackSizes, selected, onSelect }) {
   const [sizesStock, setSizesStock] = useState(null) // null = carregando
@@ -17,13 +23,17 @@ export default function SizeSelector({ productId, fallbackSizes, selected, onSel
   const [email, setEmail] = useState('')
   const [notified, setNotified] = useState({})       // { [size]: true }
   const [sending, setSending] = useState(false)
+  const [guideOpen, setGuideOpen] = useState(false)
+  const labelId = useId()
+  const emailId = useId()
+  const sample = isSampleId(productId)
 
   useEffect(() => {
     let alive = true
     setSizesStock(null)
     setNotifyFor(null)
     setNotified({})
-    if (!productId) return
+    if (!productId || sample) return
     api.get(`/stock/product/${productId}/sizes`)
       .then(({ data }) => {
         if (!alive) return
@@ -42,7 +52,7 @@ export default function SizeSelector({ productId, fallbackSizes, selected, onSel
         })))
       })
     return () => { alive = false }
-  }, [productId]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [productId, sample]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const list = useMemo(() => {
     if (sizesStock && sizesStock.length) return sizesStock
@@ -52,6 +62,7 @@ export default function SizeSelector({ productId, fallbackSizes, selected, onSel
   const selectedInfo = list.find(s => s.size === String(selected))
   const selectedScarce = selectedInfo && selectedInfo.available != null &&
     selectedInfo.available > 0 && selectedInfo.available < 5
+  const anyScarce = list.some(s => s.available != null && s.available > 0 && s.available < 5)
 
   const handleClick = (item) => {
     const isOut = item.available === 0
@@ -64,6 +75,7 @@ export default function SizeSelector({ productId, fallbackSizes, selected, onSel
   }
 
   const handleNotify = async (size) => {
+    if (sample) return
     if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return
     setSending(true)
     try {
@@ -85,36 +97,50 @@ export default function SizeSelector({ productId, fallbackSizes, selected, onSel
 
   return (
     <div className={styles.wrap}>
-      <span className={styles.label}>Tamanho</span>
-      <div className={styles.grid}>
+      <div className={styles.head}>
+        <span className={styles.label} id={labelId}>
+          Tamanho{selected ? <span className={styles.current}> {selected}</span> : null}
+        </span>
+        <button type="button" className={styles.guideBtn} onClick={() => setGuideOpen(true)}>
+          Guia de tamanhos
+        </button>
+      </div>
+
+      <div className={styles.grid} role="group" aria-labelledby={labelId}>
         {list.map((item) => {
           const isOut = item.available === 0
           const isScarce = item.available != null && item.available > 0 && item.available < 5
           const isSel = String(selected) === item.size
+          const status = isOut ? ', esgotado' : isScarce ? `, últimas ${item.available}` : ''
           return (
-            <div key={item.size} className={styles.cell}>
-              {isScarce && <span className={styles.scarceBadge}>Últimas {item.available}!</span>}
-              <button
-                type="button"
-                className={`${styles.sizeBtn} ${isSel ? styles.selected : ''} ${isScarce ? styles.scarce : ''} ${isOut ? styles.disabled : ''}`}
-                onClick={() => handleClick(item)}
-                aria-pressed={isSel}
-                aria-disabled={isOut}
-              >
-                {item.size}
-              </button>
-            </div>
+            <button
+              key={item.size}
+              type="button"
+              className={`${styles.chip} ${isSel ? styles.selected : ''} ${isOut ? styles.out : ''}`}
+              onClick={() => handleClick(item)}
+              aria-pressed={isSel}
+              aria-disabled={isOut}
+              aria-label={`Tamanho ${item.size}${status}`}
+            >
+              {item.size}
+              {isScarce && <span className={styles.scarceDot} aria-hidden />}
+            </button>
           )
         })}
       </div>
+
+      {anyScarce && !selectedScarce && (
+        <p className={styles.legend}><span className={styles.legendDot} aria-hidden /> Poucas unidades</p>
+      )}
 
       {selectedScarce && (
         <motion.p
           className={styles.scarceWarn}
           initial={{ opacity: 0, y: -4 }}
           animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, ease: EASE }}
         >
-          <FiAlertTriangle aria-hidden /> Apenas {selectedInfo.available} unidades disponíveis neste tamanho!
+          <FiAlertTriangle aria-hidden /> Só restam {selectedInfo.available} no tamanho {selectedInfo.size}.
         </motion.p>
       )}
 
@@ -125,37 +151,46 @@ export default function SizeSelector({ productId, fallbackSizes, selected, onSel
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3, ease: EASE }}
           >
-            {notified[notifyFor] ? (
-              <span className={styles.notifyDone}><FiCheck aria-hidden /> Você será avisado</span>
-            ) : (
-              <>
-                <label className={styles.notifyLabel}>
-                  Avise-me quando o tamanho {notifyFor} estiver disponível
-                </label>
-                <div className={styles.notifyRow}>
-                  <input
-                    className={styles.notifyInput}
-                    type="email"
-                    placeholder="seu@email.com"
-                    value={email}
-                    onChange={e => setEmail(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && handleNotify(notifyFor)}
-                  />
-                  <button
-                    type="button"
-                    className={styles.notifyBtn}
-                    onClick={() => handleNotify(notifyFor)}
-                    disabled={sending}
-                  >
-                    {sending ? '...' : 'Quero ser avisado'}
-                  </button>
-                </div>
-              </>
-            )}
+            <div className={styles.notifyInner}>
+              {notified[notifyFor] ? (
+                <span className={styles.notifyDone}>
+                  <FiCheck aria-hidden /> Pronto. Avisamos no seu e-mail quando o {notifyFor} voltar.
+                </span>
+              ) : (
+                <>
+                  <label className={styles.notifyLabel} htmlFor={emailId}>
+                    O {notifyFor} esgotou. Deixe seu e-mail e avisamos quando voltar.
+                  </label>
+                  <div className={styles.notifyRow}>
+                    <input
+                      id={emailId}
+                      className={styles.notifyInput}
+                      type="email"
+                      autoComplete="email"
+                      placeholder="seu@email.com"
+                      value={email}
+                      onChange={e => setEmail(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && handleNotify(notifyFor)}
+                    />
+                    <button
+                      type="button"
+                      className={`pz-btn ${styles.notifyBtn}`}
+                      onClick={() => handleNotify(notifyFor)}
+                      disabled={sending}
+                    >
+                      {sending ? 'Enviando…' : 'Me avise'}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
+
+      <SizeGuide isOpen={guideOpen} onClose={() => setGuideOpen(false)} />
     </div>
   )
 }

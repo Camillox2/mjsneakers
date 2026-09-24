@@ -1,10 +1,12 @@
-import { motion } from 'framer-motion'
+import { motion, MotionConfig } from 'framer-motion'
 import { FiGrid } from 'react-icons/fi'
 import nikelogo from '../../assets/logo/nikelogo.png'
 import adidaslogo from '../../assets/logo/adidas logo.jpg'
 import pumalogo from '../../assets/logo/pumalogo.jpg'
 import nblogo from '../../assets/logo/newbalance logo.png'
 import styles from './BrandFilter.module.css'
+
+const EASE = [0.22, 1, 0.36, 1]
 
 const brandLogos = {
   'Nike': nikelogo,
@@ -15,57 +17,50 @@ const brandLogos = {
 
 export default function BrandFilter({ brands, activeBrand, onSelect }) {
   return (
-    <div className={styles.filtersSection}>
-      <div className={styles.filtersContainer}>
+    <MotionConfig reducedMotion="user">
+      <div className={styles.filtersSection}>
         <motion.div
           className={styles.filtersScroll}
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
+          role="group"
+          aria-label="Marcas"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.4, ease: EASE }}
         >
-          <motion.div
-            className={`${styles.filterItem} ${activeBrand === null ? styles.active : ''} ${styles.allFilter}`}
+          <button
+            type="button"
+            className={`${styles.filterItem} ${activeBrand === null ? styles.active : ''}`}
             onClick={() => onSelect(null)}
-            whileHover={{ scale: 1.05, y: -3 }}
-            whileTap={{ scale: 0.95 }}
-            layout
+            aria-pressed={activeBrand === null}
           >
-            <div className={styles.filterIcon}>
-              <FiGrid size={22} />
-            </div>
-            <span className={styles.filterName}>Todos</span>
-          </motion.div>
+            <span className={styles.filterIcon} aria-hidden="true">
+              <FiGrid />
+            </span>
+            <span className={styles.filterName}>Todas</span>
+          </button>
 
-          {brands.map((brand, index) => (
-            <motion.div
+          {brands.map((brand) => (
+            <button
               key={brand.id}
+              type="button"
               className={`${styles.filterItem} ${activeBrand === brand.id ? styles.active : ''}`}
               onClick={() => onSelect(brand.id)}
-              whileHover={{ scale: 1.05, y: -3 }}
-              whileTap={{ scale: 0.95 }}
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.08, duration: 0.4 }}
-              layout
+              aria-pressed={activeBrand === brand.id}
             >
-              <div className={styles.filterIcon}>
+              <span className={styles.filterIcon} aria-hidden="true">
                 {brandLogos[brand.name] ? (
-                  <img
-                    src={brandLogos[brand.name]}
-                    alt={brand.name}
-                    className={styles.brandLogo}
-                  />
+                  <img src={brandLogos[brand.name]} alt="" className={styles.brandLogo} />
                 ) : (
                   <span className={styles.brandInitial}>
                     {brand.name === 'Louis Vuitton' ? 'LV' : brand.name.charAt(0)}
                   </span>
                 )}
-              </div>
+              </span>
               <span className={styles.filterName}>{brand.name}</span>
-            </motion.div>
+            </button>
           ))}
         </motion.div>
       </div>
-    </div>
+    </MotionConfig>
   )
 }

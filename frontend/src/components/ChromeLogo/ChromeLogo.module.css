@@ -1,0 +1,58 @@
+.logo {
+  position: relative;
+  display: inline-block;
+  line-height: 0;
+  isolation: isolate;
+}
+
+.img {
+  display: block;
+  width: 100%;
+  height: auto;
+  user-select: none;
+}
+
+/* máscara = o próprio logo; dentro dela uma faixa de luz atravessa por
+   transform (a placa de vídeo move a faixa, nada é redesenhado) */
+.shine {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  -webkit-mask-image: var(--logo-mask);
+  mask-image: var(--logo-mask);
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  mix-blend-mode: screen;
+}
+
+.shine::before {
+  content: '';
+  position: absolute;
+  top: -10%;
+  bottom: -10%;
+  left: 0;
+  width: 38%;
+  background: linear-gradient(
+    104deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.12) 30%,
+    rgba(255, 255, 255, 0.95) 50%,
+    rgba(255, 255, 255, 0.12) 70%,
+    transparent 100%
+  );
+  transform: translate3d(-110%, 0, 0);
+  animation: sweep 6.5s cubic-bezier(0.65, 0, 0.35, 1) 1.2s infinite;
+  will-change: transform;
+}
+
+@keyframes sweep {
+  0% { transform: translate3d(-110%, 0, 0); }
+  32% { transform: translate3d(280%, 0, 0); }
+  100% { transform: translate3d(280%, 0, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shine { opacity: 0; }
+  .shine::before { animation: none; }
+}
