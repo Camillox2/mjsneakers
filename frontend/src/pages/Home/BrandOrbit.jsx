@@ -166,7 +166,7 @@ export default function BrandOrbit({ brands, active, onPick, shoeFor, onSeeAll, 
           {shoe ? (
             <div key={shoe.id} className={styles.shoe}>
               {shoe.spin ? (
-                <SpinViewer id={shoe.spin} alt={shoe.name} hint={false} />
+                <SpinViewer id={shoe.spin} alt={shoe.name} interactive={false} />
               ) : (
                 <img src={getImageUrl(shoe.image_url, shoe.name)} alt={shoe.name} className={shoe.fit === 'contain' ? styles.contain : styles.cover} />
               )}

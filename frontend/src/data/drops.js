@@ -37,9 +37,9 @@ const ALL_DROPS = [
     // no site para o texto não cobrir o nome gigante nem a ficha.
     // Tudo em frações do quadro 4:3.
     callouts: [
-      { label: 'Asa Jordan no calcanhar', at: [0.56, 0.68], text: [0.86, 0.3], track: [[0.629,0.557],[0.589,0.558],[0.536,0.56],[0.477,0.56],[0.42,0.56],[0.372,0.559],[0.328,0.558]] },
-      { label: 'Swoosh preto em couro', at: [0.8, 0.93], text: [0.12, 0.18], track: [[0.505,0.569],[0.486,0.571],[0.464,0.571],[0.442,0.57],[0.419,0.567],[0.398,0.562],[0.381,0.557]] },
-      { label: 'Jumpman na lingueta', at: [0.06, 0.2], text: [0.84, 0.1], track: [[0.448,0.275],[0.455,0.273],[0.467,0.272],[0.484,0.27],[0.494,0.269],[0.503,0.269],[0.51,0.27]] },
+      { label: 'Asa Jordan no calcanhar', at: [0.56, 0.68], text: [0.86, 0.3], track: [[0.627,0.557],[0.583,0.559],[0.532,0.56],[0.477,0.56],[0.424,0.56],[0.378,0.559],[0.335,0.558]] },
+      { label: 'Swoosh preto em couro', at: [0.8, 0.93], text: [0.12, 0.18], track: [[0.504,0.568],[0.485,0.57],[0.463,0.571],[0.44,0.57],[0.417,0.567],[0.395,0.562],[0.377,0.557]] },
+      { label: 'Jumpman na lingueta', at: [0.06, 0.2], text: [0.84, 0.1], track: [[0.448,0.275],[0.456,0.273],[0.469,0.271],[0.485,0.27],[0.496,0.269],[0.505,0.269],[0.512,0.27]] },
     ],
   },
   {
@@ -162,7 +162,7 @@ function sample({ id, name, brand, price, glow, description, angles = [], ...res
 export const SAMPLE_PRODUCTS = [
   sample({
     id: 'jordan-1-low',
-    angles: [132, 25, 78],
+    angles: [259, 49, 151],
     name: 'Air Jordan 1 Low',
     brand: 'Jordan',
     price: 1099,

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { motion, AnimatePresence, MotionConfig } from 'framer-motion'
 import { FiMail, FiX, FiCheck } from 'react-icons/fi'
 import axios from 'axios'
+import { cometShower } from '../../lib/comets'
 import styles from './Newsletter.module.css'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3305/api'
@@ -15,9 +16,13 @@ export default function Newsletter({ variant = 'footer' }) {
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!email.trim()) return
+    // a chuva de cometas cai dentro da seção (ou da janela) da inscrição
+    const zone = e.currentTarget.closest('section, [role="dialog"]')
     setStatus('loading')
     try {
       await axios.post(`${API}/newsletter/subscribe`, { email: email.trim() })
+      const box = zone?.getBoundingClientRect()
+      cometShower(box && box.width ? box : null, { count: 18, duration: 1500 })
       setStatus('success')
       setMsg('Pronto. O cupom de 10% vai para o seu e-mail.')
       setEmail('')

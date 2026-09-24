@@ -346,6 +346,34 @@ export class FrameSequence {
   }
 }
 
+// Giro mostrado em mais de um lugar ao mesmo tempo (a órbita e o par da
+// semana mostram o mesmo tênis): uma sequência só, com os quadros baixados e
+// decodificados uma vez. Cada um que usa chama release() ao sair.
+const shared = new Map()
+
+export function acquireSequence(id, manifest, size) {
+  const key = `${id}/${size}/${manifest.rev || ''}`
+  let entry = shared.get(key)
+  if (!entry) {
+    entry = { seq: new FrameSequence(id, manifest, size), users: 0 }
+    shared.set(key, entry)
+  }
+  entry.users += 1
+  let released = false
+  return {
+    seq: entry.seq,
+    release: () => {
+      if (released) return
+      released = true
+      entry.users -= 1
+      if (entry.users <= 0) {
+        entry.seq.dispose()
+        shared.delete(key)
+      }
+    },
+  }
+}
+
 // Desenha um quadro no canvas com "contain", nítido em telas de alta densidade.
 export class SpinCanvas {
   constructor(canvas) {

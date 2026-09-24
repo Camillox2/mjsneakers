@@ -310,7 +310,8 @@ export default function DropReel({ onPick, onIntroDone, catalogRef }) {
       if (stars && at < STARS_HIDDEN) stars.draw(now / 1000, Math.min(1, at / STARS_FALL), Math.min(1, (now - starsBorn) / 1500))
       // velocidade do giro solto: no topo acelera até a cadência do relógio;
       // fora dele freia suave (sem tranco quando a rolagem começa)
-      const want = tl && atTop && now >= spinFrom.current ? heroFps : 0
+      // (e só com metade dos quadros prontos: antes disso giraria aos trancos)
+      const want = tl && atTop && now >= spinFrom.current && (hero?.settled ?? 0) >= heroCount / 2 ? heroFps : 0
       idleVel += (want - idleVel) * (1 - Math.exp(-dt / IDLE_EASE))
       if (Math.abs(want - idleVel) < 0.25) idleVel = want
       if (want > 0 && idleVel === want) {

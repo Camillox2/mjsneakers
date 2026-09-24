@@ -53,14 +53,22 @@ b`).
    para o começo por fluxo óptico: a forma anda de uma pose para a outra, sem
    tênis duplicado. Ela precisa dos quadros seguidos logo depois da volta; se
    os mestres foram cortados com `--passo 2`, corte também esse trecho quadro a
-   quadro (`cortar.py ... --fim N`, os prontos são pulados).
+   quadro (`cortar.py ... --fim N`, os prontos são pulados). Se a segunda volta
+   do vídeo mudar (a câmera deu zoom ou mudou o ângulo, como no Dunk e no AF1),
+   o script desliga a costura sozinho e a volta fecha num corte seco: morph
+   entre duas cenas diferentes sai borrado.
 
    `--dobro` põe um quadro do meio (fluxo óptico) entre cada par vizinho no
-   computador. Use no tênis que gira sozinho na abertura: com o dobro de
-   quadros ele roda a 60 quadros por segundo numa volta de ~5,5 s, sempre com
-   quadro inteiro (misturar dois quadros no site deixa fantasma). Suba também
-   o teto: `--quadros-d 400 --quadros-m 180` (o celular fica com os quadros do
-   próprio vídeo, sem os do meio).
+   computador, mas só onde o fluxo acerta: o script anda um quadro para a
+   frente e o outro para trás até o meio e confere se as duas metades
+   coincidem. Onde não coincidem (o tênis virando de frente para a câmera),
+   fica só o quadro real, que é melhor que um quadro com fantasma. Use no tênis
+   que gira sozinho (abertura, órbita): com ~300 quadros ele roda a 60 quadros
+   por segundo numa volta de ~5 s. Suba o teto: `--quadros-d 400 --quadros-m 160`
+   (o celular fica só com os quadros do vídeo).
+
+   `--intermediarios` preenche com quadros inventados os passos grandes do
+   vídeo, sem conferir. Sai fantasma justamente nos ângulos difíceis; evite.
 
 3. **Chamadas** (as linhas que apontam partes do tênis durante o giro):
    escreva um JSON com o trecho da volta e o ponto no quadro do meio do trecho,
@@ -88,7 +96,7 @@ b`).
 ## O que sai em `public/giros/<id>/`
 
 - `d/NNN.webp`: todos os quadros da volta para computador, até o teto
-  `--quadros-d` (180; com `--dobro`, o dobro), até 860 px de largura.
+  `--quadros-d` (200), até 860 px de largura.
 - `m/NNN.webp`: até `--quadros-m` quadros para celular (90; 520 px),
   carregados em telas estreitas, de toque ou com economia de dados ligada.
 - `poster.webp`: primeiro quadro (imagem de apoio e de compartilhamento).

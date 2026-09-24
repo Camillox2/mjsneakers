@@ -17,6 +17,7 @@ import { reserveStock, releaseStock } from './utils/stockSession'
 import { parseSizes } from './utils/sizes'
 import { startSmoothScroll, stopSmoothScroll, scrollToY } from './lib/motion'
 import { clearCache } from './services/cache'
+import { cometToCart } from './lib/comets'
 
 export const CartContext = createContext()
 export const AuthContext = createContext()
@@ -33,6 +34,15 @@ function App() {
   const [user, setUser] = useState(null)
   const [wishlist, setWishlist] = useState([])
   const [wishlistOpen, setWishlistOpen] = useState(false)
+  // onde foi o último toque/clique: é de lá que sai o cometa da sacola
+  const lastPointer = useRef(null)
+  useEffect(() => {
+    const down = (e) => {
+      lastPointer.current = { x: e.clientX, y: e.clientY, at: performance.now() }
+    }
+    window.addEventListener('pointerdown', down, { capture: true, passive: true })
+    return () => window.removeEventListener('pointerdown', down, { capture: true })
+  }, [])
   const [darkMode, setDarkMode] = useState(() => {
     const saved = localStorage.getItem('mj_dark_mode')
     return saved !== null ? saved === 'true' : true
@@ -99,6 +109,11 @@ function App() {
     const pct = Math.min(Math.max(Number(product.discount_percentage || 0), 0), 90)
     const unit = pct > 0 ? Math.round(Number(product.price) * (1 - pct / 100) * 100) / 100 : Number(product.price)
     const entry = { ...product, list_price: product.list_price ?? Number(product.price), price: unit, discount_percentage: 0 }
+    // o par vai para a sacola num cometa: do botão clicado (ou do que tem o
+    // foco, no teclado) até a sacola do topo
+    const recent = lastPointer.current && performance.now() - lastPointer.current.at < 4000 ? lastPointer.current : null
+    const focus = document.activeElement?.getBoundingClientRect?.()
+    cometToCart(recent ?? (focus?.width ? { x: focus.left + focus.width / 2, y: focus.top + focus.height / 2 } : null))
     setCart(prev => {
       const exists = prev.find(item => item.id === product.id && item.size === size)
       if (exists) {

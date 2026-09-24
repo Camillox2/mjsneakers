@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
-import confetti from 'canvas-confetti'
 import { FiCheck, FiPackage, FiMail } from 'react-icons/fi'
 import { releaseStock, clearCartSession } from '../../utils/stockSession'
+import { cometShower } from '../../lib/comets'
 import styles from './SuccessScreen.module.css'
 
 const EASE = [0.22, 1, 0.36, 1]
@@ -17,32 +17,9 @@ export default function SuccessScreen({ order, onClose }) {
     // Pedido concluído: libera as reservas e zera a sessão de carrinho.
     releaseStock().finally(clearCartSession)
 
-    // Confete em tons de cromo; quem pediu menos movimento não recebe.
-    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return
-
-    const end = Date.now() + 2200
-    const colors = ['#ffffff', '#e4e7ec', '#cdd1d8', '#8a9099']
-
-    const frame = () => {
-      confetti({
-        particleCount: 3,
-        angle: 60,
-        spread: 55,
-        origin: { x: 0 },
-        colors,
-        zIndex: 5000,
-      })
-      confetti({
-        particleCount: 3,
-        angle: 120,
-        spread: 55,
-        origin: { x: 1 },
-        colors,
-        zIndex: 5000,
-      })
-      if (Date.now() < end) requestAnimationFrame(frame)
-    }
-    frame()
+    // Chuva de cometas na tela toda (a mesma luz do céu da abertura); quem
+    // pediu menos movimento não recebe.
+    cometShower(null, { count: 42, duration: 2400 })
   }, [])
 
   const orderId = order?.id || order?.order_id || order?.orderId || null

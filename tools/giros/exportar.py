@@ -75,6 +75,56 @@ def flow_between(a, b, ts):
     return out
 
 
+DIS = cv2.DISOpticalFlow_create(cv2.DISOPTICAL_FLOW_PRESET_MEDIUM)
+
+
+def safe_mid(a, b, max_local=0.02, max_ratio=0.35):
+    """Quadro do meio entre a e b por fluxo optico, so se o fluxo acertou.
+    Anda a para a frente e b para tras ate o meio: se o fluxo esta certo, as
+    duas metades coincidem. Onde nao coincidem (o tenis virando de frente
+    para a camera, partes que aparecem e somem), a mistura sairia com
+    fantasma: devolve None e fica so o quadro real.
+    Tenta dois fluxos (Farneback e DIS) e fica com o que coincide mais."""
+    ga, gb = gray_for_flow(a), gray_for_flow(b)
+    h, w = a.shape[:2]
+    gx, gy = np.meshgrid(np.arange(w, dtype=np.float32), np.arange(h, dtype=np.float32))
+    pa, pb = premultiply(a), premultiply(b)
+    mask = np.maximum(a[..., 3], b[..., 3]) > 20
+    diff = np.abs(pa - pb).mean(axis=2)[mask].mean()
+    best = None
+    for flow in (cv2.calcOpticalFlowFarneback(ga, gb, None, 0.5, 4, 21, 4, 7, 1.5, 0), DIS.calc(ga, gb, None)):
+        wa = cv2.remap(pa, gx - 0.5 * flow[..., 0], gy - 0.5 * flow[..., 1], cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT, borderValue=0)
+        wb = cv2.remap(pb, gx + 0.5 * flow[..., 0], gy + 0.5 * flow[..., 1], cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT, borderValue=0)
+        gap = np.abs(wa - wb).mean(axis=2)[mask]
+        local = float((gap > 40).mean())  # fracao do tenis onde as metades discordam
+        ratio = float(gap.mean() / max(diff, 1e-6))
+        if best is None or local < best[0]:
+            best = (local, ratio, wa, wb)
+    local, ratio, wa, wb = best
+    if local > max_local or ratio > max_ratio:
+        return None
+    return unpremultiply(np.clip((wa + wb) / 2, 0, None))
+
+
+def double_safe(frames):
+    """Um quadro do meio entre cada par vizinho (inclusive o que fecha a
+    volta), so onde safe_mid aprovar. Com o dobro de quadros o giro sozinho
+    roda a 60 quadros por segundo numa volta calma (~5 s). Devolve os quadros
+    e quais sao do meio (o celular fica so com os do video)."""
+    n = len(frames)
+    out, mids, skipped = [], [], []
+    for i in range(n):
+        out.append(frames[i])
+        mids.append(False)
+        m = safe_mid(frames[i], frames[(i + 1) % n])
+        if m is None:
+            skipped.append(i)
+        else:
+            out.append(m)
+            mids.append(True)
+    return out, mids, skipped
+
+
 def densify(frames, previews, limit=4):
     """Insere quadros intermediarios nos passos grandes (> 1.8x a mediana).
     Cuidado: os passos grandes sao justamente onde o tenis vira rapido (de
@@ -251,6 +301,7 @@ def main():
     ap.add_argument("--costura", type=int, default=12, help="quadros do inicio misturados com os que vem depois da volta (emenda sem pulo)")
     ap.add_argument("--costura-max", type=float, default=6.0, help="acima desta diferenca (em passos) entre as voltas do video, corte seco em vez de costura")
     ap.add_argument("--intermediarios", action="store_true", help="gera quadros por fluxo optico nos passos grandes (podem sair com fantasma)")
+    ap.add_argument("--dobro", action="store_true", help="quadro do meio entre cada par no computador, so onde o fluxo optico acerta (giro a 60 q/s)")
     args = ap.parse_args()
 
     fundo = [int(x) for x in args.fundo.split(",")] if args.fundo else None
@@ -347,13 +398,19 @@ def main():
         if added:
             stable_previews = [small(premultiply(f)) for f in stable]
         print(f"{args.id}: {added} quadros intermediarios por fluxo optico")
+    mids = [False] * len(stable)
+    if args.dobro:
+        stable, mids, skipped = double_safe(stable)
+        stable_previews = [small(premultiply(f)) for f in stable]
+        print(f"{args.id}: dobrado para {len(stable)} quadros; sem quadro do meio nos pares {skipped}")
     curve = motion_curve(stable_previews)
     print(f"{args.id}: enquadramento {crop_w}x{crop_h}")
 
     os.makedirs(args.saida, exist_ok=True)
     manifest = {"id": args.id, "aspect": round(crop_w / crop_h, 4), "sizes": {}}
     for key, count, width in (("d", args.quadros_d, args.largura_d), ("m", args.quadros_m, args.largura_m)):
-        pool = list(range(len(stable)))
+        # o dobro e so para o computador: o celular fica com os quadros do video
+        pool = [i for i in range(len(stable)) if not (key == "m" and mids[i])]
         count = min(count, len(pool))
         width = int(min(width, crop_w))
         height = int(round(width * crop_h / crop_w / 2) * 2)

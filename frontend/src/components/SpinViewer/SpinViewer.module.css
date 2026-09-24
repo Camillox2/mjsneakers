@@ -25,6 +25,10 @@
 
 .canvas:active { cursor: grabbing; }
 
+/* só vitrine (órbita): sem mãozinha de arrastar */
+.still .canvas,
+.still .canvas:active { cursor: default; }
+
 .hidden { opacity: 0; }
 
 .floor {

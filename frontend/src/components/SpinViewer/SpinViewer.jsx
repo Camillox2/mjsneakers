@@ -1,16 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
-import { FrameClock, FrameSequence, Settle, SpinCanvas, curveIndex, frameDelta, idleFps, loadManifest, pickSize, turnsAt } from '../../lib/frames'
+import { FrameClock, Settle, SpinCanvas, acquireSequence, curveIndex, frameDelta, idleFps, loadManifest, pickSize, turnsAt } from '../../lib/frames'
 import { prefersReducedMotion } from '../../lib/motion'
 import styles from './SpinViewer.module.css'
 
 const MAX_SPIN = 1.2 // voltas por segundo no embalo depois de soltar
 
-// Tênis 360° de arrastar: o dedo (ou o mouse) gira o par; ao soltar, ele
-// continua no embalo e freia sozinho. Parado, gira sozinho como vitrine,
-// quadro a quadro em cadência fixa (quadro inteiro: nada de fantasma).
+// Tênis 360°. Parado, gira sozinho como vitrine, quadro a quadro em cadência
+// fixa (quadro inteiro: nada de fantasma); só começa quando metade dos
+// quadros chegou, para não girar aos trancos enquanto carrega.
+// `interactive`: o dedo (ou o mouse) gira o par; ao soltar, ele continua no
+// embalo e freia sozinho. Desligado (órbita), é só vitrine, sem arrastar.
 // `delay`: espera antes de começar a baixar/desenhar (ex.: enquanto um modal
 // termina de abrir, para a entrada não disputar com o carregamento).
-export default function SpinViewer({ id, alt = '', className = '', delay = 0, hint = true }) {
+export default function SpinViewer({ id, alt = '', className = '', delay = 0, hint = true, interactive = true }) {
   const canvasRef = useRef(null)
   const [loaded, setLoaded] = useState(false)
   const [touched, setTouched] = useState(false)
@@ -18,6 +20,7 @@ export default function SpinViewer({ id, alt = '', className = '', delay = 0, hi
   useEffect(() => {
     let alive = true
     let seq = null
+    let release = null
     let painter = null
     let clock = null
     let raf = 0
@@ -48,8 +51,10 @@ export default function SpinViewer({ id, alt = '', className = '', delay = 0, hi
       // fora da tela: só espera, sem desenhar
       if (!onScreen || document.hidden || !seq || !painter) return
       const n = seq.count
-      if (auto && !interacted) {
-        pos += clock.tick(dtMs)
+      if (!interacted) {
+        // gira sozinho só com metade dos quadros prontos (antes, parado e nítido)
+        if (auto && seq.settled >= n / 2) pos += clock.tick(dtMs)
+        else clock.reset()
         painter.draw(seq.exact(pos, 1))
         angle = turnsAt(seq.curve, n, pos)
         lastIndex = ((pos % n) + n) % n
@@ -99,24 +104,30 @@ export default function SpinViewer({ id, alt = '', className = '', delay = 0, hi
       e.preventDefault()
     }
 
-    canvas.addEventListener('pointerdown', down)
-    canvas.addEventListener('pointermove', move)
-    canvas.addEventListener('pointerup', up)
-    canvas.addEventListener('pointercancel', up)
-    canvas.addEventListener('keydown', keys)
+    if (interactive) {
+      canvas.addEventListener('pointerdown', down)
+      canvas.addEventListener('pointermove', move)
+      canvas.addEventListener('pointerup', up)
+      canvas.addEventListener('pointercancel', up)
+      canvas.addEventListener('keydown', keys)
+    }
 
     const boot = () => loadManifest(id)
       .then((m) => {
         if (!alive) return
-        seq = new FrameSequence(id, m, pickSize())
+        // o mesmo giro em outro lugar da página já baixou os quadros: aproveita
+        ;({ seq, release } = acquireSequence(id, m, pickSize()))
         painter = new SpinCanvas(canvas)
         clock = new FrameClock(idleFps(seq.count))
-        const off = seq.onProgress((s) => {
-          if (s.settled >= s.firstPass) {
-            off()
-            setLoaded(true)
-          }
-        })
+        if (seq.settled >= seq.firstPass) setLoaded(true)
+        else {
+          const off = seq.onProgress((s) => {
+            if (s.settled >= s.firstPass) {
+              off()
+              if (alive) setLoaded(true)
+            }
+          })
+        }
         seq.start(4)
         raf = requestAnimationFrame(loop)
       })
@@ -143,34 +154,38 @@ export default function SpinViewer({ id, alt = '', className = '', delay = 0, hi
       cancelAnimationFrame(raf)
       ro.disconnect()
       io.disconnect()
-      seq?.dispose()
-      canvas.removeEventListener('pointerdown', down)
-      canvas.removeEventListener('pointermove', move)
-      canvas.removeEventListener('pointerup', up)
-      canvas.removeEventListener('pointercancel', up)
-      canvas.removeEventListener('keydown', keys)
+      release?.()
+      if (interactive) {
+        canvas.removeEventListener('pointerdown', down)
+        canvas.removeEventListener('pointermove', move)
+        canvas.removeEventListener('pointerup', up)
+        canvas.removeEventListener('pointercancel', up)
+        canvas.removeEventListener('keydown', keys)
+      }
     }
-  }, [id, delay])
+  }, [id, delay, interactive])
 
   return (
-    <div className={`${styles.viewer} ${className}`}>
+    <div className={`${styles.viewer} ${interactive ? '' : styles.still} ${className}`}>
       <img className={`${styles.poster} ${loaded ? styles.hidden : ''}`} src={`/giros/${id}/poster.webp`} alt={alt} draggable={false} />
       <canvas
         ref={canvasRef}
         className={`${styles.canvas} ${loaded ? '' : styles.hidden}`}
-        tabIndex={0}
+        tabIndex={interactive ? 0 : undefined}
         role="img"
-        aria-label={`${alt}. Arraste ou use as setas para girar o tênis.`}
+        aria-label={interactive ? `${alt}. Arraste ou use as setas para girar o tênis.` : alt}
       />
       <span className={styles.floor} aria-hidden="true" />
-      <span className={`${styles.hint} ${touched || !hint ? styles.hintGone : ''}`} aria-hidden="true">
-        <svg viewBox="0 0 40 24">
-          <ellipse cx="20" cy="13" rx="16" ry="5" />
-          <path d="M31 8l4 4.5-5 1.8" />
-          <path d="M9 18l-4-4.5 5-1.8" />
-        </svg>
-        Arraste para girar
-      </span>
+      {interactive && (
+        <span className={`${styles.hint} ${touched || !hint ? styles.hintGone : ''}`} aria-hidden="true">
+          <svg viewBox="0 0 40 24">
+            <ellipse cx="20" cy="13" rx="16" ry="5" />
+            <path d="M31 8l4 4.5-5 1.8" />
+            <path d="M9 18l-4-4.5 5-1.8" />
+          </svg>
+          Arraste para girar
+        </span>
+      )}
     </div>
   )
 }

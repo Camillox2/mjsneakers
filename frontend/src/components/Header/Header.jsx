@@ -1,4 +1,4 @@
-import { useContext, useEffect, useRef, useState } from 'react'
+import { useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { FiHeart, FiLogOut, FiMenu, FiSearch, FiShoppingBag, FiUser, FiX } from 'react-icons/fi'
@@ -7,6 +7,7 @@ import { getImageUrl } from '../../utils/imageHelper'
 import { SAMPLE_PRODUCTS } from '../../data/drops'
 import { BRAND } from '../../config/brand'
 import { scrollToEl, scrollToY } from '../../lib/motion'
+import { cometFlying } from '../../lib/comets'
 import styles from './Header.module.css'
 import { cachedGet, TTL } from '../../services/cache'
 
@@ -30,17 +31,28 @@ export default function Header() {
   const lastCount = useRef(cartCount)
   const isHome = location.pathname === '/'
 
-  // a sacola dá um pulo quando entra um par novo
-  useEffect(() => {
-    if (cartCount > lastCount.current) {
+  // a sacola dá um pulo quando entra um par novo; se o par vem num cometa,
+  // o pulo espera o cometa chegar (evento 'pz:cart-hit' de lib/comets)
+  const bumpTimer = useRef(0)
+  const bumpNow = useCallback(() => {
+    setBump(false)
+    clearTimeout(bumpTimer.current)
+    requestAnimationFrame(() => {
       setBump(true)
-      const t = setTimeout(() => setBump(false), 650)
-      lastCount.current = cartCount
-      return () => clearTimeout(t)
-    }
+      bumpTimer.current = setTimeout(() => setBump(false), 650)
+    })
+  }, [])
+  useEffect(() => {
+    if (cartCount > lastCount.current && !cometFlying()) bumpNow()
     lastCount.current = cartCount
-    return undefined
-  }, [cartCount])
+  }, [cartCount, bumpNow])
+  useEffect(() => {
+    window.addEventListener('pz:cart-hit', bumpNow)
+    return () => {
+      window.removeEventListener('pz:cart-hit', bumpNow)
+      clearTimeout(bumpTimer.current)
+    }
+  }, [bumpNow])
 
   useEffect(() => {
     if (!query.trim()) {
@@ -177,7 +189,7 @@ export default function Header() {
             {wishlist.length > 0 && <span className={styles.badge}>{wishlist.length}</span>}
           </button>
 
-          <button type="button" className={`${styles.iconBtn} ${bump ? styles.bump : ''}`} onClick={() => setCartOpen(true)} aria-label={`Sacola (${cartCount})`}>
+          <button type="button" data-pz-cart className={`${styles.iconBtn} ${bump ? styles.bump : ''}`} onClick={() => setCartOpen(true)} aria-label={`Sacola (${cartCount})`}>
             <FiShoppingBag />
             {cartCount > 0 && <span className={styles.badge}>{cartCount}</span>}
           </button>
