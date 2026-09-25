@@ -43,20 +43,24 @@ export default function Customers() {
     } catch (err) { toast.error(err.message) } finally { setExporting(false) }
   }
 
-  const d = detail.data
+  // o cliente aberto antes não aparece enquanto o novo carrega
+  const d = detail.data && open && String(detail.data.email).toLowerCase() === String(open.email).toLowerCase() ? detail.data : null
   const wa = waLink(d?.phone || open?.phone)
 
   return (
     <div>
       <PageHeader
         title="Clientes"
-        description="Quem já comprou na loja, montado a partir dos pedidos."
-        actions={<Button icon={<FiDownload />} onClick={exportAll} loading={exporting}>Baixar lista</Button>}
+        description="Quem já fez pedido na loja, reunido pelo e-mail. O total gasto conta só pedidos pagos."
+        actions={<Button icon={<FiDownload />} onClick={exportAll} loading={exporting} disabled={!list.data?.total}>Baixar planilha</Button>}
       />
-      <div style={{ marginBottom: 14 }}><SearchField value={search} onChange={setSearch} placeholder="Nome, e-mail ou telefone" /></div>
+      <div className={s.filterBar}>
+        <SearchField value={search} onChange={setSearch} placeholder="Nome, e-mail ou telefone" />
+        {list.data && <span className={`${s.small} ${s.muted}`}>{list.data.total === 1 ? '1 cliente' : `${number(list.data.total)} clientes`}</span>}
+      </div>
       <ErrorNote error={list.error} onRetry={list.reload} />
       <Panel flush>
-        {list.loading && !list.data ? <div style={{ padding: 18 }}><Skeleton lines={6} height={34} /></div> : (
+        {list.loading && !list.data ? <div className={s.pad}><Skeleton lines={6} height={34} /></div> : (
           <DataTable
             rowKey="email"
             rows={list.data?.items || []}
@@ -66,7 +70,7 @@ export default function Customers() {
               {
                 key: 'name', header: 'Cliente', primary: true,
                 render: c => (
-                  <div style={{ minWidth: 0 }}>
+                  <div className={s.cellMain}>
                     <div className={s.listTitle}>{c.name || 'Sem nome'}</div>
                     <div className={s.listSub}>{c.email}</div>
                   </div>
@@ -74,7 +78,7 @@ export default function Customers() {
               },
               { key: 'orders', header: 'Pedidos', align: 'right', render: c => number(c.total_orders) },
               { key: 'spent', header: 'Total gasto', align: 'right', render: c => <strong>{money(c.total_spent)}</strong> },
-              { key: 'last', header: 'Último pedido', render: c => <span className={s.nowrap}>{ago(c.last_order_at)}</span> },
+              { key: 'last', header: 'Último pedido', render: c => <span className={s.nowrap} title={date(c.last_order_at)}>{ago(c.last_order_at)}</span> },
             ]}
             empty={<EmptyState art={<Stars />} title={q ? 'Ninguém com essa busca' : 'Nenhum cliente ainda'}>{q ? 'Confira a grafia ou busque pelo e-mail.' : 'Cada pessoa que finaliza um pedido aparece aqui.'}</EmptyState>}
           />
@@ -89,21 +93,21 @@ export default function Customers() {
         description={open?.email}
         footer={open && (
           <>
-            {wa && <Button icon={<FaWhatsapp />} onClick={() => window.open(wa, '_blank', 'noopener')}>WhatsApp</Button>}
-            <Button icon={<FiMail />} onClick={() => { window.location.href = `mailto:${open.email}` }}>E-mail</Button>
+            {wa && <Button icon={<FaWhatsapp />} onClick={() => window.open(wa, '_blank', 'noopener,noreferrer')}>WhatsApp</Button>}
+            <Button icon={<FiMail />} onClick={() => { window.location.href = `mailto:${open.email}` }}>Mandar e-mail</Button>
           </>
         )}
       >
         <ErrorNote error={detail.error} onRetry={detail.reload} />
-        {!d ? <Skeleton lines={5} height={24} /> : (
+        {!d ? (!detail.error && <Skeleton lines={5} height={24} />) : (
           <div className={s.grid}>
             <dl className={s.kv}>
               <dt>Telefone</dt><dd>{d.phone || 'Não informado'}</dd>
               <dt>Pedidos</dt><dd>{number(d.total_orders)}</dd>
-              <dt>Total gasto</dt><dd><strong>{money(d.total_spent)}</strong></dd>
+              <dt>Total gasto</dt><dd><strong>{money(d.total_spent)}</strong> <span className={`${s.small} ${s.muted}`}>(só pedidos pagos)</span></dd>
               <dt>Primeira compra</dt><dd>{date(d.first_order_at)}</dd>
               <dt>Última compra</dt><dd>{date(d.last_order_at)} ({ago(d.last_order_at)})</dd>
-              <dt>Pontos</dt><dd>{Number(d.loyalty_points) > 0 ? <Badge tone="info">{number(d.loyalty_points)} pontos</Badge> : 'Nenhum'}</dd>
+              <dt>Pontos de fidelidade</dt><dd>{Number(d.loyalty_points) > 0 ? <Badge tone="info">{number(d.loyalty_points)} pontos</Badge> : 'Nenhum'}</dd>
             </dl>
             <div>
               <h3 className={s.sectionTitle}>Pedidos</h3>

@@ -38,6 +38,11 @@ const SERVER_KEYS = new Set(['page_terms_updated_at', 'page_returns_updated_at',
 const PUBLIC_PREFIX_RE = /^(footer|store|bottom_banner)_[a-z0-9_]{1,40}$/;
 // Mudar estas exige a verificação em duas etapas ligada em quem muda.
 const TWO_FACTOR_KEY_RE = /^(fiscal_|payment_|admin_require_2fa$)/;
+// Só o super_admin muda estas.
+const OWNER_KEYS = new Set(['admin_require_2fa']);
+// Links de botão: caminho da loja, âncora ou http(s), como no banner. Nada de javascript:.
+const LINK_KEY_RE = /_link$/;
+const SAFE_LINK_RE = /^(\/|#|https?:\/\/)/i;
 
 const BOOL_KEYS = new Set([
   'maintenance_mode', 'home_promo_enabled', 'ticker_enabled', 'ticker_double', 'bottom_banner_enabled',
@@ -120,6 +125,9 @@ function normalizeValue(key, value) {
       throw new Error('bottom_banner_product_ids: lista JSON de ids, ex.: [1,2,3]');
     }
   }
+  if (LINK_KEY_RE.test(key) && text !== '' && !SAFE_LINK_RE.test(text)) {
+    throw new Error(`${key}: o link deve começar com /, # ou http(s)://`);
+  }
   if (key === 'bottom_banner_image' && !isImageRef(text)) {
     throw new Error('bottom_banner_image: envie antes por /upload e use a URL devolvida');
   }
@@ -182,6 +190,10 @@ const settingsController = {
     if (unknown.length) return res.status(400).json({ error: `Chaves não permitidas: ${unknown.join(', ')}` });
     if (!req.user.totp_enabled && entries.some(([key]) => TWO_FACTOR_KEY_RE.test(key))) {
       return res.status(403).json({ code: '2fa_required', error: 'Ligue a verificação em duas etapas para mudar pagamento, fiscal ou segurança.' });
+    }
+    // A regra de segurança da equipe é do dono: um admin não pode se livrar dela.
+    if (req.user.role !== 'super_admin' && entries.some(([key]) => OWNER_KEYS.has(key))) {
+      return res.status(403).json({ error: 'Só o dono pode mudar a exigência das duas etapas.' });
     }
 
     let normalized;

@@ -92,7 +92,7 @@ export function ErrorNote({ error, onRetry }) {
 
 export function Skeleton({ lines = 3, height = 14, gap = 12, widths }) {
   return (
-    <div style={{ display: 'grid', gap }} aria-busy="true" aria-label="Carregando">
+    <div style={{ display: 'grid', gap }} role="status" aria-busy="true" aria-label="Carregando">
       {Array.from({ length: lines }, (_, i) => (
         <span key={i} className={s.skel} style={{ height, width: widths?.[i % widths.length] || '100%' }} />
       ))}
@@ -119,6 +119,12 @@ export function DataTable({ columns, rows, rowKey = 'id', onRowClick, selectable
   const allOn = selectable && rows.length > 0 && rows.every(r => selected.includes(keyOf(r)))
   const toggle = (k) => onSelect(selected.includes(k) ? selected.filter(x => x !== k) : [...selected, k])
   const primary = columns.find(c => c.primary) || columns[0]
+  // Linha clicável também abre pelo teclado (Tab até ela, Enter ou espaço).
+  const rowProps = (r) => (onRowClick ? {
+    tabIndex: 0,
+    onClick: (e) => { if (!e.target.closest('button, a, input, select, label')) onRowClick(r) },
+    onKeyDown: (e) => { if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) { e.preventDefault(); onRowClick(r) } },
+  } : {})
 
   return (
     <div className={dim ? s.dim : undefined}>
@@ -146,11 +152,7 @@ export function DataTable({ columns, rows, rowKey = 'id', onRowClick, selectable
             {rows.map(r => {
               const k = keyOf(r)
               return (
-                <tr
-                  key={k}
-                  className={cx(onRowClick && s.clickable, selected.includes(k) && s.selected)}
-                  onClick={onRowClick ? (e) => { if (!e.target.closest('button, a, input, select, label')) onRowClick(r) } : undefined}
-                >
+                <tr key={k} className={cx(onRowClick && s.clickable, selected.includes(k) && s.selected)} {...rowProps(r)}>
                   {selectable && (
                     <td className={s.checkCell}>
                       <input type="checkbox" className={s.check} aria-label="Selecionar" checked={selected.includes(k)} onChange={() => toggle(k)} />
@@ -170,11 +172,7 @@ export function DataTable({ columns, rows, rowKey = 'id', onRowClick, selectable
         {rows.map(r => {
           const k = keyOf(r)
           return (
-            <div
-              key={k}
-              className={cx(s.card, onRowClick && s.clickable, selected.includes(k) && s.selected)}
-              onClick={onRowClick ? (e) => { if (!e.target.closest('button, a, input, select, label')) onRowClick(r) } : undefined}
-            >
+            <div key={k} className={cx(s.card, onRowClick && s.clickable, selected.includes(k) && s.selected)} {...rowProps(r)}>
               <div className={s.cardTop}>
                 {selectable && (
                   <input type="checkbox" className={s.check} aria-label="Selecionar" checked={selected.includes(k)} onChange={() => toggle(k)} />
@@ -183,7 +181,7 @@ export function DataTable({ columns, rows, rowKey = 'id', onRowClick, selectable
               </div>
               {columns.filter(c => c !== primary && !c.hideOnCard).map(c => (
                 <div key={c.key} className={s.cardRow}>
-                  <span className={s.cardLabel}>{c.header}</span>
+                  {c.header ? <span className={s.cardLabel}>{c.header}</span> : null}
                   <span className={s.cardValue}>{c.render ? c.render(r) : r[c.key]}</span>
                 </div>
               ))}

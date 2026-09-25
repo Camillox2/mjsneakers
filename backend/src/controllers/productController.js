@@ -676,7 +676,8 @@ const productController = {
     }
   },
 
-  // Cópia inativa, com os mesmos tamanhos (estoque zerado), peso e medidas.
+  // Cópia inativa, com os mesmos tamanhos (estoque zerado), peso, medidas, NCM e
+  // origem. O código de barras (GTIN) é de cada produto e não vai junto.
   async clone(req, res) {
     const conn = await pool.getConnection();
     try {
@@ -691,12 +692,12 @@ const productController = {
       const [result] = await conn.query(
         `INSERT INTO products (name, slug, description, price, discount_percentage, brand_id, category_id, supplier_id,
            image_url, image_url_2, image_url_3, image_url_4, sizes, stock, featured, feature_order,
-           meta_title, meta_description, tags, promo_start, promo_end, weight_g, height_cm, width_cm, length_cm, active)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, FALSE, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, FALSE)`,
+           meta_title, meta_description, tags, promo_start, promo_end, weight_g, height_cm, width_cm, length_cm, ncm, origin, active)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, FALSE, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, FALSE)`,
         [name, makeSlug(name), p.description, p.price, p.discount_percentage, p.brand_id, p.category_id, p.supplier_id,
           p.image_url, p.image_url_2, p.image_url_3, p.image_url_4, p.sizes, p.feature_order,
           p.meta_title, p.meta_description, p.tags, p.promo_start, p.promo_end,
-          p.weight_g, p.height_cm, p.width_cm, p.length_cm]
+          p.weight_g, p.height_cm, p.width_cm, p.length_cm, p.ncm ?? null, p.origin ?? null]
       );
       const newId = result.insertId;
       await conn.query(

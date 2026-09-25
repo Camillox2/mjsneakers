@@ -47,6 +47,14 @@
 .iconOnly { width: 40px; padding: 0; }
 .small.iconOnly { width: 34px; }
 
+/* Dedo, não mouse: todo alvo de toque chega a 44px. */
+@media (pointer: coarse) {
+  .btn { min-height: 44px; }
+  .iconOnly { width: 44px; }
+  .small { min-height: 40px; }
+  .small.iconOnly { width: 44px; min-height: 44px; }
+}
+
 .spinner {
   width: 16px;
   height: 16px;
@@ -214,6 +222,10 @@
   font-weight: 600;
   white-space: nowrap;
   cursor: pointer;
+}
+
+@media (pointer: coarse) {
+  .segment { min-height: 40px; }
 }
 
 .segmentActive { color: var(--a-text); }
@@ -445,14 +457,16 @@
   min-width: 0;
 }
 
+/* título e ações dividem a linha; sem espaço (celular), as ações descem */
 .panelHead {
   display: flex;
   align-items: center;
-  gap: 10px;
+  flex-wrap: wrap;
+  gap: 8px 10px;
   padding: 16px 18px 0;
 }
 
-.panelTitle { margin: 0; font-size: 15.5px; font-weight: 700; flex: 1; min-width: 0; }
+.panelTitle { margin: 0; font-size: 15.5px; font-weight: 700; flex: 1 1 180px; min-width: 0; }
 .panelSub { font-size: 13px; color: var(--a-muted); font-weight: 500; }
 .panelBody { padding: 14px 18px 18px; }
 .panelFlush { padding: 12px 0 0; }
@@ -571,6 +585,7 @@
 .table tbody tr:last-child td { border-bottom: 0; }
 .clickable { cursor: pointer; transition: background 0.15s; }
 .clickable:hover { background: var(--a-hover); }
+.clickable:focus-visible { background: var(--a-hover); outline-offset: -2px; }
 .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .selected { background: var(--a-accent-wash); }
 
@@ -598,6 +613,8 @@
 
 .cardLabel { color: var(--a-muted); flex-shrink: 0; }
 .cardValue { text-align: right; min-width: 0; }
+/* coluna sem título (ações): sem rótulo vazio, o valor fica à direita como os outros */
+.cardValue:only-child { margin-left: auto; }
 
 @media (max-width: 767.98px) {
   .tableWrap.responsive { display: none; }
@@ -683,9 +700,10 @@
 .runCompact .runBox { height: 18px; border-radius: 3px; }
 .runCompact .runSize { font-size: 10px; }
 
+/* 124px: cabe o contador inteiro (dois botões e o número) sem vazar da caixa */
 .runEdit {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(124px, 1fr));
   gap: 8px;
 }
 
@@ -708,8 +726,8 @@
 .stepper { display: flex; align-items: center; gap: 2px; }
 
 .stepBtn {
-  width: 30px;
-  height: 36px;
+  width: 32px;
+  height: 40px;
   border: 0;
   border-radius: 6px;
   background: var(--a-hover);
@@ -722,7 +740,7 @@
 
 .stepInput {
   width: 44px;
-  height: 36px;
+  height: 40px;
   text-align: center;
   border-radius: 6px;
   border: 1px solid var(--a-line-strong);
@@ -742,7 +760,7 @@
   color: var(--a-muted);
   font-size: 12.5px;
   cursor: pointer;
-  min-height: 28px;
+  min-height: 36px;
   padding: 0 6px;
   border-radius: 6px;
 }

@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
-import { FiArrowUpRight, FiArrowDownRight, FiMinus, FiShoppingBag, FiSlash, FiAlertTriangle, FiStar, FiBell, FiChevronRight, FiServer, FiDatabase } from 'react-icons/fi'
-import api from '../lib/api'
+import { FiArrowUpRight, FiArrowDownRight, FiMinus, FiShoppingBag, FiSlash, FiAlertTriangle, FiStar, FiBell, FiChevronRight, FiServer, FiDatabase, FiPackage, FiTruck, FiMessageSquare, FiLock } from 'react-icons/fi'
+import api, { asPage } from '../lib/api'
 import { useResource, usePersistentState } from '../lib/hooks'
 import { useAdmin } from '../lib/context'
 import { money, moneyShort, number, percent, delta, shortDay, longDay, ago } from '../lib/format'
@@ -23,25 +23,28 @@ const tickMoney = (v) => (v >= 1000 ? `${(v / 1000).toLocaleString('pt-BR', { ma
 
 function Delta({ current, previous, days }) {
   const d = delta(current, previous)
-  const where = `vs ${days === 365 ? '12 meses' : `${days} dias`} antes`
-  if (d === null) return <span className={`${s.delta} ${s.flat}`}><FiMinus aria-hidden="true" />sem base {where}</span>
+  const where = days === 365 ? 'os 12 meses anteriores' : `os ${days} dias anteriores`
+  if (d === null) return <span className={`${s.delta} ${s.flat}`}><FiMinus aria-hidden="true" />nada em {where} para comparar</span>
   const dir = d > 0.005 ? 'up' : d < -0.005 ? 'down' : 'flat'
   const Icon = dir === 'up' ? FiArrowUpRight : dir === 'down' ? FiArrowDownRight : FiMinus
   return (
     <span className={`${s.delta} ${s[dir]}`}>
       <Icon aria-hidden="true" />
       <span className={s.deltaNum}>{dir === 'up' ? '+' : ''}{percent(d)}</span>
-      {where}
+      sobre {where}
     </span>
   )
 }
 
 export default function Dashboard() {
-  const { dark } = useAdmin()
+  const { dark, counts } = useAdmin()
   const [days, setDays] = usePersistentState('pz-admin-periodo', 30)
   const dash = useResource(() => api.get('/dashboard', { params: { days } }).then(r => r.data), [days])
   const health = useResource(() => api.get('/admin/health').then(r => r.data).catch(() => null), [])
   const grade = useResource(() => api.get('/products/admin', { params: { status: 'active', limit: 8, sort: 'recent' } }).then(r => r.data), [])
+  // o que está parado agora (sem período): pagos para separar, separados para enviar
+  const flow = useResource(() => api.get('/orders/status-counts').then(r => r.data).catch(() => null), [counts.pendingOrders])
+  const privacy = useResource(() => api.get('/privacy/requests', { params: { status: 'open', page: 1, limit: 1 } }).then(r => asPage(r.data).total).catch(() => 0), [])
 
   const d = dash.data
   const k = d?.kpis || {}
@@ -69,7 +72,7 @@ export default function Dashboard() {
             <Sparkline values={series.slice(-Math.min(series.length, 30)).map(p => p.value)} />
           </div>
           <div className={s.kpi}>
-            <span className={s.kpiLabel}>Pedidos</span>
+            <span className={s.kpiLabel}>Pedidos pagos</span>
             <span className={s.kpiValue}>{number(k.orders)}</span>
             <Delta current={k.orders} previous={k.ordersPrev} days={days} />
           </div>
@@ -113,7 +116,9 @@ export default function Dashboard() {
         </Panel>
 
         <Panel title="Precisa de você">
-          {firstLoad ? <Skeleton lines={4} height={40} /> : <Todo alerts={d?.alerts} health={health.data} />}
+          {firstLoad ? <Skeleton lines={4} height={40} /> : (
+            <Todo alerts={d?.alerts} health={health.data} flow={flow.data} chats={counts.unreadChats} privacy={privacy.data} />
+          )}
         </Panel>
       </div>
 
@@ -123,12 +128,13 @@ export default function Dashboard() {
         actions={<Link className={s.linkBtn} to="/admin/estoque">Abrir estoque <FiChevronRight aria-hidden="true" /></Link>}
       >
         <div style={{ marginBottom: 10 }}><RunLegend /></div>
-        {grade.loading && !grade.data ? <Skeleton lines={4} height={34} /> : (grade.data?.data || []).length ? (
+        <ErrorNote error={grade.error} onRetry={grade.reload} />
+        {grade.loading && !grade.data ? <Skeleton lines={4} height={34} /> : grade.error && !grade.data ? null : (grade.data?.data || []).length ? (
           <div>
             {grade.data.data.map(p => (
               <Link key={p.id} to={`/admin/produtos/${p.id}`} className={s.runRow}>
                 <img className={s.thumb} src={getImageUrl(p.image_url, p.name)} alt="" loading="lazy" />
-                <div style={{ minWidth: 0 }}>
+                <div className={s.cellMain}>
                   <div className={s.listTitle}>{p.name}</div>
                   <div className={s.listSub}>{p.brand_name || 'Sem marca'}</div>
                 </div>
@@ -162,13 +168,15 @@ export default function Dashboard() {
             <BarList format={moneyShort} items={d.brandRevenue.slice(0, 7).map(b => ({ key: b.brand, label: b.brand || 'Sem marca', value: b.revenue, sub: `${number(b.quantity)} pares` }))} />
           ) : <p className={s.muted}>Sem vendas no período.</p>}
         </Panel>
-        <Panel title="Pedidos por status">
+        <Panel title="Pedidos por status" subtitle="feitos no período">
           {firstLoad ? <Skeleton lines={5} height={28} /> : d?.ordersByStatus?.some(x => Number(x.count) > 0) ? (
             <div className={s.list}>
               {Object.keys(ORDER_STATUS).map(st => {
                 const n = Number(d.ordersByStatus.find(x => x.status === st)?.count || 0)
+                // a lista abre com o mesmo período, para o número bater
+                const range = d.period ? `&de=${d.period.from}&ate=${d.period.to}` : ''
                 return (
-                  <Link key={st} to={`/admin/pedidos?status=${st}`} className={s.listItem}>
+                  <Link key={st} to={`/admin/pedidos?status=${st}${range}`} className={s.listItem} aria-label={`${ORDER_STATUS[st].label}: ${number(n)} ${n === 1 ? 'pedido' : 'pedidos'}`}>
                     <span className={s.listMain}><OrderBadge status={st} /></span>
                     <span className={`${s.listEnd} ${s.strong}`}>{number(n)}</span>
                   </Link>
@@ -216,12 +224,17 @@ export default function Dashboard() {
   )
 }
 
-function Todo({ alerts = {}, health }) {
+function Todo({ alerts = {}, health, flow, chats, privacy }) {
   // backup parado há mais de 2 dias, ou com erro, também é pendência
   const lastBackup = health?.backups?.last_backup_at ? new Date(health.backups.last_backup_at).getTime() : 0
   const backupBad = health && health.backups?.enabled !== false && (!!health.backups?.last_error || Date.now() - lastBackup > 2 * 24 * 60 * 60 * 1000)
+  // na ordem do que mais pesa para o cliente: pedido pago parado vem primeiro
   const items = [
+    { n: flow?.confirmed, text: (n) => `${n === 1 ? 'pedido pago' : 'pedidos pagos'} para separar`, to: '/admin/pedidos?status=confirmed', icon: FiPackage, tone: 'var(--a-info-wash)', color: 'var(--a-series-1)' },
+    { n: flow?.processing, text: (n) => `${n === 1 ? 'pedido separado esperando' : 'pedidos separados esperando'} envio`, to: '/admin/pedidos?status=processing', icon: FiTruck, tone: 'var(--a-info-wash)', color: 'var(--a-series-1)' },
+    { n: chats, text: (n) => `${n === 1 ? 'mensagem nova' : 'mensagens novas'} no chat`, to: '/admin/conversas', icon: FiMessageSquare, tone: 'var(--a-info-wash)', color: 'var(--a-series-1)' },
     { n: alerts.pendingOrders, text: (n) => `${n === 1 ? 'pedido aguardando' : 'pedidos aguardando'} pagamento ou confirmação`, to: '/admin/pedidos?status=pending', icon: FiShoppingBag, tone: 'var(--a-warning-wash)', color: 'var(--a-warning)' },
+    { n: privacy, text: (n) => `${n === 1 ? 'pedido de privacidade (LGPD)' : 'pedidos de privacidade (LGPD)'} para responder em até 15 dias`, to: '/admin/privacidade', icon: FiLock, tone: 'var(--a-warning-wash)', color: 'var(--a-warning)' },
     { n: alerts.outOfStock, text: (n) => `${n === 1 ? 'produto esgotado' : 'produtos esgotados'}`, to: '/admin/estoque/alertas', icon: FiSlash, tone: 'var(--a-critical-wash)', color: 'var(--a-critical)' },
     { n: alerts.lowStock, text: (n) => `${n === 1 ? 'produto acabando' : 'produtos acabando'}`, to: '/admin/estoque/alertas', icon: FiAlertTriangle, tone: 'var(--a-warning-wash)', color: 'var(--a-warning)' },
     { n: alerts.pendingReviews, text: (n) => `${n === 1 ? 'avaliação para' : 'avaliações para'} moderar`, to: '/admin/avaliacoes', icon: FiStar, tone: 'var(--a-info-wash)', color: 'var(--a-series-1)' },
@@ -233,7 +246,7 @@ function Todo({ alerts = {}, health }) {
   if (!items.length) {
     return (
       <EmptyState art={<Stars />} title="Tudo em dia">
-        Nenhum pedido parado, nada esgotado e nenhuma avaliação esperando.
+        Nenhum pedido parado, nenhuma mensagem sem resposta, nada esgotado e nenhuma avaliação esperando.
       </EmptyState>
     )
   }

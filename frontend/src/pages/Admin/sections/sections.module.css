@@ -139,6 +139,28 @@ a.listItem:hover .listTitle { color: var(--a-accent); }
 .strong { font-weight: 700; }
 .nowrap { white-space: nowrap; }
 .num { font-variant-numeric: tabular-nums; }
+.flush { margin: 0; }
+.wrapAny { overflow-wrap: anywhere; white-space: normal; }
+.preWrap { white-space: pre-wrap; }
+.pad { padding: 18px; }
+.cellMain { min-width: 0; }
+.noteTop { margin: 12px 0 0; }
+
+/* Só para leitor de tela: o texto existe, mas não aparece. */
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Lista sem marcador (ul/ol que usam .list). */
+.plainList { margin: 0; padding: 0; list-style: none; }
+
+.inlineLink { color: var(--a-accent); text-decoration: underline; text-underline-offset: 2px; }
 .linkBtn {
   border: 0;
   background: none;
@@ -156,6 +178,10 @@ a.listItem:hover .listTitle { color: var(--a-accent); }
 }
 
 .linkBtn:hover { text-decoration: underline; }
+
+@media (pointer: coarse) {
+  .linkBtn { min-height: 44px; }
+}
 
 /* ---------- Grade de produtos no início ---------- */
 
@@ -210,6 +236,76 @@ a.listItem:hover .listTitle { color: var(--a-accent); }
 @media (max-width: 1023.98px) {
   .stickyBar { bottom: calc(var(--a-bottomnav) + env(safe-area-inset-bottom)); }
 }
+
+/* Rótulo solto (para grupos como o seletor segmentado), igual ao dos campos. */
+.fieldGroup { display: grid; gap: 6px; justify-items: start; }
+.label { font-size: 13.5px; font-weight: 600; color: var(--a-text-2); }
+
+/* Busca e filtros acima de uma lista. */
+.filterBar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 14px; }
+.filterBarTop { margin-top: 16px; }
+.filterSelect { width: auto; min-width: 200px; flex: 0 1 260px; }
+
+@media (max-width: 479.98px) {
+  .filterSelect { flex: 1 1 100%; min-width: 0; }
+}
+
+/* Caixa de explicação: o que fazer agora, um exemplo, uma regra. */
+.callout {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--a-radius-s);
+  background: var(--a-sunken);
+  border: 1px solid var(--a-line);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.hintLine { display: flex; gap: 8px; align-items: flex-start; margin: 0; color: var(--a-text-2); }
+.hintLine svg { flex-shrink: 0; margin-top: 2px; color: var(--a-muted); }
+
+/* Botões de uma linha da lista: quebram para baixo no celular. */
+.rowActions { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.inlineForm { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
+.inlineForm > :first-child { flex: 1 1 240px; }
+
+.codeCell { display: inline-flex; align-items: center; gap: 6px; }
+.couponCode { letter-spacing: 0.04em; }
+.badges { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+
+/* ---------- checagens (saúde do sistema) ---------- */
+
+.checkLine { align-items: flex-start; }
+.checkIcon { font-size: 18px; margin-top: 2px; flex-shrink: 0; }
+.stateOk { color: var(--a-good); }
+.stateWarn { color: var(--a-warning); }
+.stateBad { color: var(--a-critical); }
+.checkDetail { font-size: 13px; color: var(--a-muted); white-space: normal; overflow-wrap: anywhere; }
+.checkHint { font-size: 13px; margin-top: 4px; white-space: normal; overflow-wrap: anywhere; }
+.code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12.5px; }
+
+.errorRow { align-items: flex-start; flex-wrap: wrap; }
+.errorRow > :first-child { flex: 1 1 260px; }
+
+.stack {
+  margin: 8px 0 0;
+  padding: 10px;
+  border-radius: var(--a-radius-s);
+  background: var(--a-sunken);
+  border: 1px solid var(--a-line);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 260px;
+  overflow: auto;
+}
+
+/* ---------- atividade ---------- */
+
+.logRow { align-items: flex-start; }
+.logDot { width: 8px; height: 8px; border-radius: 50%; background: var(--a-series-1); margin-top: 8px; flex-shrink: 0; }
 
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 

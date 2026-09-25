@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Link, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { FiDownload, FiPrinter, FiSave, FiMail, FiPhone, FiCopy, FiXCircle, FiPlus, FiRefreshCw, FiRotateCcw, FiCreditCard } from 'react-icons/fi'
+import { FiDownload, FiPrinter, FiSave, FiMail, FiPhone, FiCopy, FiXCircle, FiPlus, FiRefreshCw, FiRotateCcw, FiCreditCard, FiAlertTriangle, FiShield } from 'react-icons/fi'
 import { FaWhatsapp } from 'react-icons/fa'
 import api, { asPage, downloadFile } from '../lib/api'
 import { useDebounced, useResource } from '../lib/hooks'
 import { useAdmin } from '../lib/context'
 import { money, dateTime, date, ago, number } from '../lib/format'
-import { ORDER_STATUS, ORDER_FLOW, OrderBadge, nextStatus, NEXT_ACTION, PaymentBadge, PAYMENT_STATUS, methodText } from '../lib/status'
+import { ORDER_STATUS, ORDER_FLOW, OrderBadge, nextStatus, NEXT_ACTION, NEXT_DONE, PaymentBadge, AttemptBadge, PAYMENT_STATUS, methodText, paymentDetail } from '../lib/status'
 import { labelHTML, pickingHTML, printHTML } from '../lib/print'
 import { getImageUrl } from '../../../utils/imageHelper'
 import {
@@ -58,7 +58,13 @@ function OrderList() {
     () => api.get('/orders', { params: { ...filters, page, limit: 20 } }).then(r => asPage(r.data, page)),
     [q, status, from, to, page]
   )
-  const counts = useResource(() => api.get('/orders/status-counts').then(r => r.data), [])
+  // os números das abas seguem a busca e o período (só o status fica de fora)
+  const counts = useResource(
+    () => api.get('/orders/status-counts', { params: { search: filters.search, date_from: filters.date_from, date_to: filters.date_to } }).then(r => r.data),
+    [q, from, to]
+  )
+  const filtered = !!(q || status || from || to)
+  const clearFilters = () => { setSearch(''); setParams(new URLSearchParams(), { replace: true }) }
 
   const advance = async (order) => {
     const next = nextStatus(order.status)
@@ -66,7 +72,7 @@ function OrderList() {
     setBusyId(order.id)
     try {
       await api.put(`/orders/${order.id}/status`, { status: next })
-      toast.good(`Pedido #${order.id}: ${ORDER_STATUS[next].label.toLowerCase()}. O cliente recebe um e-mail.`)
+      toast.good(`Pedido #${order.id} ${NEXT_DONE[next]}. O cliente recebe um e-mail.`)
       list.reload(); counts.reload(); refreshCounts()
     } catch (err) {
       toast.error(err.message)
@@ -79,10 +85,13 @@ function OrderList() {
   const printPicking = async () => {
     setPicking(true)
     try {
-      const fetchStatus = (st) => api.get('/orders', { params: { status: st, limit: 100 } }).then(r => asPage(r.data).items)
+      const fetchStatus = (st) => api.get('/orders', { params: { status: st, limit: 100 } }).then(r => asPage(r.data))
       const [confirmed, processing] = await Promise.all([fetchStatus('confirmed'), fetchStatus('processing')])
-      const orders = [...confirmed, ...processing].sort((a, b) => a.id - b.id)
+      const orders = [...confirmed.items, ...processing.items].sort((a, b) => a.id - b.id)
       if (!orders.length) { toast.info('Nenhum pedido confirmado ou em separação agora.'); return }
+      // a API entrega até 100 por status: avisa se ficou pedido de fora
+      const left = confirmed.total + processing.total - orders.length
+      if (left > 0) toast.info(`A lista saiu com os ${orders.length} pedidos mais recentes. Faltaram ${left}: imprima de novo depois de separar estes.`)
       await printHTML(pickingHTML(orders))
     } catch (err) {
       toast.error(err.message)
@@ -135,7 +144,7 @@ function OrderList() {
     {
       key: 'pay', header: 'Pagamento',
       render: r => (r.payment_status ? (
-        <div style={{ display: 'grid', gap: 2, justifyItems: 'start' }}>
+        <div className={o.payCell}>
           <PaymentBadge status={r.payment_status} />
           {r.payment_method && <span className={o.orderDate}>{methodText(r.payment_method, r.payment_installments)}</span>}
         </div>
@@ -146,7 +155,8 @@ function OrderList() {
       key: 'act', header: '', hideOnCard: false,
       render: r => {
         const next = nextStatus(r.status)
-        if (next === 'confirmed' && payments?.enabled && r.payment_status !== 'approved') return <span className={o.orderDate}>Esperando o pagamento</span>
+        // com o Mercado Pago ligado, o pedido se confirma sozinho quando o pagamento entra
+        if (next === 'confirmed' && payments?.enabled && r.payment_status !== 'approved') return <span className={o.orderDate}>Confirma sozinho quando pagar</span>
         return next ? (
           <Button size="small" onClick={() => advance(r)} loading={busyId === r.id}>{NEXT_ACTION[next]}</Button>
         ) : null
@@ -158,7 +168,7 @@ function OrderList() {
     <div>
       <PageHeader
         title="Pedidos"
-        description="Toque num pedido para ver itens, endereço, rastreio e notas."
+        description="Abra um pedido para ver os itens, o pagamento, o endereço, o rastreio e as notas."
         actions={<>
           <Button icon={<FiPrinter />} onClick={printPicking} loading={picking}>Lista de separação</Button>
           <Button icon={<FiDownload />} onClick={exportCsv} loading={exporting}>Baixar planilha</Button>
@@ -166,16 +176,16 @@ function OrderList() {
       />
 
       <div className={o.statusScroll}>
-        <Segmented label="Status" options={statusOptions} value={status} onChange={v => setParam({ status: v })} />
+        <Segmented label="Filtrar pedidos por status" options={statusOptions} value={status} onChange={v => setParam({ status: v })} />
       </div>
 
       <div className={o.filters}>
-        <SearchField value={search} onChange={setSearch} placeholder="Nome, e-mail ou número do pedido" />
+        <SearchField value={search} onChange={setSearch} placeholder="Nome, e-mail, telefone ou nº do pedido" />
         <div className={o.dates}>
           <label className={o.dateLabel} htmlFor="ped-de">De</label>
-          <input id="ped-de" type="date" value={from} max={to || undefined} onChange={e => setParam({ de: e.target.value })} style={dateStyle} />
+          <input id="ped-de" className={o.dateInput} type="date" value={from} max={to || undefined} onChange={e => setParam({ de: e.target.value })} />
           <label className={o.dateLabel} htmlFor="ped-ate">até</label>
-          <input id="ped-ate" type="date" value={to} min={from || undefined} onChange={e => setParam({ ate: e.target.value })} style={dateStyle} />
+          <input id="ped-ate" className={o.dateInput} type="date" value={to} min={from || undefined} onChange={e => setParam({ ate: e.target.value })} />
           {(from || to) && <Button size="small" variant="ghost" onClick={() => setParam({ de: '', ate: '' })}>Limpar datas</Button>}
         </div>
       </div>
@@ -184,7 +194,7 @@ function OrderList() {
 
       <Panel flush>
         {list.loading && !list.data ? (
-          <div style={{ padding: 18 }}><Skeleton lines={6} height={36} /></div>
+          <div className={s.pad}><Skeleton lines={6} height={36} /></div>
         ) : (
           <DataTable
             columns={columns}
@@ -192,8 +202,12 @@ function OrderList() {
             onRowClick={open}
             dim={list.loading}
             empty={
-              <EmptyState art={<Receipt />} title={q || status || from || to ? 'Nenhum pedido com esses filtros' : 'Nenhum pedido ainda'}>
-                {q || status || from || to ? 'Tente outro status, outro período ou limpe a busca.' : 'Os pedidos da loja aparecem aqui assim que alguém finalizar uma compra.'}
+              <EmptyState
+                art={<Receipt />}
+                title={filtered ? 'Nenhum pedido com esses filtros' : 'Nenhum pedido ainda'}
+                action={filtered ? <Button onClick={clearFilters}>Limpar filtros</Button> : undefined}
+              >
+                {filtered ? 'Tente outro status, outro período ou outra busca.' : 'Os pedidos da loja aparecem aqui assim que alguém finalizar uma compra.'}
               </EmptyState>
             }
           />
@@ -204,24 +218,13 @@ function OrderList() {
   )
 }
 
-const dateStyle = {
-  minHeight: 42,
-  padding: '8px 10px',
-  borderRadius: 8,
-  border: '1px solid var(--a-line-strong)',
-  background: 'var(--a-sunken)',
-  color: 'var(--a-text)',
-  fontSize: 16,
-  colorScheme: 'inherit',
-}
-
 /* ================= Detalhe ================= */
 
 function Timeline({ status }) {
   const idx = ORDER_FLOW.indexOf(status)
   const pct = idx <= 0 ? 0 : idx / (ORDER_FLOW.length - 1)
   return (
-    <div className={o.timeline} aria-label={`Andamento: ${ORDER_STATUS[status]?.label || status}`}>
+    <div className={o.timeline} role="img" aria-label={`Andamento do pedido: ${ORDER_STATUS[status]?.label || status}`}>
       <svg className={o.timelineSvg} viewBox="0 0 100 26" preserveAspectRatio="none" aria-hidden="true">
         <line x1="1" x2="99" y1="13" y2="13" stroke="var(--a-line-strong)" strokeWidth="2" vectorEffect="non-scaling-stroke" />
         <motion.line
@@ -234,26 +237,85 @@ function Timeline({ status }) {
           transition={{ duration: 0.8, ease: [0.65, 0, 0.35, 1] }}
         />
       </svg>
-      <div style={{ position: 'absolute', inset: '0 0 auto 0', height: 26, display: 'flex', justifyContent: 'space-between', alignItems: 'center', pointerEvents: 'none' }}>
+      <div className={o.timelineDots} aria-hidden="true">
         {ORDER_FLOW.map((st, i) => (
           <motion.span
             key={st}
+            className={`${o.timelineDot} ${i <= idx ? o.timelineDotDone : ''}`}
             initial={{ scale: 0.6, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ delay: 0.1 + i * 0.08 }}
-            style={{
-              width: 14, height: 14, borderRadius: '50%',
-              background: i <= idx ? 'var(--a-series-1)' : 'var(--a-surface)',
-              boxShadow: i <= idx ? '0 0 0 3px var(--a-surface)' : 'inset 0 0 0 2px var(--a-line-strong), 0 0 0 3px var(--a-surface)',
-            }}
           />
         ))}
       </div>
-      <div className={o.steps}>
+      <div className={o.steps} aria-hidden="true">
         {ORDER_FLOW.map((st, i) => (
           <span key={st} className={`${o.step} ${i <= idx ? o.stepDone : ''}`}>{ORDER_STATUS[st].label}</span>
         ))}
       </div>
+    </div>
+  )
+}
+
+// Pagamento do pedido: situação, cada tentativa no Mercado Pago e o estorno.
+function PaymentBlock({ order: d, busy, onSync, onRefund }) {
+  const { payments, user } = useAdmin()
+  const attempts = d.payments || []
+  const approved = attempts.filter(p => p.status === 'approved')
+  const owner = user?.role === 'super_admin'
+  const canRefund = owner && !!user?.totp_enabled
+  // O que pede ação aparece antes da lista, em frase.
+  const alerts = []
+  if (approved.length > 1) alerts.push('Este pedido foi pago mais de uma vez. Estorne o pagamento que sobrou.')
+  if (d.status === 'cancelled' && d.payment_status === 'approved') alerts.push('O pedido foi cancelado, mas está pago. Estorne o pagamento para o dinheiro voltar ao cliente.')
+  if (d.payment_status === 'charged_back') alerts.push('O cliente contestou a compra no cartão. Responda a contestação pelo Mercado Pago.')
+
+  return (
+    <div className={o.block}>
+      <h3 className={o.blockTitle}><FiCreditCard aria-hidden="true" /> Pagamento <PaymentBadge status={d.payment_status} /></h3>
+      {alerts.map(a => (
+        <p key={a} className={o.payAlert}><FiAlertTriangle aria-hidden="true" />{a}</p>
+      ))}
+      <dl className={s.kv}>
+        {d.payment_method && <><dt>Forma</dt><dd>{methodText(d.payment_method, d.payment_installments)}</dd></>}
+        {d.paid_at && <><dt>Pago em</dt><dd>{dateTime(d.paid_at)}</dd></>}
+        {!attempts.length && <><dt>Tentativas</dt><dd>{d.status === 'pending' ? 'O cliente ainda não tentou pagar.' : 'Nenhuma pelo Mercado Pago (pago por fora).'}</dd></>}
+      </dl>
+      {attempts.length > 0 && (
+        <ul className={o.attempts} aria-label="Tentativas de pagamento">
+          {attempts.map(pay => {
+            const why = paymentDetail(pay.status_detail)
+            return (
+              <li key={pay.id} className={o.attempt}>
+                <div className={o.attemptMain}>
+                  <div className={s.strong}>{methodText(pay.method, pay.installments) || 'Pagamento'} de {money(pay.amount)}</div>
+                  <div className={o.attemptSub}>
+                    {dateTime(pay.created_at)}{why ? `, ${why}` : ''}
+                    {pay.provider_payment_id && <><br />Nº no Mercado Pago: {pay.provider_payment_id}</>}
+                  </div>
+                </div>
+                <AttemptBadge status={pay.status} method={pay.method} />
+                {pay.status === 'approved' && canRefund && (
+                  <Button size="small" variant="danger" icon={<FiRotateCcw />} loading={busy === `refund-${pay.id}`} disabled={!!busy} onClick={() => onRefund(pay)}>Estornar</Button>
+                )}
+              </li>
+            )
+          })}
+        </ul>
+      )}
+      {approved.length > 0 && !canRefund && (
+        <p className={o.payHint}>
+          <FiShield aria-hidden="true" />
+          {!owner
+            ? <span>Só o dono da loja pode estornar um pagamento.</span>
+            : <span>Para estornar, ligue a verificação em duas etapas na sua conta. <Link className={s.linkBtn} to="/admin/equipe?duas-etapas=1">Ligar agora</Link></span>}
+        </p>
+      )}
+      {payments?.enabled && (
+        <div className={o.contactLinks}>
+          <Button size="small" icon={<FiRefreshCw />} loading={busy === 'sync'} disabled={!!busy} onClick={onSync}>Conferir no Mercado Pago</Button>
+        </div>
+      )}
     </div>
   )
 }
@@ -264,29 +326,37 @@ function OrderDetail() {
   const location = useLocation()
   const toast = useToast()
   const confirm = useConfirm()
-  const { refreshCounts, payments, user } = useAdmin()
+  const { refreshCounts, payments } = useAdmin()
   const order = useResource(() => api.get(`/orders/${id}`).then(r => r.data), [id])
   const [tracking, setTracking] = useState('')
   const [note, setNote] = useState('')
   const [busy, setBusy] = useState('')
   const [waLink, setWaLink] = useState('')
 
-  const d = order.data
+  // o pedido anterior não aparece enquanto o novo carrega
+  const d = order.data && String(order.data.id) === String(id) ? order.data : null
   useEffect(() => { if (d) setTracking(d.tracking_code || '') }, [d])
+  useEffect(() => { setNote(''); setWaLink('') }, [id])
 
   const close = () => (location.state?.fromList ? navigate(-1) : navigate('/admin/pedidos'))
 
   const changeStatus = async (next) => {
     const cancel = next === 'cancelled'
     const unpaid = next === 'confirmed' && payments?.enabled && d?.payment_status !== 'approved'
+    const paid = d?.payment_status === 'approved'
     const ok = await confirm({
-      title: cancel ? `Cancelar o pedido #${id}?` : `Marcar o pedido #${id} como ${ORDER_STATUS[next].label.toLowerCase()}?`,
+      title: cancel ? `Cancelar o pedido #${id}?` : {
+        confirmed: `Confirmar o pedido #${id}?`,
+        processing: `Separar o pedido #${id}?`,
+        shipped: `Marcar o pedido #${id} como enviado?`,
+        delivered: `Marcar o pedido #${id} como entregue?`,
+      }[next],
       message: cancel
-        ? 'Os pares voltam para a grade, os pontos de fidelidade do pedido são estornados e o cliente recebe um e-mail avisando. Depois de cancelado, o pedido não muda mais de status.'
+        ? `Os pares voltam para a grade, os pontos de fidelidade do pedido são estornados e o cliente recebe um e-mail avisando.${paid ? ' O pagamento não volta sozinho: depois, estorne no bloco Pagamento.' : ''} Depois de cancelado, o pedido não muda mais de status.`
         : unpaid
           ? 'O Mercado Pago ainda não confirmou o pagamento deste pedido. Só confirme se você recebeu por fora (Pix direto, dinheiro). O cliente recebe um e-mail com o novo status.'
-          : 'O cliente recebe um e-mail com o novo status.',
-      confirmLabel: cancel ? 'Cancelar pedido' : 'Confirmar',
+          : `O pedido passa para "${ORDER_STATUS[next].label.toLowerCase()}" e o cliente recebe um e-mail.`,
+      confirmLabel: cancel ? 'Cancelar pedido' : NEXT_ACTION[next],
       cancelLabel: 'Voltar',
       tone: cancel ? 'danger' : undefined,
     })
@@ -297,10 +367,10 @@ function OrderDetail() {
       const points = Number(res?.loyalty_points_reversed) || 0
       const refunded = Number(res?.points_refunded) || 0
       toast.good(cancel
-        ? `Pedido #${id} cancelado. Estoque devolvido${points ? `, ${points.toLocaleString('pt-BR')} pontos ganhos estornados` : ''}${refunded ? `, ${refunded.toLocaleString('pt-BR')} pontos usados devolvidos ao cliente` : ''}.`
-        : `Pedido #${id}: ${ORDER_STATUS[next].label.toLowerCase()}.`)
+        ? `Pedido #${id} cancelado. Estoque devolvido${points ? `, ${number(points)} pontos ganhos estornados` : ''}${refunded ? `, ${number(refunded)} pontos usados devolvidos ao cliente` : ''}.`
+        : `Pedido #${id} ${NEXT_DONE[next]}.`)
       // cancelou um pedido que já estava pago: o dinheiro não volta sozinho
-      if (res?.payment_refund_needed) toast.info('Este pedido estava pago. Faça o estorno no bloco Pagamento para o dinheiro voltar ao cliente.')
+      if (res?.payment_refund_needed) toast.info('Este pedido estava pago. Estorne no bloco Pagamento para o dinheiro voltar ao cliente.')
       order.reload(); refreshCounts()
     } catch (err) {
       toast.error(err.message)
@@ -309,12 +379,15 @@ function OrderDetail() {
     }
   }
 
-  const saveTracking = async () => {
+  const saveTracking = async (e) => {
+    e?.preventDefault()
+    const code = tracking.trim()
+    if (!code || code === (d?.tracking_code || '') || busy) return
     setBusy('tracking')
     try {
-      const { data } = await api.put(`/orders/${id}/tracking`, { tracking_code: tracking.trim() })
+      const { data } = await api.put(`/orders/${id}/tracking`, { tracking_code: code })
       if (data?.wa_link) setWaLink(data.wa_link)
-      toast.good('Rastreio salvo. O pedido foi marcado como enviado.')
+      toast.good(data?.status === 'shipped' && d?.status !== 'shipped' ? 'Rastreio salvo e pedido marcado como enviado.' : 'Rastreio salvo.')
       order.reload(); refreshCounts()
     } catch (err) {
       toast.error(err.message)
@@ -335,12 +408,14 @@ function OrderDetail() {
     }
   }
 
-  const addNote = async () => {
-    if (!note.trim()) return
+  const addNote = async (e) => {
+    e?.preventDefault()
+    if (!note.trim() || busy) return
     setBusy('note')
     try {
       await api.post(`/orders/${id}/notes`, { note: note.trim() })
       setNote('')
+      toast.good('Anotado.')
       order.reload()
     } catch (err) {
       toast.error(err.message)
@@ -353,7 +428,10 @@ function OrderDetail() {
     setBusy('sync')
     try {
       const { data: res } = await api.post(`/payments/order/${id}/sync`)
-      toast.good(`Conferido no Mercado Pago: ${(PAYMENT_STATUS[res?.payment_status]?.label || 'sem mudança').toLowerCase()}.`)
+      const label = PAYMENT_STATUS[res?.payment_status]?.label
+      toast.good(res?.synced === 0
+        ? 'Conferido: o Mercado Pago não tem pagamento deste pedido.'
+        : `Conferido no Mercado Pago: ${(label || 'sem mudança').toLowerCase()}.`)
       order.reload(); refreshCounts()
     } catch (err) { toast.error(err.message) } finally { setBusy('') }
   }
@@ -361,7 +439,7 @@ function OrderDetail() {
   const refund = async (pay) => {
     const ok = await confirm({
       title: `Estornar ${money(pay.amount)}?`,
-      message: 'O valor volta para o cliente pelo Mercado Pago. Se o pedido ainda não saiu, ele é cancelado e os pares voltam para o estoque.',
+      message: 'O valor volta para o cliente pelo Mercado Pago. Se o pedido ainda não saiu, ele é cancelado e os pares voltam para o estoque. Não dá para desfazer.',
       confirmLabel: 'Estornar pagamento',
       tone: 'danger',
     })
@@ -369,7 +447,7 @@ function OrderDetail() {
     setBusy(`refund-${pay.id}`)
     try {
       await api.post(`/payments/${pay.id}/refund`)
-      toast.good('Estorno pedido ao Mercado Pago.')
+      toast.good('Pagamento estornado. O cliente recebe o valor pelo Mercado Pago.')
       order.reload(); refreshCounts()
     } catch (err) { toast.error(err.message) } finally { setBusy('') }
   }
@@ -387,6 +465,10 @@ function OrderDetail() {
     d.address_cep ? `CEP ${d.address_cep}` : '',
   ].filter(Boolean) : []
   const phone = String(d?.customer_phone || '').replace(/\D/g, '')
+  const intl = phone.startsWith('55') ? phone : `55${phone}`
+  // Pagamento aparece com o Mercado Pago ligado ou quando o pedido já tem algum registro dele.
+  const showPayment = d && (payments?.enabled || d.payments?.length > 0 || (d.payment_status && d.payment_status !== 'unpaid'))
+  const beforeShipped = d && ['pending', 'confirmed', 'processing'].includes(d.status)
 
   return (
     <Dialog
@@ -395,28 +477,28 @@ function OrderDetail() {
       onClose={close}
       size="l"
       title={`Pedido #${id}`}
-      description={d ? `${dateTime(d.created_at)}, ${ago(d.created_at)}` : 'Carregando'}
+      description={d ? `Feito em ${dateTime(d.created_at)}, ${ago(d.created_at)}` : 'Carregando'}
       footer={d && d.status !== 'cancelled' && d.status !== 'delivered' ? (
         <>
-          <Button variant="danger" icon={<FiXCircle />} onClick={() => changeStatus('cancelled')} loading={busy === 'cancelled'}>Cancelar pedido</Button>
-          {next && <Button variant="primary" onClick={() => changeStatus(next)} loading={busy === next}>{NEXT_ACTION[next]}</Button>}
+          <Button variant="danger" icon={<FiXCircle />} onClick={() => changeStatus('cancelled')} loading={busy === 'cancelled'} disabled={!!busy}>Cancelar pedido</Button>
+          {next && <Button variant="primary" onClick={() => changeStatus(next)} loading={busy === next} disabled={!!busy}>{NEXT_ACTION[next]}</Button>}
         </>
       ) : null}
     >
       <ErrorNote error={order.error} onRetry={order.reload} />
-      {!d ? <Skeleton lines={8} height={20} /> : (
+      {!d ? (!order.error && <Skeleton lines={8} height={20} />) : (
         <>
           {d.status === 'cancelled' ? (
             <div className={o.cancelNote}><FiXCircle aria-hidden="true" /><span>Pedido cancelado. Os pares já voltaram para o estoque.</span></div>
           ) : <Timeline status={d.status} />}
 
-          <div className={o.block} style={{ borderTop: 0, paddingTop: 0 }}>
+          <div className={`${o.block} ${o.blockFirst}`}>
             <h3 className={o.blockTitle}>Itens <OrderBadge status={d.status} /></h3>
             {items.map((it, i) => (
-              <div key={i} className={o.item}>
+              <div key={it.id || i} className={o.item}>
                 <img className={s.thumb} src={getImageUrl(it.image_url, it.product_name)} alt="" loading="lazy" />
                 <div className={o.itemMain}>
-                  <div className={o.itemName}>{it.product_name || it.name}</div>
+                  <div className={o.itemName}>{it.product_name || it.name || 'Produto que saiu do catálogo'}</div>
                   <div className={o.itemMeta}>Tamanho {it.size}, {it.quantity} {Number(it.quantity) === 1 ? 'par' : 'pares'} de {money(it.price)}</div>
                 </div>
                 <div className={o.itemPrice}>{money(Number(it.price) * Number(it.quantity))}</div>
@@ -424,47 +506,17 @@ function OrderDetail() {
             ))}
             <dl className={o.totals}>
               <dt>Subtotal</dt><dd>{money(subtotal)}</dd>
-              {Number(d.discount_amount) > 0 && <><dt>Desconto{d.coupon_code ? ` (${d.coupon_code})` : ''}</dt><dd>- {money(d.discount_amount)}</dd></>}
+              {Number(d.discount_amount) > 0 && <><dt>Cupom{d.coupon_code ? ` ${d.coupon_code}` : ''}</dt><dd>- {money(d.discount_amount)}</dd></>}
               {Number(d.points_discount) > 0 && <><dt>Pontos de fidelidade ({number(d.points_used)})</dt><dd>- {money(d.points_discount)}</dd></>}
               <dt>Frete{d.shipping_type ? ` (${d.shipping_type})` : ''}</dt><dd>{Number(d.shipping_price) > 0 ? money(d.shipping_price) : 'Grátis'}</dd>
-              {d.gift_wrap ? <><dt>Embrulho de presente</dt><dd>Sim</dd></> : null}
+              {d.gift_wrap ? <><dt>Embrulho de presente</dt><dd>{Number(d.gift_wrap_price) > 0 ? money(d.gift_wrap_price) : 'Grátis'}</dd></> : null}
+              {Number(d.pix_discount_amount) > 0 && <><dt>Desconto do Pix</dt><dd>- {money(d.pix_discount_amount)}</dd></>}
               <dt className={o.totalFinal}>Total</dt><dd className={o.totalFinal}>{money(d.total)}</dd>
             </dl>
-            {d.gift_message && <p className={s.muted} style={{ marginTop: 10 }}>Mensagem do presente: “{d.gift_message}”</p>}
+            {d.gift_message && <p className={o.giftNote}>Mensagem do presente: “{d.gift_message}”</p>}
           </div>
 
-          {(d.payment_status || d.payments?.length > 0) && (
-            <div className={o.block}>
-              <h3 className={o.blockTitle}><FiCreditCard aria-hidden="true" /> Pagamento <PaymentBadge status={d.payment_status} /></h3>
-              <dl className={s.kv}>
-                {d.payment_method && <><dt>Forma</dt><dd>{methodText(d.payment_method, d.payment_installments)}</dd></>}
-                {d.paid_at && <><dt>Pago em</dt><dd>{dateTime(d.paid_at)}</dd></>}
-                {Number(d.pix_discount_amount) > 0 && <><dt>Desconto do Pix</dt><dd>- {money(d.pix_discount_amount)}</dd></>}
-                {!d.payments?.length && <><dt>Tentativas</dt><dd>O cliente ainda não tentou pagar.</dd></>}
-              </dl>
-              {d.payments?.length > 0 && (
-                <div className={s.list} style={{ marginTop: 10 }}>
-                  {d.payments.map(pay => (
-                    <div key={pay.id} className={s.listItem}>
-                      <div className={s.listMain}>
-                        <div className={s.listTitle}>{methodText(pay.method, pay.installments) || 'Pagamento'} de {money(pay.amount)}</div>
-                        <div className={s.listSub}>{dateTime(pay.created_at)}{pay.provider_payment_id ? `, Mercado Pago ${pay.provider_payment_id}` : ''}{pay.status_detail ? `, ${pay.status_detail}` : ''}</div>
-                      </div>
-                      <PaymentBadge status={pay.status === 'in_process' ? 'pending' : pay.status === 'cancelled' ? 'expired' : pay.status} />
-                      {pay.status === 'approved' && user?.role === 'super_admin' && (
-                        <Button size="small" variant="danger" icon={<FiRotateCcw />} loading={busy === `refund-${pay.id}`} onClick={() => refund(pay)}>Estornar</Button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-              {payments?.enabled && (
-                <div className={o.contactLinks}>
-                  <Button size="small" icon={<FiRefreshCw />} loading={busy === 'sync'} onClick={syncPayment}>Conferir no Mercado Pago</Button>
-                </div>
-              )}
-            </div>
-          )}
+          {showPayment && <PaymentBlock order={d} busy={busy} onSync={syncPayment} onRefund={refund} />}
 
           <OrderInvoice orderId={id} orderStatus={d.status} paymentStatus={d.payment_status} />
 
@@ -472,12 +524,12 @@ function OrderDetail() {
             <div className={o.block}>
               <h3 className={o.blockTitle}>Cliente</h3>
               <div className={s.strong}>{d.customer_name || 'Sem nome'}</div>
-              <div className={s.muted}>{d.customer_email}</div>
+              <div className={`${s.muted} ${o.wrapAny}`}>{d.customer_email}</div>
               <div className={s.muted}>{d.customer_phone}</div>
               <div className={o.contactLinks}>
                 {d.customer_email && <Button size="small" icon={<FiMail />} onClick={() => { window.location.href = `mailto:${d.customer_email}` }}>E-mail</Button>}
-                {phone && <Button size="small" icon={<FiPhone />} onClick={() => { window.location.href = `tel:+${phone.startsWith('55') ? phone : `55${phone}`}` }}>Ligar</Button>}
-                {phone && <Button size="small" icon={<FaWhatsapp />} onClick={() => window.open(`https://wa.me/${phone.startsWith('55') ? phone : `55${phone}`}`, '_blank', 'noopener')}>WhatsApp</Button>}
+                {phone && <Button size="small" icon={<FiPhone />} onClick={() => { window.location.href = `tel:+${intl}` }}>Ligar</Button>}
+                {phone && <Button size="small" icon={<FaWhatsapp />} onClick={() => window.open(`https://wa.me/${intl}`, '_blank', 'noopener')}>WhatsApp</Button>}
               </div>
             </div>
             <div className={o.block}>
@@ -495,18 +547,23 @@ function OrderDetail() {
 
           <div className={o.block}>
             <h3 className={o.blockTitle}>Rastreio e etiqueta</h3>
-            <div className={o.tracking}>
+            <form className={o.tracking} onSubmit={saveTracking}>
               <TextField
                 label="Código de rastreio"
                 value={tracking}
                 onChange={e => setTracking(e.target.value.toUpperCase())}
                 placeholder="Ex.: BR123456789BR"
-                hint={d.status === 'cancelled' ? undefined : 'Ao salvar, o pedido passa para enviado.'}
+                maxLength={100}
+                autoCapitalize="characters"
+                spellCheck={false}
+                hint={d.status === 'cancelled'
+                  ? 'Pedido cancelado não recebe rastreio.'
+                  : beforeShipped ? 'Ao salvar, o pedido passa para enviado e o cliente recebe o código por e-mail.' : 'Se trocar o código, o cliente recebe o novo por e-mail.'}
                 disabled={d.status === 'cancelled'}
               />
-              <Button icon={<FiSave />} onClick={saveTracking} loading={busy === 'tracking'} disabled={!tracking.trim() || tracking.trim() === (d.tracking_code || '') || d.status === 'cancelled'}>Salvar rastreio</Button>
-              <Button icon={<FiPrinter />} onClick={printLabel} loading={busy === 'label'}>Imprimir etiqueta</Button>
-            </div>
+              <Button type="submit" icon={<FiSave />} loading={busy === 'tracking'} disabled={!tracking.trim() || tracking.trim() === (d.tracking_code || '') || d.status === 'cancelled' || (!!busy && busy !== 'tracking')}>Salvar rastreio</Button>
+              <Button icon={<FiPrinter />} onClick={printLabel} loading={busy === 'label'} disabled={d.status === 'cancelled' || (!!busy && busy !== 'label')}>Imprimir etiqueta</Button>
+            </form>
             {waLink && (
               <div className={o.contactLinks}>
                 <Button icon={<FaWhatsapp />} onClick={() => window.open(waLink, '_blank', 'noopener')}>Mandar o rastreio no WhatsApp</Button>
@@ -515,17 +572,17 @@ function OrderDetail() {
           </div>
 
           <div className={o.block}>
-            <h3 className={o.blockTitle}>Notas internas <span className={s.muted} style={{ fontWeight: 500 }}>(o cliente não vê)</span></h3>
+            <h3 className={o.blockTitle}>Notas internas <span className={o.blockNote}>(o cliente não vê)</span></h3>
             {(d.notes || []).map((n, i) => (
               <div key={n.id || i} className={o.note}>
                 <div className={o.noteText}>{n.note}</div>
                 <div className={o.noteMeta}>{n.admin_username ? `${n.admin_username}, ` : ''}{dateTime(n.created_at)}</div>
               </div>
             ))}
-            <div className={o.noteAdd}>
-              <TextField label="Nova nota" value={note} onChange={e => setNote(e.target.value)} placeholder="Ex.: cliente pediu para entregar depois das 18h" maxLength={1000} />
-              <Button icon={<FiPlus />} onClick={addNote} loading={busy === 'note'} disabled={!note.trim()}>Anotar</Button>
-            </div>
+            <form className={o.noteAdd} onSubmit={addNote}>
+              <TextField label="Nova nota" value={note} onChange={e => setNote(e.target.value)} placeholder="Ex.: cliente pediu para entregar depois das 18h" maxLength={2000} />
+              <Button type="submit" icon={<FiPlus />} loading={busy === 'note'} disabled={!note.trim() || (!!busy && busy !== 'note')}>Anotar</Button>
+            </form>
           </div>
         </>
       )}

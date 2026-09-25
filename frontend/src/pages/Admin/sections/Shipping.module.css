@@ -1,0 +1,88 @@
+/* Frete: regras, zonas e avisos no WhatsApp. */
+
+.pad { padding: 18px; }
+.spacer { flex: 1; }
+.bar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.bar .zoneSelect { width: auto; min-width: 200px; }
+
+@media (max-width: 767.98px) {
+  .bar .zoneSelect { width: 100%; min-width: 0; }
+  .bar > * { flex: 1 1 100%; }
+  .bar > .spacer { display: none; }
+}
+
+.note { margin: 0; display: flex; gap: 8px; align-items: flex-start; font-size: 13.5px; color: var(--a-muted); }
+.note svg { margin-top: 3px; flex-shrink: 0; }
+
+/* ---------- regras: a linha inteira abre a regra ---------- */
+
+.rules { margin: 0; padding: 0 16px; list-style: none; }
+.rules > li { border-bottom: 1px solid var(--a-line); }
+.rules > li:last-child { border-bottom: 0; }
+
+.rule {
+  width: 100%;
+  min-height: 56px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.rule:hover .ruleName { color: var(--a-accent); }
+.ruleMain { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ruleName { font-weight: 600; overflow-wrap: anywhere; }
+.ruleSub { font-size: 13px; color: var(--a-muted); }
+.rulePrice { font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+
+/* No celular o preço desce para baixo do nome em vez de espremer a linha. */
+@media (max-width: 767.98px) {
+  .rule {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: 'main badge' 'price price';
+    row-gap: 6px;
+  }
+  .ruleMain { grid-area: main; }
+  .rulePrice { grid-area: price; text-align: left; font-weight: 600; }
+  .ruleBadge { grid-area: badge; }
+}
+
+/* ---------- zonas ---------- */
+
+.regions { margin-bottom: 10px; }
+.ufs { display: grid; grid-template-columns: repeat(auto-fill, minmax(56px, 1fr)); gap: 6px; }
+
+.uf {
+  min-height: 44px;
+  border-radius: var(--a-radius-s);
+  border: 1px solid var(--a-line-strong);
+  background: transparent;
+  color: var(--a-text);
+  font-size: 14.5px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.uf[aria-pressed='true'] { border-color: var(--a-series-1); background: var(--a-info-wash); font-weight: 700; }
+.chosen { font-weight: 500; color: var(--a-muted); }
+.paused { margin-top: 10px; }
+
+.warn {
+  margin: 0;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--a-warning-wash);
+  font-size: 14px;
+}
+
+.warn svg { color: var(--a-warning); flex-shrink: 0; margin-top: 3px; }

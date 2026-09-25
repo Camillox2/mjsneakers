@@ -5,10 +5,11 @@
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(360px, 460px);
   background: radial-gradient(120% 90% at 20% 30%, #1a2150 0%, #0c1020 55%, #070a15 100%);
-  color: #eef1fa;
+  color: var(--a-text);
   overflow: hidden;
 }
 
+/* o login é sempre no tema Noite: os tokens --a-* do painel valem aqui */
 .sky { position: relative; min-height: 320px; }
 
 .star {
@@ -76,7 +77,7 @@
   letter-spacing: -0.02em;
 }
 
-.sub { margin: -6px 0 6px; color: #b3bbd6; }
+.sub { margin: -6px 0 6px; color: var(--a-text-2); }
 
 .alert {
   display: flex;
@@ -85,11 +86,11 @@
   margin: 0;
   padding: 10px 12px;
   border-radius: 10px;
-  background: rgba(208, 59, 59, 0.18);
+  background: var(--a-critical-wash);
   font-size: 14px;
 }
 
-.alert svg { color: #d03b3b; margin-top: 2px; flex-shrink: 0; }
+.alert svg { color: var(--a-critical); margin-top: 2px; flex-shrink: 0; }
 
 .fields { display: grid; gap: 14px; margin-bottom: 6px; }
 
@@ -97,17 +98,19 @@
 
 .pass input { padding-right: 48px; }
 
+/* preso ao topo do campo (rótulo de 20px + 6px de espaço), não ao fim:
+   a dica do Caps Lock aparece embaixo e não pode empurrar o olho */
 .eye {
   position: absolute;
   right: 2px;
-  bottom: 1px;
+  top: 27px;
   width: 44px;
   height: 40px;
   display: grid;
   place-items: center;
   border: 0;
   background: none;
-  color: #8a94b3;
+  color: var(--a-muted);
   cursor: pointer;
   font-size: 18px;
 }
@@ -119,15 +122,16 @@
   padding: 0 4px;
   font: inherit;
   cursor: pointer;
-  color: #b3bbd6;
+  color: var(--a-text-2);
   font-size: 14px;
   text-decoration: none;
-  min-height: 40px;
+  min-height: 44px;
   display: inline-flex;
   align-items: center;
 }
 
-.back:hover { color: #fff; }
+.back:hover { color: var(--a-text); }
+.backStart { align-self: flex-start; justify-self: start; }
 
 @media (max-width: 900px) {
   .wrap { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }

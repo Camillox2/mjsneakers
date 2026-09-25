@@ -7,8 +7,28 @@
 }
 
 .dates { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.dates input { width: 158px; min-height: 42px; }
 .dateLabel { font-size: 13px; color: var(--a-muted); }
+
+.dateInput {
+  width: 158px;
+  min-height: 42px;
+  padding: 8px 10px;
+  border-radius: var(--a-radius-s);
+  border: 1px solid var(--a-line-strong);
+  background: var(--a-sunken);
+  color: var(--a-text);
+  font: inherit;
+  font-size: 16px; /* o iPhone não dá zoom ao focar */
+  color-scheme: inherit;
+}
+
+.dateInput:focus { outline: none; border-color: var(--a-accent); box-shadow: 0 0 0 3px var(--a-accent-wash); }
+
+/* no celular as duas datas dividem a linha em vez de estourar */
+@media (max-width: 479.98px) {
+  .dates { width: 100%; }
+  .dateInput { flex: 1 1 0; min-width: 0; width: auto; }
+}
 
 .statusScroll { margin-bottom: 14px; max-width: 100%; }
 
@@ -16,17 +36,41 @@
 .whoName { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
 .whoMail { font-size: 13px; color: var(--a-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
 .orderNo { font-weight: 700; font-variant-numeric: tabular-nums; }
+.payCell { display: grid; gap: 2px; justify-items: start; }
+/* no cartão do celular o valor fica à direita, junto com os outros */
+@media (max-width: 767.98px) { .payCell { justify-items: end; } }
 .orderDate { font-size: 13px; color: var(--a-muted); white-space: nowrap; }
 
 /* ---------- linha do tempo do pedido ---------- */
 
 .timeline { position: relative; margin: 4px 0 22px; }
 .timelineSvg { display: block; width: 100%; height: 26px; overflow: visible; }
+.timelineDots {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 26px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  pointer-events: none;
+}
+.timelineDot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--a-surface);
+  box-shadow: inset 0 0 0 2px var(--a-line-strong), 0 0 0 3px var(--a-surface);
+}
+.timelineDotDone { background: var(--a-series-1); box-shadow: 0 0 0 3px var(--a-surface); }
 .steps { display: grid; grid-template-columns: repeat(5, 1fr); margin-top: 6px; }
 .step { font-size: 12.5px; color: var(--a-muted); text-align: center; }
 .step:first-child { text-align: left; }
 .step:last-child { text-align: right; }
 .stepDone { color: var(--a-text); font-weight: 600; }
+
+@media (max-width: 479.98px) {
+  .step { font-size: 11px; line-height: 1.25; }
+}
 .cancelNote {
   display: flex;
   align-items: center;
@@ -41,7 +85,62 @@
 .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
 
 .block { padding: 16px 0; border-top: 1px solid var(--a-line); }
-.blockTitle { margin: 0 0 10px; font-size: 14.5px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+.blockFirst { border-top: 0; padding-top: 0; }
+.blockTitle { margin: 0 0 10px; font-size: 14.5px; font-weight: 700; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.blockNote { font-weight: 500; color: var(--a-muted); }
+.giftNote { margin: 10px 0 0; color: var(--a-muted); overflow-wrap: anywhere; }
+.wrapAny { overflow-wrap: anywhere; }
+
+/* ---------- pagamento ---------- */
+
+.payAlert {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: var(--a-radius-s);
+  background: var(--a-warning-wash);
+  font-size: 14px;
+}
+.payAlert svg { color: var(--a-warning); font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+
+.payHint { display: flex; gap: 8px; align-items: flex-start; margin: 10px 0 0; font-size: 13.5px; color: var(--a-text-2); }
+.payHint svg { color: var(--a-muted); font-size: 16px; flex-shrink: 0; margin-top: 2px; }
+
+.attempts { list-style: none; margin: 10px 0 0; padding: 0; display: grid; }
+.attempt {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--a-line);
+}
+.attempt:last-child { border-bottom: 0; }
+.attemptMain { flex: 1 1 220px; min-width: 0; }
+.attemptSub { font-size: 13px; color: var(--a-muted); overflow-wrap: anywhere; }
+
+/* ---------- nota fiscal ---------- */
+
+.invoices { list-style: none; margin: 0; padding: 0; display: grid; }
+.invoice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 10px 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--a-line);
+}
+.invoice:last-child { border-bottom: 0; }
+.invoiceMain { flex: 1 1 260px; min-width: 0; display: grid; gap: 4px; }
+.invoiceTitle { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-weight: 600; }
+.invoiceSub { margin: 0; font-size: 13px; color: var(--a-muted); }
+.invoiceKey { display: flex; align-items: center; gap: 4px; }
+.invoiceKeyText { font-size: 12.5px; color: var(--a-text-2); font-variant-numeric: tabular-nums; letter-spacing: 0.02em; overflow-wrap: anywhere; min-width: 0; }
+.invoiceError { margin: 2px 0 0; font-size: 13.5px; color: var(--a-text); overflow-wrap: anywhere; }
+.invoiceActions { display: flex; flex-wrap: wrap; gap: 6px; }
+.formGap { display: grid; gap: 12px; }
 
 .item { display: flex; gap: 12px; align-items: center; padding: 8px 0; }
 .itemMain { flex: 1; min-width: 0; }
@@ -60,12 +159,17 @@
 .address { font-style: normal; line-height: 1.6; }
 .contactLinks { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 
-.tracking { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end; }
+.tracking { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-start; }
 .tracking > :first-child { flex: 1 1 220px; }
+/* os botões alinham com o campo, não com a dica embaixo dele */
+.tracking > button { margin-top: 26px; }
+@media (max-width: 479.98px) {
+  .tracking > button { margin-top: 0; flex: 1 1 auto; }
+}
 
 .note { padding: 10px 12px; border-radius: 10px; background: var(--a-sunken); border: 1px solid var(--a-line); }
 .note + .note { margin-top: 8px; }
 .noteText { white-space: pre-wrap; overflow-wrap: anywhere; }
 .noteMeta { font-size: 12.5px; color: var(--a-muted); margin-top: 4px; }
-.noteAdd { display: flex; gap: 8px; margin-top: 10px; align-items: flex-end; }
-.noteAdd > :first-child { flex: 1; }
+.noteAdd { display: flex; gap: 8px; margin-top: 10px; align-items: flex-end; flex-wrap: wrap; }
+.noteAdd > :first-child { flex: 1 1 220px; }

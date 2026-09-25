@@ -1,6 +1,32 @@
+/* ---------- lista ---------- */
+
+.filters { display: grid; gap: 12px; margin-bottom: 14px; }
+.filterRow { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.filterRow .filterSelect { width: auto; min-width: 150px; }
+
+/* No celular: busca na linha inteira e os filtros dois a dois, sem sobrar buraco. */
+@media (max-width: 767.98px) {
+  .filterRow { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .filterRow > :first-child,
+  .filterRow > button { grid-column: 1 / -1; max-width: none; }
+  .filterRow .filterSelect { width: 100%; min-width: 0; }
+}
+
+.bulkCount { margin-right: 4px; }
+.spacer { flex: 1; }
+.legend { padding: 0 18px 8px; }
+.pad { padding: 18px; }
+.count { margin: 8px 0 0; text-align: center; font-size: 13px; color: var(--a-muted); }
+
 .prod { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.prodText { min-width: 0; }
 .prodName { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 280px; }
 .prodMeta { font-size: 13px; color: var(--a-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 280px; }
+
+/* cartão do celular: produto em cima, a grade inteira embaixo */
+.cardTop { display: grid; gap: 12px; min-width: 0; }
+.cardTop .prodName,
+.cardTop .prodMeta { max-width: none; }
 
 .price { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
 .priceNow { font-weight: 700; font-variant-numeric: tabular-nums; }
@@ -18,6 +44,10 @@
 }
 .priceBtn:hover { background: var(--a-hover); }
 
+@media (pointer: coarse) {
+  .priceBtn { min-height: 44px; }
+}
+
 .runCell { min-width: 180px; max-width: 320px; }
 
 .rowActions { display: flex; gap: 2px; justify-content: flex-end; }
@@ -30,6 +60,11 @@
 .partHead { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .partTitle { margin: 0; font-size: 15.5px; font-weight: 700; }
 .partHint { margin: 0; font-size: 13.5px; color: var(--a-muted); }
+.narrow { max-width: 220px; }
+
+/* aviso de erro de um grupo de campos (mesmo desenho do erro de campo) */
+.fieldError { margin: 0; display: flex; gap: 6px; align-items: center; font-size: 12.5px; }
+.fieldError svg { color: var(--a-critical); flex-shrink: 0; }
 
 .photos { display: flex; gap: 10px; flex-wrap: wrap; list-style: none; margin: 0; padding: 0; }
 

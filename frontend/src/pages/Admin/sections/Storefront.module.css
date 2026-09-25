@@ -1,0 +1,142 @@
+/* Faixa de avisos e campanha da página inicial. */
+
+.note { margin: 0; font-size: 13.5px; color: var(--a-muted); }
+.saveBar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.unsaved { font-size: 13px; color: var(--a-muted); }
+.alignEnd { align-self: end; }
+
+/* ---------- prévia da faixa ---------- */
+
+.ticker {
+  /* cores da faixa da loja (preta, texto claro), iguais em qualquer tema do painel */
+  --store-ink: #05060c;
+  --store-line: #1c2036;
+  --store-text: #d8dce6;
+  overflow: hidden;
+  border-radius: 10px;
+  border: 1px solid var(--a-line);
+  background: var(--store-ink);
+  transition: opacity 0.2s var(--a-ease);
+}
+
+.off { opacity: 0.4; }
+.tickerLine { display: flex; white-space: nowrap; padding: 8px 0; }
+.tickerLine + .tickerLine { border-top: 1px solid var(--store-line); }
+
+.tickerTrack {
+  display: flex;
+  gap: 28px;
+  padding-right: 28px;
+  color: var(--store-text);
+  font-size: 13.5px;
+  letter-spacing: 0.02em;
+  animation: tickerRun 20s linear infinite;
+}
+
+.reverse .tickerTrack { animation-direction: reverse; }
+.still { animation: none; }
+
+@keyframes tickerRun {
+  from { transform: translateX(0); }
+  to { transform: translateX(-33.333%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tickerTrack { animation: none; }
+}
+
+/* ---------- avisos da faixa ---------- */
+
+.rows { margin: 0; padding: 0; }
+
+.row {
+  list-style: none;
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto auto;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--a-line);
+  background: var(--a-surface);
+}
+
+.row:last-child { border-bottom: 0; }
+
+.input {
+  width: 100%;
+  min-height: 42px;
+  padding: 8px 12px;
+  border-radius: var(--a-radius-s);
+  border: 1px solid var(--a-line-strong);
+  background: var(--a-sunken);
+  color: var(--a-text);
+  font-size: 16px;
+  font-family: inherit;
+}
+
+.input:focus { outline: none; border-color: var(--a-accent); box-shadow: 0 0 0 3px var(--a-accent-wash); }
+
+/* No celular o texto ganha a linha inteira; ligar e apagar vão embaixo. */
+@media (max-width: 767.98px) {
+  .row {
+    grid-template-columns: 36px minmax(0, 1fr) auto;
+    grid-template-areas: 'handle text text' '. show remove';
+    row-gap: 2px;
+  }
+  .row > :nth-child(1) { grid-area: handle; }
+  .row > :nth-child(2) { grid-area: text; }
+  .row > :nth-child(3) { grid-area: show; }
+  .row > :nth-child(4) { grid-area: remove; }
+}
+
+/* ---------- prévia da campanha: texto branco sobre a foto, como na loja ---------- */
+
+.campaign {
+  position: relative;
+  min-height: 150px;
+  display: grid;
+  align-content: end;
+  gap: 6px;
+  padding: 22px;
+  border-radius: var(--a-radius-m);
+  overflow: hidden;
+  border: 1px solid var(--a-line);
+  color: #fff;
+  background-size: cover;
+  background-position: center;
+  transition: opacity 0.2s var(--a-ease);
+}
+
+.campaignTitle { font-size: clamp(20px, 3vw, 30px); font-stretch: 115%; line-height: 1.1; overflow-wrap: anywhere; }
+.campaignSub { opacity: 0.85; overflow-wrap: anywhere; }
+
+.campaignBtn {
+  justify-self: start;
+  margin-top: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: #f2f3f5;
+  color: #0c1020;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.color { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font-size: 14px; }
+.colorInput { width: 44px; height: 36px; padding: 0; border: 0; background: none; cursor: pointer; }
+
+.chip { gap: 6px; padding-right: 2px; }
+.chips { margin-bottom: 10px; }
+.results { margin-top: 6px; }
+
+.result {
+  width: 100%;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: var(--a-radius-s);
+}
+
+.result:hover { background: var(--a-hover); }

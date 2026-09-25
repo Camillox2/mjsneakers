@@ -1,3 +1,4 @@
+/* A caixa ocupa o resto da tela: a lista e as mensagens rolam por dentro, a página não. */
 .wrap {
   display: grid;
   grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
@@ -13,6 +14,7 @@
 .list { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--a-line); }
 .listHead { padding: 12px; display: grid; gap: 10px; border-bottom: 1px solid var(--a-line); }
 .listBody { flex: 1; overflow-y: auto; overscroll-behavior: contain; }
+.listTop { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
 
 .conn { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--a-muted); }
 .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--a-good); box-shadow: 0 0 0 3px var(--a-good-wash); }
@@ -55,7 +57,8 @@
 .itemTop { display: flex; gap: 8px; align-items: baseline; }
 .itemName { flex: 1; min-width: 0; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .itemWhen { font-size: 12px; color: var(--a-muted); flex-shrink: 0; }
-.itemLast { font-size: 13.5px; color: var(--a-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+.itemLast { display: block; font-size: 13.5px; color: var(--a-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+.pad { padding: 10px 12px 0; }
 .itemUnread .itemLast { color: var(--a-text); font-weight: 600; }
 
 .badge {
@@ -142,6 +145,10 @@
 
 .quickBtn:hover { color: var(--a-text); border-color: var(--a-text-2); }
 
+@media (pointer: coarse) {
+  .quickBtn { min-height: 40px; }
+}
+
 .row { display: flex; gap: 8px; align-items: flex-end; }
 
 .textarea {
@@ -165,12 +172,20 @@
 
 .emptyPane { flex: 1; display: grid; place-items: center; padding: 24px; }
 
-@media (max-width: 767.98px) {
+/* celular e tablet têm a barra de baixo: ela sai da conta da altura.
+   50px = respiro de cima e de baixo do conteúdo; 84px = título e descrição */
+@media (max-width: 1023.98px) {
   .wrap {
-    grid-template-columns: 1fr;
-    height: calc(100dvh - 56px - env(safe-area-inset-top) - var(--a-bottomnav) - env(safe-area-inset-bottom) - 36px - 96px);
-    min-height: 380px;
+    height: calc(100dvh - 56px - env(safe-area-inset-top) - var(--a-bottomnav) - env(safe-area-inset-bottom) - 50px - 84px);
+    min-height: 360px;
   }
+}
+
+@media (max-width: 767.98px) {
+  .wrap { grid-template-columns: 1fr; }
+  /* conversa aberta no celular: o título sai e a conversa ganha a tela toda */
+  .pageThread .head { display: none; }
+  .pageThread .wrap { height: calc(100dvh - 56px - env(safe-area-inset-top) - var(--a-bottomnav) - env(safe-area-inset-bottom) - 50px); }
   .hasThread .list { display: none; }
   .noThread .thread { display: none; }
   .threadHead .back { display: inline-flex; }

@@ -1,0 +1,94 @@
+/* Configurações, dados da empresa, textos legais e nota fiscal. */
+
+.note { margin: 0; font-size: 14px; color: var(--a-muted); }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.split { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+
+.warn {
+  margin: 0;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--a-warning-wash);
+  font-size: 14px;
+}
+
+.warn svg { color: var(--a-warning); flex-shrink: 0; margin-top: 3px; }
+
+/* Atalhos para as partes da página (ela é longa, principalmente no celular). */
+.jump { display: flex; gap: 6px; flex-wrap: wrap; margin: -4px 0 18px; }
+
+.jumpLink {
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--a-line);
+  background: var(--a-hover);
+  color: var(--a-text-2);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.jumpLink:hover { color: var(--a-text); border-color: var(--a-line-strong); }
+
+@media (pointer: coarse) {
+  .jumpLink { min-height: 40px; }
+}
+
+/* a barra do topo não cobre o título da parte ao pular até ela */
+.anchor { scroll-margin-top: 88px; }
+
+/* Grupo de campos que trava inteiro (duas etapas desligadas). */
+.lockable { margin: 0; padding: 0; border: 0; min-width: 0; display: grid; gap: 16px; }
+.lockable:disabled { opacity: 0.65; }
+
+/* ---------- pagamentos ---------- */
+
+.check { display: flex; gap: 10px; align-items: center; padding: 6px 0; }
+.ok { color: var(--a-good); flex-shrink: 0; }
+.bad { color: var(--a-critical); flex-shrink: 0; }
+.label { margin: 0 0 6px; font-size: 13.5px; font-weight: 600; color: var(--a-text-2); }
+
+.code {
+  padding: 8px 10px;
+  border-radius: var(--a-radius-s);
+  background: var(--a-sunken);
+  border: 1px solid var(--a-line);
+  font-size: 13.5px;
+  overflow-wrap: anywhere;
+}
+
+/* ---------- textos legais ---------- */
+
+.editor textarea { min-height: 360px; font-size: 15px; }
+
+.preview {
+  max-height: 480px;
+  overflow-y: auto;
+  padding: 14px 16px;
+  border-radius: var(--a-radius-m);
+  border: 1px solid var(--a-line);
+  background: var(--a-sunken);
+}
+
+/* No celular a página já rola: nada de rolagem dentro de rolagem. */
+@media (max-width: 767.98px) {
+  .preview { max-height: none; overflow: visible; }
+  .editor textarea { min-height: 280px; }
+}
+
+.updated { font-size: 13px; color: var(--a-muted); }
+
+/* texto só para leitor de tela */
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

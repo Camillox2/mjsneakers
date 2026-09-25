@@ -8,7 +8,7 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<'
 export async function labelHTML(data) {
   const a = data.address || {}
   const store = data.store || {}
-  const tracking = data.tracking_code || 'SEM RASTREIO'
+  const tracking = data.tracking_code || 'Sem rastreio'
   const when = new Date(data.generated_at || Date.now()).toLocaleString('pt-BR')
   const trackUrl = data.tracking_url || `${window.location.origin}/rastrear?pedido=${encodeURIComponent(data.order_id)}`
   const qr = await QRCode.toDataURL(trackUrl, { margin: 0, width: 180, errorCorrectionLevel: 'M' })
@@ -25,7 +25,7 @@ export async function labelHTML(data) {
   .head strong { font-size: 17px; }
   .head small { display: block; font-size: 10px; color: #333; margin-top: 2px; }
   .dest { font-size: 13px; line-height: 1.45; margin-bottom: 10px; }
-  .dest b { font-size: 11px; letter-spacing: 1px; }
+  .dest b { font-size: 12px; }
   .track { border: 2px solid #000; border-radius: 4px; padding: 6px; text-align: center; font-size: 19px; font-weight: bold; letter-spacing: 3px; margin-bottom: 10px; }
   table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-bottom: 10px; }
   th, td { border: 1px solid #bbb; padding: 3px 5px; text-align: left; }
@@ -35,7 +35,7 @@ export async function labelHTML(data) {
 <div class="label">
   <div class="head"><strong>${esc(store.name || 'Pizantt Drop')}</strong>
     <small>${esc([store.address, store.phone].filter(Boolean).join(' | '))}</small></div>
-  <div class="dest"><b>DESTINATÁRIO</b><br>
+  <div class="dest"><b>Destinatário</b><br>
     ${esc(data.customer_name)}<br>
     ${esc(a.street)}, ${esc(a.number)} ${esc(a.complement || '')}<br>
     ${esc(a.neighborhood)} - ${esc(a.city)}/${esc(a.state)}<br>

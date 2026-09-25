@@ -1,0 +1,10 @@
+/* Marcas e categorias. */
+
+/* Logo de marca costuma ser desenhado para fundo claro: no tema escuro um
+   logo preto some. O branco aqui é de propósito, não é cor do painel. */
+.logo { object-fit: contain; background: #fff; }
+
+.initial { display: grid; place-items: center; font-weight: 700; color: var(--a-text-2); }
+
+.logoRow { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.hint { margin: 0; font-size: 13px; color: var(--a-muted); }

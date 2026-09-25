@@ -123,11 +123,22 @@ export function Switch({ checked, onChange, label, description, disabled, hideLa
 }
 
 // Grupo de opções exclusivas. A pílula desliza entre elas (layoutId único).
+// Teclado como um grupo de rádio: Tab entra na opção marcada, setas trocam.
 export function Segmented({ options, value, onChange, label }) {
   const group = useId()
+  const current = Math.max(0, options.findIndex(o => o.value === value))
+  const onKeyDown = (e) => {
+    const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key]
+    const jump = e.key === 'Home' ? 0 : e.key === 'End' ? options.length - 1 : null
+    if (step === undefined && jump === null) return
+    e.preventDefault()
+    const next = jump ?? (current + step + options.length) % options.length
+    onChange(options[next].value)
+    e.currentTarget.querySelectorAll('[role="radio"]')[next]?.focus()
+  }
   return (
-    <div className={s.segmented} role="radiogroup" aria-label={label}>
-      {options.map(o => {
+    <div className={s.segmented} role="radiogroup" aria-label={label} onKeyDown={onKeyDown}>
+      {options.map((o, i) => {
         const active = o.value === value
         return (
           <button
@@ -135,6 +146,7 @@ export function Segmented({ options, value, onChange, label }) {
             type="button"
             role="radio"
             aria-checked={active}
+            tabIndex={i === current ? 0 : -1}
             className={cx(s.segment, active && s.segmentActive)}
             onClick={() => onChange(o.value)}
           >

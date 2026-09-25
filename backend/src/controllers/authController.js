@@ -238,7 +238,8 @@ const authController = {
       const user = await loadFullUser(req.user.id);
       if (!user.totp_enabled) return res.status(409).json({ error: 'A verificação em duas etapas já está desligada' });
       const password = typeof req.body?.password === 'string' ? req.body.password : '';
-      if (!password || !(await bcrypt.compare(password, user.password))) return res.status(401).json({ error: 'Senha incorreta' });
+      // 400 e não 401: o painel entende 401 como sessão encerrada e desconectaria quem só errou a senha.
+      if (!password || !(await bcrypt.compare(password, user.password))) return res.status(400).json({ error: 'Senha incorreta' });
       if (!(await consumeTotp(user, req.body?.code))) return res.status(400).json({ error: 'Código inválido' });
       await pool.query(
         'UPDATE users SET totp_enabled = FALSE, totp_secret = NULL, totp_last_step = NULL, totp_recovery = NULL WHERE id = ?',
@@ -391,7 +392,8 @@ const authController = {
       if (users.length === 0) return res.status(404).json({ error: 'Usuário não encontrado' });
 
       const valid = await bcrypt.compare(current_password, users[0].password);
-      if (!valid) return res.status(401).json({ error: 'Senha atual incorreta' });
+      // 400 e não 401: o painel entende 401 como sessão encerrada e desconectaria quem só errou a senha.
+      if (!valid) return res.status(400).json({ error: 'Senha atual incorreta' });
       if (await bcrypt.compare(new_password, users[0].password)) {
         return res.status(400).json({ error: 'A nova senha deve ser diferente da atual' });
       }

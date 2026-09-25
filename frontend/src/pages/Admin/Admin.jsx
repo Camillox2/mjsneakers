@@ -4,7 +4,7 @@ import { motion, MotionConfig } from 'framer-motion'
 import { FiGrid, FiLogOut, FiMoon, FiSun, FiExternalLink, FiBell, FiBellOff } from 'react-icons/fi'
 import { AuthContext, DarkModeContext } from '../../App'
 import { BRAND } from '../../config/brand'
-import api, { asList, setSessionEndHandler, ensureCsrf, TWO_FACTOR_EVENT } from './lib/api'
+import api, { asPage, setSessionEndHandler, ensureCsrf, TWO_FACTOR_EVENT } from './lib/api'
 import { AdminContext } from './lib/context'
 import { ChatProvider, useChat } from './lib/chat'
 import { notify, notifyPermission, askNotifyPermission, soundOn, setSound, NAVIGATE_EVENT } from './lib/notify'
@@ -107,6 +107,7 @@ function Shell({ user, dark, setDark, onLogout, onMe }) {
   const [base, setBase] = useState({ pendingOrders: 0, pendingReviews: 0 })
   const [moreOpen, setMoreOpen] = useState(false)
   const [alertsOpen, setAlertsOpen] = useState(false)
+  const [, setBellTick] = useState(0)
   const lastPending = useRef(null)
   const [payments, setPayments] = useState(null)
 
@@ -119,7 +120,8 @@ function Shell({ user, dark, setDark, onLogout, onMe }) {
   const refreshCounts = useCallback(async () => {
     const [orders, reviews] = await Promise.allSettled([
       api.get('/orders/status-counts'),
-      api.get('/reviews', { params: { status: 'pending' } }),
+      // só o total: a lista inteira a cada 30 s trazia nome e e-mail à toa
+      api.get('/reviews', { params: { status: 'pending', page: 1, limit: 1 } }),
     ])
     const pendingOrders = orders.status === 'fulfilled' ? Number(orders.value.data?.pending || 0) : null
     // pedido novo desde a última olhada: avisa (fora da aba, com som)
@@ -130,7 +132,7 @@ function Shell({ user, dark, setDark, onLogout, onMe }) {
     if (pendingOrders != null) lastPending.current = pendingOrders
     setBase(b => ({
       pendingOrders: pendingOrders ?? b.pendingOrders,
-      pendingReviews: reviews.status === 'fulfilled' ? asList(reviews.value.data).length : b.pendingReviews,
+      pendingReviews: reviews.status === 'fulfilled' ? asPage(reviews.value.data).total : b.pendingReviews,
     }))
   }, [])
 
@@ -157,6 +159,8 @@ function Shell({ user, dark, setDark, onLogout, onMe }) {
   useEffect(() => { setMoreOpen(false) }, [location.pathname])
 
   const counts = useMemo(() => ({ ...base, unreadChats: chat?.totalUnread || 0 }), [base, chat?.totalUnread])
+  // No celular, o que está dentro do "Mais" (conversas, avaliações) também avisa.
+  const moreCount = ALL_ITEMS.filter(it => it.badge && !BOTTOM.includes(it.to)).reduce((n, it) => n + (Number(counts[it.badge]) || 0), 0)
   const title = titleFor(location.pathname)
   const waiting = counts.pendingOrders + counts.unreadChats
   useEffect(() => { document.title = `${waiting > 0 ? `(${waiting}) ` : ''}${title} | Painel ${BRAND.short}` }, [title, waiting])
@@ -259,9 +263,11 @@ function Shell({ user, dark, setDark, onLogout, onMe }) {
           const it = ALL_ITEMS.find(x => x.to === to)
           return <BottomTab key={to} item={it} count={it.badge ? counts[it.badge] : 0} />
         })}
-        <button type="button" className={cx(t.tab, moreOpen && t.tabActive)} onClick={() => setMoreOpen(true)} aria-haspopup="dialog">
+        <button type="button" className={cx(t.tab, moreOpen && t.tabActive)} onClick={() => setMoreOpen(true)} aria-haspopup="dialog"
+          aria-label={moreCount > 0 ? `Mais seções, ${moreCount} ${moreCount === 1 ? 'pendente' : 'pendentes'}` : 'Mais seções'}>
           <FiGrid aria-hidden="true" />
           Mais
+          {moreCount > 0 && <span className={t.tabDot} aria-hidden="true">{moreCount > 99 ? '99+' : moreCount}</span>}
         </button>
       </nav>
 
@@ -290,7 +296,8 @@ function Shell({ user, dark, setDark, onLogout, onMe }) {
           <Button icon={<FiLogOut />} onClick={logout}>Sair ({user?.username})</Button>
         </div>
       </Dialog>
-      <AlertsDialog open={alertsOpen} onClose={() => setAlertsOpen(false)} />
+      {/* fechar o diálogo redesenha o sino (a permissão pode ter mudado) */}
+      <AlertsDialog open={alertsOpen} onClose={() => { setAlertsOpen(false); setBellTick(n => n + 1) }} />
     </AdminContext.Provider>
   )
 }

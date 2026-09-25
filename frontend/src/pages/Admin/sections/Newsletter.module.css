@@ -1,0 +1,6 @@
+/* Newsletter. */
+
+.bar { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+.count { font-size: 13px; color: var(--a-muted); }
+.pad { padding: 18px; }
+.email { overflow-wrap: anywhere; }

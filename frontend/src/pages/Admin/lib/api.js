@@ -66,8 +66,12 @@ api.interceptors.response.use(
   },
   async (error) => {
     const status = error.response?.status
-    const data = error.response?.data
+    let data = error.response?.data
     const cfg = error.config || {}
+    // Download (responseType blob) que falhou: o JSON do erro vem dentro do Blob.
+    if (typeof Blob !== 'undefined' && data instanceof Blob && /json/i.test(data.type || '')) {
+      try { data = JSON.parse(await data.text()) } catch { data = null }
+    }
     // token CSRF faltando ou velho: busca de novo e tenta uma vez só
     if (status === 403 && data?.code === 'csrf' && !cfg.__csrfRetry) {
       await ensureCsrf()
@@ -87,7 +91,8 @@ api.interceptors.response.use(
     const err = new Error(message)
     err.status = status
     err.data = data
-    if (status === 401 && !/\/auth\/(login|me)/.test(String(cfg.url || ''))) {
+    // Senha errada ao trocar a senha ou desligar as duas etapas não é sessão vencida.
+    if (status === 401 && !/\/auth\/(login|me|change-password|2fa\/)/.test(String(cfg.url || ''))) {
       onSessionEnd?.()
     }
     return Promise.reject(err)
@@ -125,8 +130,9 @@ export async function uploadImage(fileOrDataUrl, category = 'products') {
   return data.url
 }
 
-export async function downloadFile(url, params, filename) {
-  const res = await api.get(url, { params, responseType: 'blob' })
+// options.timeout: arquivo grande (backup do banco) pode passar dos 30 s padrão.
+export async function downloadFile(url, params, filename, options = {}) {
+  const res = await api.get(url, { params, responseType: 'blob', ...(options.timeout ? { timeout: options.timeout } : {}) })
   const href = URL.createObjectURL(res.data)
   const a = document.createElement('a')
   a.href = href

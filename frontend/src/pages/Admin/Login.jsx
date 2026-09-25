@@ -24,6 +24,9 @@ export default function Login({ onLogin, notice }) {
   const [recovery, setRecovery] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [caps, setCaps] = useState(false)
+  // Caps Lock ligado é o motivo mais comum de "senha não confere"
+  const watchCaps = (e) => { if (typeof e.getModifierState === 'function') setCaps(e.getModifierState('CapsLock')) }
   const captcha = useTurnstile()
 
   const fail = (err) => {
@@ -131,7 +134,11 @@ export default function Login({ onLogin, notice }) {
                 type={show ? 'text' : 'password'}
                 value={password}
                 onChange={e => setPassword(e.target.value)}
+                onKeyUp={watchCaps}
+                onKeyDown={watchCaps}
+                onBlur={() => setCaps(false)}
                 autoComplete="current-password"
+                hint={caps ? 'O Caps Lock está ligado.' : undefined}
                 required
               />
               <button type="button" className={s.eye} onClick={() => setShow(v => !v)} aria-label={show ? 'Esconder senha' : 'Mostrar senha'}>
@@ -154,7 +161,7 @@ export default function Login({ onLogin, notice }) {
               autoFocus
               required
             />
-            <button type="button" className={s.back} style={{ justifySelf: 'start', alignSelf: 'flex-start' }} onClick={() => { setRecovery(r => !r); setCode(''); setError('') }}>
+            <button type="button" className={`${s.back} ${s.backStart}`} onClick={() => { setRecovery(r => !r); setCode(''); setError('') }}>
               {recovery ? 'Usar o código do app' : 'Perdi o celular: usar um código de recuperação'}
             </button>
           </div>
