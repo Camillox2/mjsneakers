@@ -5,7 +5,7 @@ import styles from './TrustStrip.module.css'
 // Ícones de traço feitos para esta faixa; cada um se desenha ao entrar na tela.
 const ITEMS = [
   {
-    big: 'R$ 299',
+    big: 'R$ 499',
     title: 'Frete grátis',
     sub: 'Acima desse valor, o envio é por nossa conta.',
     icon: (
@@ -26,8 +26,8 @@ const ITEMS = [
   },
   {
     big: '100%',
-    title: 'Original',
-    sub: 'Todo par sai com garantia total de autenticidade.',
+    title: 'Qualidade garantida',
+    sub: 'Todo par é conferido antes de sair para você.',
     icon: (
       <>
         <path d="M24 5l15 5v11c0 10-6.5 17-15 21-8.5-4-15-11-15-21V10z" />

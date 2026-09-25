@@ -1,0 +1,95 @@
+.chart { position: relative; width: 100%; user-select: none; -webkit-user-select: none; }
+.chart svg { display: block; overflow: visible; }
+.chart:focus-visible { outline: 2px solid var(--a-focus); outline-offset: 4px; border-radius: 8px; }
+
+.tick { font-size: 11.5px; fill: var(--a-muted); font-variant-numeric: tabular-nums; }
+.grid { stroke: var(--a-grid); stroke-width: 1; shape-rendering: crispEdges; }
+.axis { stroke: var(--a-axis); stroke-width: 1; shape-rendering: crispEdges; }
+.cross { stroke: var(--a-text-2); stroke-width: 1; shape-rendering: crispEdges; }
+
+.tip {
+  position: absolute;
+  top: 0;
+  z-index: 3;
+  min-width: 150px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--a-raised);
+  border: 1px solid var(--a-line-strong);
+  box-shadow: var(--a-shadow);
+  pointer-events: none;
+  font-size: 13px;
+}
+
+.tipTitle { color: var(--a-muted); margin-bottom: 6px; }
+.tipRow { display: flex; align-items: center; gap: 8px; }
+.tipRow + .tipRow { margin-top: 4px; }
+.tipKey { width: 14px; height: 2px; border-radius: 2px; flex-shrink: 0; }
+.tipValue { font-weight: 700; font-variant-numeric: tabular-nums; }
+.tipName { color: var(--a-text-2); }
+
+.legend { display: flex; flex-wrap: wrap; gap: 16px; font-size: 12.5px; color: var(--a-text-2); margin-bottom: 10px; }
+.legendItem { display: inline-flex; align-items: center; gap: 7px; }
+.legendLine { width: 16px; height: 2px; border-radius: 2px; }
+
+.numbers { margin-top: 10px; font-size: 13px; }
+.numbers summary {
+  cursor: pointer;
+  color: var(--a-muted);
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+}
+.numbers summary:hover { color: var(--a-text); }
+.numbers table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+.numbers th, .numbers td { padding: 6px 8px; border-bottom: 1px solid var(--a-line); text-align: left; font-variant-numeric: tabular-nums; }
+.numbers th { color: var(--a-muted); font-weight: 600; }
+.numbers td:last-child, .numbers th:last-child { text-align: right; }
+.numbersScroll { max-height: 280px; overflow-y: auto; }
+
+/* ================= Barras horizontais ================= */
+
+.bars { display: grid; gap: 12px; }
+
+.bar { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; }
+.barLabel { display: flex; align-items: center; gap: 10px; min-width: 0; font-size: 14px; }
+.barLabelText { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.barSub { color: var(--a-muted); font-size: 12.5px; white-space: nowrap; }
+.barValue { font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
+.barTrack { grid-column: 1 / -1; height: 10px; border-radius: 0 4px 4px 0; position: relative; }
+.barFill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: 0 4px 4px 0;
+  background: var(--a-series-1);
+  transform-origin: left;
+}
+.barThumb { width: 30px; height: 30px; border-radius: 6px; object-fit: cover; flex-shrink: 0; background: var(--a-sunken); }
+.barRank { width: 18px; color: var(--a-muted); font-size: 12.5px; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+
+/* ================= Mapa de calor ================= */
+
+.heat { display: grid; gap: 3px; }
+.heatRow { display: grid; grid-template-columns: 34px 1fr; gap: 6px; align-items: center; }
+.heatDay { font-size: 12px; color: var(--a-muted); }
+.heatCells { display: grid; gap: 3px; }
+.heatCell {
+  aspect-ratio: 1;
+  min-height: 10px;
+  border-radius: 3px;
+  border: 0;
+  padding: 0;
+  cursor: default;
+  transition: transform 0.15s;
+}
+.heatCell:hover, .heatCell:focus-visible { transform: scale(1.25); position: relative; z-index: 2; outline: 2px solid var(--a-text); outline-offset: 0; }
+.heatHours { display: grid; grid-template-columns: 34px 1fr; gap: 6px; margin-top: 4px; }
+.heatHourCells { display: flex; justify-content: space-between; font-size: 11px; color: var(--a-muted); font-variant-numeric: tabular-nums; }
+.scale { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--a-muted); margin-top: 12px; }
+.scaleStep { width: 16px; height: 10px; border-radius: 2px; }
+
+/* ================= Faixa de indicadores ================= */
+
+.spark { display: block; width: 100%; height: 34px; overflow: visible; }

@@ -66,9 +66,15 @@
   transition: border-color 0.2s var(--pz-ease), background 0.2s var(--pz-ease), opacity 0.2s var(--pz-ease);
 }
 
-.btn:hover:not(:disabled) {
-  border-color: rgba(233, 236, 241, 0.55);
-  background: rgba(255, 255, 255, 0.05);
+@media (hover: hover) {
+  .btn:hover:not(:disabled) {
+    border-color: rgba(233, 236, 241, 0.55);
+    background: rgba(255, 255, 255, 0.05);
+  }
+  .removeBtn:hover {
+    color: var(--pz-text);
+    background: rgba(255, 255, 255, 0.05);
+  }
 }
 
 .btn:disabled {
@@ -130,7 +136,3 @@
   transition: color 0.2s var(--pz-ease), background 0.2s var(--pz-ease);
 }
 
-.removeBtn:hover {
-  color: var(--pz-text);
-  background: rgba(255, 255, 255, 0.05);
-}

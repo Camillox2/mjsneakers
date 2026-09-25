@@ -65,11 +65,6 @@
   transition: color 0.2s var(--pz-ease), border-color 0.2s var(--pz-ease);
 }
 
-.closeBtn:hover {
-  color: var(--pz-text);
-  border-color: var(--pz-line-strong);
-}
-
 /* ---------- etapas ---------- */
 
 .stepper {
@@ -181,6 +176,54 @@
 .input::placeholder { color: var(--pz-text-3); }
 .input:focus { border-color: rgba(233, 236, 241, 0.6); }
 
+.labelRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+}
+
+.cepHint {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--pz-fs-xs);
+  font-weight: 500;
+  color: var(--pz-text-3);
+}
+
+.cepWarn { color: var(--pz-warn); }
+
+/* lista de UF com a seta da loja no lugar da do sistema */
+.selectWrap {
+  position: relative;
+  display: block;
+}
+
+.selectWrap::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: 16px;
+  width: 8px;
+  height: 8px;
+  margin-top: -6px;
+  border-right: 1.6px solid var(--pz-text-2);
+  border-bottom: 1.6px solid var(--pz-text-2);
+  transform: rotate(45deg);
+  pointer-events: none;
+}
+
+.select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 38px;
+  cursor: pointer;
+}
+
+.select option { background: var(--pz-surface-1); color: var(--pz-text); }
+
 .row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -240,8 +283,6 @@
   cursor: pointer;
   transition: border-color 0.2s var(--pz-ease), background 0.2s var(--pz-ease);
 }
-
-.shipOption:hover { border-color: rgba(233, 236, 241, 0.45); }
 
 .shipOption.shipSelected {
   background: var(--pz-surface-2);
@@ -399,6 +440,13 @@
   color: var(--pz-ok);
 }
 
+.totalNote {
+  margin-top: 2px;
+  font-size: var(--pz-fs-xs);
+  line-height: 1.5;
+  color: var(--pz-text-3);
+}
+
 /* ---------- rodapé ---------- */
 
 .footer {
@@ -432,8 +480,16 @@
   gap: 6px;
 }
 
+@media (hover: hover) {
+  .closeBtn:hover {
+    color: var(--pz-text);
+    border-color: var(--pz-line-strong);
+  }
+  .shipOption:hover { border-color: rgba(233, 236, 241, 0.45); }
+}
+
 /* ===== Responsivo ===== */
-@media (max-width: 768px) {
+@media (max-width: 767.98px) {
   .overlay {
     padding: 0;
     place-items: end stretch;
@@ -441,7 +497,7 @@
 
   .modal {
     max-width: 100%;
-    max-height: calc(100dvh - 24px);
+    max-height: calc(100dvh - max(24px, var(--pz-safe-top) + 8px));
     border-radius: var(--pz-radius-l) var(--pz-radius-l) 0 0;
     border-bottom: 0;
   }
@@ -456,9 +512,9 @@
   }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 479.98px) {
   /* no celular pequeno o checkout ocupa a tela inteira */
-  .modal { height: 100dvh; max-height: 100dvh; border-radius: 0; border: 0; }
+  .modal { height: 100vh; height: 100dvh; max-height: 100dvh; border-radius: 0; border: 0; }
   .modalSuccess {
     height: auto;
     border-radius: var(--pz-radius-l) var(--pz-radius-l) 0 0;
@@ -470,4 +526,32 @@
   .body { padding: 18px 16px; }
   .footer { padding-left: 16px; padding-right: 16px; }
   .stepItem + .stepItem::before { right: calc(50% + 20px); width: calc(100% - 40px); }
+}
+
+/* celular deitado: sobra pouca altura, então tela cheia e etapas numa linha fina */
+@media (max-height: 500px) and (orientation: landscape) {
+  .overlay { padding: 0; place-items: stretch; }
+  .modal {
+    width: 100%;
+    max-width: none;
+    height: 100vh;
+    height: 100dvh;
+    max-height: 100dvh;
+    border-radius: 0;
+    border: 0;
+  }
+  .header {
+    padding: calc(6px + var(--pz-safe-top)) max(12px, env(safe-area-inset-right, 0px)) 6px max(20px, env(safe-area-inset-left, 0px));
+  }
+  .title { font-size: var(--pz-fs-l); }
+  .stepper { padding: 6px max(12px, env(safe-area-inset-right, 0px)) 6px max(12px, env(safe-area-inset-left, 0px)); }
+  .stepItem { display: flex; justify-content: center; align-items: center; gap: 8px; }
+  .stepItem + .stepItem::before { display: none; }
+  .stepCircle { width: 24px; height: 24px; font-size: 12px; }
+  .body { padding: 14px max(20px, env(safe-area-inset-right, 0px)) 14px max(20px, env(safe-area-inset-left, 0px)); }
+  .footer {
+    padding: 8px max(20px, env(safe-area-inset-right, 0px)) calc(8px + var(--pz-safe-bottom)) max(20px, env(safe-area-inset-left, 0px));
+  }
+  .footer .backBtn,
+  .footer .nextBtn { --btn-h: 46px; height: 46px; }
 }

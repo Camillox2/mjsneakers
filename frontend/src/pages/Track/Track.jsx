@@ -1,8 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence, MotionConfig } from 'framer-motion'
 import axios from 'axios'
 import { FiCheck, FiCopy, FiSearch, FiXCircle } from 'react-icons/fi'
 import { getImageUrl } from '../../utils/imageHelper'
+import { MQ, matches } from '../../lib/breakpoints'
 import styles from './Track.module.css'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3305/api'
@@ -20,9 +22,24 @@ const STATUS_MAP = {
 
 const STATUS_ORDER = ['pending', 'confirmed', 'processing', 'shipped', 'delivered']
 
+// o número que vem no link (QR da etiqueta, WhatsApp): /rastrear?pedido=123
+const orderFromLink = (params) => String(params.get('pedido') || '').trim().replace(/^#/, '').replace(/[^\w-]/g, '').slice(0, 20)
+
 export default function Track() {
-  const [orderId, setOrderId] = useState('')
+  const [params] = useSearchParams()
+  const [orderId, setOrderId] = useState(() => orderFromLink(params))
   const [email, setEmail] = useState('')
+  const emailRef = useRef(null)
+
+  // Link com o número: o campo já vem preenchido e, no computador, o cursor
+  // vai para o e-mail, que continua sendo pedido (o número sozinho não
+  // mostra nada). No celular o teclado não abre sozinho por cima da página.
+  useEffect(() => {
+    const fromLink = orderFromLink(params)
+    if (!fromLink) return
+    setOrderId(fromLink)
+    if (!matches(MQ.touch)) emailRef.current?.focus({ preventScroll: true })
+  }, [params])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [order, setOrder] = useState(null)
@@ -88,13 +105,18 @@ export default function Track() {
                   value={orderId}
                   onChange={e => setOrderId(e.target.value)}
                   className={styles.input}
+                  enterKeyHint="next"
                 />
               </label>
               <label className={styles.field}>
                 <span>E-mail da compra</span>
                 <input
+                  ref={emailRef}
                   type="email"
                   autoComplete="email"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  enterKeyHint="search"
                   placeholder="voce@email.com"
                   value={email}
                   onChange={e => setEmail(e.target.value)}

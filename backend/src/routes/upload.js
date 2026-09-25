@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const uploadController = require('../controllers/uploadController');
-const { authMiddleware, adminMiddleware } = require('../middleware/auth');
+const { requireAdmin } = require('../middleware/auth');
 
-router.post('/single', authMiddleware, adminMiddleware, ...uploadController.single);
-router.post('/multiple', authMiddleware, adminMiddleware, ...uploadController.multiple);
+router.post('/single', ...requireAdmin, ...uploadController.single);
+router.post('/multiple', ...requireAdmin, ...uploadController.multiple);
 
 module.exports = router;

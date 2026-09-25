@@ -40,11 +40,6 @@
   transition: color 0.2s var(--pz-ease), text-decoration-color 0.2s var(--pz-ease);
 }
 
-.guideBtn:hover {
-  color: var(--pz-text);
-  text-decoration-color: currentColor;
-}
-
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
@@ -68,11 +63,6 @@
   transition: background 0.2s var(--pz-ease), border-color 0.2s var(--pz-ease), color 0.2s var(--pz-ease);
 }
 
-.chip:hover:not(.selected):not(.out) {
-  background: var(--pz-surface-2);
-  border-color: rgba(233, 236, 241, 0.45);
-}
-
 .chip.selected {
   color: #0a0a0b;
   background: var(--pz-chrome-flat);
@@ -90,7 +80,39 @@
   cursor: pointer;
 }
 
-.chip.out:hover { opacity: 0.8; }
+/* tentou comprar sem tamanho: a grade chacoalha e acende o contorno */
+.gridError { animation: nudge 0.5s var(--pz-ease); }
+.gridError .chip:not(.out) { border-color: color-mix(in srgb, var(--pz-warn) 55%, transparent); }
+
+@keyframes nudge {
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(3px); }
+}
+
+.error {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--pz-fs-s);
+  font-weight: 600;
+  color: var(--pz-warn);
+}
+
+.error svg { flex: none; }
+
+@media (hover: hover) {
+  .guideBtn:hover {
+    color: var(--pz-text);
+    text-decoration-color: currentColor;
+  }
+  .chip:hover:not(.selected):not(.out) {
+    background: var(--pz-surface-2);
+    border-color: rgba(233, 236, 241, 0.45);
+  }
+  .chip.out:hover { opacity: 0.8; }
+}
 
 .scarceDot {
   position: absolute;

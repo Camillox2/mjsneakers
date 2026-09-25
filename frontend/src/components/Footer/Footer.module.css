@@ -51,10 +51,6 @@
   transition: border-color 0.25s var(--pz-ease), background 0.25s var(--pz-ease);
 }
 
-.socialPill:hover {
-  border-color: rgba(233, 236, 241, 0.55);
-  background: rgba(255, 255, 255, 0.05);
-}
 
 .socialPill svg { width: 16px; height: 16px; color: var(--pz-text-2); }
 
@@ -91,10 +87,6 @@
   transition: color 0.2s var(--pz-ease), text-decoration-color 0.2s var(--pz-ease);
 }
 
-.footerLink:hover {
-  color: var(--pz-text);
-  text-decoration-color: var(--pz-line-strong);
-}
 
 .contactItem {
   display: inline-flex;
@@ -116,13 +108,12 @@
   color: var(--pz-text-3);
 }
 
-a.contactItem:hover { color: var(--pz-text); }
 
 /* ---------- barra de baixo ---------- */
 .bottomBar {
   max-width: 1480px;
   margin: 0 auto;
-  padding: 20px var(--pz-gutter) calc(24px + env(safe-area-inset-bottom));
+  padding: 20px var(--pz-gutter) 24px;
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
@@ -132,13 +123,25 @@ a.contactItem:hover { color: var(--pz-text); }
   border-top: 1px solid var(--pz-line);
 }
 
+@media (hover: hover) {
+  .socialPill:hover {
+    border-color: rgba(233, 236, 241, 0.55);
+    background: rgba(255, 255, 255, 0.05);
+  }
+  .footerLink:hover {
+    color: var(--pz-text);
+    text-decoration-color: var(--pz-line-strong);
+  }
+  a.contactItem:hover { color: var(--pz-text); }
+}
+
 /* ===== Responsivo ===== */
-@media (max-width: 900px) {
+@media (max-width: 1023.98px) {
   .footerInner { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .brandCol { grid-column: 1 / -1; }
 }
 
-@media (max-width: 540px) {
+@media (max-width: 479.98px) {
   .footerInner { grid-template-columns: 1fr; gap: 32px; }
   .bottomBar { flex-direction: column; }
 }
@@ -147,7 +150,8 @@ a.contactItem:hover { color: var(--pz-text); }
 .giant {
   max-width: 1480px;
   margin: clamp(28px, 4vw, 56px) auto 0;
-  padding: 0 var(--pz-gutter) clamp(20px, 3vw, 40px);
+  /* a área segura da base fica no fim da página, depois do logo */
+  padding: 0 var(--pz-gutter) calc(clamp(20px, 3vw, 40px) + var(--pz-safe-bottom));
   opacity: 0.92;
   -webkit-mask-image: linear-gradient(180deg, #000 55%, transparent 100%);
   mask-image: linear-gradient(180deg, #000 55%, transparent 100%);

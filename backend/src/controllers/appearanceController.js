@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { pool } = require('../config/db');
+const { auditReq } = require('./auditController');
 
 const VISUAL_SETTING_KEYS = [
   'home_sections_order',
@@ -147,11 +148,16 @@ function parseSection(row) {
 }
 
 const appearanceController = {
+  // Público: chaves visuais e as públicas de /settings (nunca as privadas).
   async getSettings(_req, res) {
     try {
+      const { isPublicKey } = require('./settingsController');
+      const visual = new Set(VISUAL_SETTING_KEYS);
       const [rows] = await pool.query('SELECT * FROM site_settings');
       const settings = Object.fromEntries(
-        rows.map((row) => [row.setting_key, parseSettingValue(row.setting_value)])
+        rows
+          .filter((row) => visual.has(row.setting_key) || isPublicKey(row.setting_key))
+          .map((row) => [row.setting_key, parseSettingValue(row.setting_value)])
       );
       res.json(settings);
     } catch (error) {
@@ -167,6 +173,7 @@ const appearanceController = {
       const entries = Object.entries(req.body);
       for (const [key, value] of entries) await upsertSetting(connection, key, value);
       await connection.commit();
+      auditReq(req, 'update', 'appearance', null, { keys: entries.map(([key]) => key) });
       res.json({ saved: entries.length });
     } catch (error) {
       await connection.rollback();
@@ -208,6 +215,7 @@ const appearanceController = {
       await upsertSetting(connection, 'home_sections_order', req.body.order);
       await upsertSetting(connection, 'home_sections_visibility', req.body.visibility);
       await connection.commit();
+      auditReq(req, 'update', 'sections_config', null, req.body);
       res.json({ success: true });
     } catch (error) {
       await connection.rollback();
@@ -237,6 +245,7 @@ const appearanceController = {
         [type, title, JSON.stringify(content), position_after, active, sort_order]
       );
       const [[created]] = await pool.query('SELECT * FROM custom_sections WHERE id = ?', [result.insertId]);
+      auditReq(req, 'create', 'custom_section', result.insertId, { type, title });
       res.status(201).json(parseSection(created));
     } catch (error) {
       console.error('Create custom section error:', error);
@@ -254,6 +263,7 @@ const appearanceController = {
       );
       if (result.affectedRows === 0) return res.status(404).json({ error: 'Seção personalizada não encontrada' });
       const [[updated]] = await pool.query('SELECT * FROM custom_sections WHERE id = ?', [req.params.id]);
+      auditReq(req, 'update', 'custom_section', req.params.id, { type, title });
       res.json(parseSection(updated));
     } catch (error) {
       console.error('Update custom section error:', error);
@@ -265,6 +275,7 @@ const appearanceController = {
     try {
       const [result] = await pool.query('DELETE FROM custom_sections WHERE id = ?', [req.params.id]);
       if (result.affectedRows === 0) return res.status(404).json({ error: 'Seção personalizada não encontrada' });
+      auditReq(req, 'delete', 'custom_section', req.params.id);
       res.json({ success: true });
     } catch (error) {
       console.error('Delete custom section error:', error);
@@ -302,6 +313,7 @@ const appearanceController = {
         [req.body.name, JSON.stringify(req.body.config)]
       );
       const [[created]] = await pool.query('SELECT * FROM theme_presets WHERE id = ?', [result.insertId]);
+      auditReq(req, 'create', 'theme_preset', result.insertId, { name: req.body.name });
       res.status(201).json({ ...created, system: false, config: parseSettingValue(created.config) });
     } catch (error) {
       console.error('Create theme preset error:', error);
@@ -340,6 +352,7 @@ const appearanceController = {
       for (const [key, value] of entries) await upsertSetting(connection, key, value);
       await upsertSetting(connection, 'active_theme_id', String(themeId));
       await connection.commit();
+      auditReq(req, 'activate', 'theme_preset', themeId);
       res.json({ success: true, applied_keys: entries.length });
     } catch (error) {
       await connection.rollback();
@@ -356,6 +369,7 @@ const appearanceController = {
       if (rows.length === 0) return res.status(404).json({ error: 'Tema não encontrado' });
       if (rows[0].is_active) return res.status(400).json({ error: 'Não é possível deletar o tema ativo' });
       await pool.query('DELETE FROM theme_presets WHERE id = ?', [req.params.id]);
+      auditReq(req, 'delete', 'theme_preset', req.params.id);
       res.json({ success: true });
     } catch (error) {
       console.error('Delete theme preset error:', error);
@@ -386,6 +400,7 @@ const appearanceController = {
           });
         }
       }
+      auditReq(req, 'upload', 'og_image', null, { file: req.file.filename });
       res.status(201).json({ url: `/uploads/og/${req.file.filename}` });
     } catch (error) {
       if (newFilePath) await fs.promises.unlink(newFilePath).catch(() => {});

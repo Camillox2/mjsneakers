@@ -1,31 +1,122 @@
 const jwt = require('jsonwebtoken');
+const { pool } = require('../config/db');
 
-function authMiddleware(req, res, next) {
+// Papéis com acesso ao painel. 'editor' e 'atendimento' existem no ENUM mas
+// ainda não têm permissão de escrita em nada.
+const ADMIN_ROLES = new Set(['admin', 'super_admin']);
+
+// O token só vale se o usuário ainda existir e estiver ativo. A consulta fica
+// em cache por 30s para não bater no banco a cada requisição.
+const USER_CACHE_TTL_MS = 30 * 1000;
+const userCache = new Map();
+
+async function loadUser(id) {
+  const cached = userCache.get(id);
+  if (cached && cached.expires > Date.now()) return cached.user;
+  const [rows] = await pool.query(
+    'SELECT id, username, role, active, token_version FROM users WHERE id = ?',
+    [id]
+  );
+  const user = rows[0] || null;
+  userCache.set(id, { user, expires: Date.now() + USER_CACHE_TTL_MS });
+  return user;
+}
+
+function invalidateUserCache(id) {
+  if (id === undefined) userCache.clear();
+  else userCache.delete(Number(id));
+}
+
+// Valida o JWT e devolve o usuário do banco, ou null se não valer mais.
+async function resolveToken(token) {
+  let decoded;
+  try {
+    decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
+  } catch (_error) {
+    return null;
+  }
+  const id = Number(decoded.id);
+  if (!Number.isInteger(id) || id < 1) return null;
+  const user = await loadUser(id);
+  if (!user || !user.active) return null;
+  if (Number(user.token_version || 0) !== Number(decoded.tv || 0)) return null;
+  return { id: user.id, username: user.username, role: user.role };
+}
+
+function signToken(user) {
+  return jwt.sign(
+    { id: user.id, username: user.username, role: user.role, tv: Number(user.token_version || 0) },
+    process.env.JWT_SECRET,
+    { algorithm: 'HS256', expiresIn: '24h' }
+  );
+}
+
+function readBearer(req) {
   const authHeader = req.headers.authorization;
-
-  if (!authHeader) {
-    return res.status(401).json({ error: 'Token não fornecido' });
-  }
-
+  if (!authHeader) return { missing: true };
   const parts = authHeader.split(' ');
-  if (parts.length !== 2 || parts[0] !== 'Bearer') {
-    return res.status(401).json({ error: 'Token mal formatado' });
-  }
+  if (parts.length !== 2 || parts[0] !== 'Bearer' || !parts[1]) return { malformed: true };
+  return { token: parts[1] };
+}
+
+async function authMiddleware(req, res, next) {
+  const bearer = readBearer(req);
+  if (bearer.missing) return res.status(401).json({ error: 'Token não fornecido' });
+  if (bearer.malformed) return res.status(401).json({ error: 'Token mal formatado' });
 
   try {
-    const decoded = jwt.verify(parts[1], process.env.JWT_SECRET);
-    req.user = decoded;
+    const user = await resolveToken(bearer.token);
+    if (!user) return res.status(401).json({ error: 'Token inválido' });
+    req.user = user;
     next();
   } catch (error) {
-    return res.status(401).json({ error: 'Token inválido' });
+    console.error('Auth error:', error.message);
+    res.status(500).json({ error: 'Erro ao validar sessão' });
   }
 }
 
+// Preenche req.user quando há token válido, sem barrar quem não tem.
+async function optionalAuth(req, _res, next) {
+  const bearer = readBearer(req);
+  if (!bearer.token) return next();
+  try {
+    const user = await resolveToken(bearer.token);
+    if (user) req.user = user;
+  } catch (error) {
+    console.error('Optional auth error:', error.message);
+  }
+  next();
+}
+
+function isAdmin(user) {
+  return Boolean(user && ADMIN_ROLES.has(user.role));
+}
+
 function adminMiddleware(req, res, next) {
-  if (!req.user || req.user.role !== 'admin') {
+  if (!isAdmin(req.user)) {
     return res.status(403).json({ error: 'Acesso negado' });
   }
   next();
 }
 
-module.exports = { authMiddleware, adminMiddleware };
+// Atalho para as rotas do painel: token válido e papel de admin.
+const requireAdmin = [authMiddleware, adminMiddleware];
+
+// Listas públicas que, com ?all=1, trazem também os inativos: aí só admin.
+const adminWhenAll = [
+  (req, res, next) => (req.query.all === '1' ? authMiddleware(req, res, next) : next()),
+  (req, res, next) => (req.query.all === '1' ? adminMiddleware(req, res, next) : next()),
+];
+
+module.exports = {
+  ADMIN_ROLES,
+  authMiddleware,
+  adminMiddleware,
+  optionalAuth,
+  requireAdmin,
+  adminWhenAll,
+  isAdmin,
+  resolveToken,
+  signToken,
+  invalidateUserCache,
+};

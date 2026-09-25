@@ -1,8 +1,19 @@
 require('dotenv').config();
+// Fuso da loja para todo Date do Node (e-mails, promoções, relatórios). Vem
+// antes de qualquer outro require que possa criar datas.
+if (!process.env.TZ) process.env.TZ = 'America/Sao_Paulo';
 
 const requiredEnvs = ['JWT_SECRET', 'DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME'];
 for (const key of requiredEnvs) {
   if (!process.env[key]) { console.error(`FATAL: "${key}" não definida.`); process.exit(1); }
+}
+// Segredo curto é fácil de quebrar por força bruta offline.
+if (process.env.JWT_SECRET.length < 32) {
+  if (process.env.NODE_ENV === 'production') {
+    console.error('FATAL: JWT_SECRET deve ter pelo menos 32 caracteres em produção.');
+    process.exit(1);
+  }
+  console.warn('[Aviso] JWT_SECRET tem menos de 32 caracteres. Use um segredo longo e aleatório.');
 }
 
 const express = require('express');
@@ -14,119 +25,61 @@ const rateLimit = require('express-rate-limit');
 const path = require('path');
 const { initDatabase, pool } = require('./config/db');
 const { stockRoutes, supplierRoutes } = require('./routes/stock');
+const { setupChatSocket } = require('./socket/chatSocket');
 
 const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 3305;
+const isProduction = process.env.NODE_ENV === 'production';
+
+// Atrás de proxy (nginx, load balancer), req.ip só é o IP do cliente com
+// trust proxy. TRUST_PROXY aceita true/false, número de saltos ou lista de IPs.
+function parseTrustProxy(value) {
+  if (value === undefined || value === '') return false;
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  if (/^\d+$/.test(value)) return Number(value);
+  return value.split(',').map((item) => item.trim()).filter(Boolean);
+}
+app.set('trust proxy', parseTrustProxy(process.env.TRUST_PROXY));
 
 const allowedOrigins = process.env.CORS_ORIGINS
   ? process.env.CORS_ORIGINS.split(',').map(o => o.trim())
   : ['http://localhost:5173', 'http://localhost:4173', 'http://localhost:3305'];
 
-// Socket.io
+// Socket.io (chat ao vivo): autenticação e regras em socket/chatSocket.js
 const io = new Server(server, {
-  cors: { origin: allowedOrigins, methods: ['GET', 'POST'], credentials: true }
+  cors: { origin: allowedOrigins, methods: ['GET', 'POST'], credentials: true },
+  maxHttpBufferSize: 16 * 1024,
 });
-
-// Track connected admins and customer sessions
-const adminSockets = new Set();
-const customerSessions = new Map(); // sessionId -> socketId
-
-io.on('connection', (socket) => {
-  // Admin joins
-  socket.on('admin:join', () => {
-    adminSockets.add(socket.id);
-    socket.join('admins');
-    // Send list of open sessions
-    pool.query("SELECT * FROM chat_sessions WHERE status='open' ORDER BY updated_at DESC")
-      .then(([rows]) => socket.emit('sessions:list', rows))
-      .catch(() => {});
-  });
-
-  // Customer starts chat
-  socket.on('customer:join', async ({ sessionId, name, email }) => {
-    try {
-      await pool.query(`
-        INSERT INTO chat_sessions (session_id, customer_name, customer_email)
-        VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE status='open', updated_at=NOW()
-      `, [sessionId, name || 'Cliente', email || '']);
-      customerSessions.set(sessionId, socket.id);
-      socket.join(`session:${sessionId}`);
-      // Send history
-      const [msgs] = await pool.query(
-        'SELECT * FROM chat_messages WHERE session_id = ? ORDER BY created_at ASC LIMIT 100',
-        [sessionId]
-      );
-      socket.emit('chat:history', msgs);
-      // Notify admins
-      const [[session]] = await pool.query('SELECT * FROM chat_sessions WHERE session_id = ?', [sessionId]);
-      io.to('admins').emit('session:new', session);
-    } catch (e) { console.error('customer:join error', e); }
-  });
-
-  // Message from customer
-  socket.on('customer:message', async ({ sessionId, message }) => {
-    try {
-      const [r] = await pool.query(
-        'INSERT INTO chat_messages (session_id, sender, message) VALUES (?, ?, ?)',
-        [sessionId, 'customer', message]
-      );
-      await pool.query('UPDATE chat_sessions SET updated_at=NOW() WHERE session_id=?', [sessionId]);
-      const msg = { id: r.insertId, session_id: sessionId, sender: 'customer', message, created_at: new Date() };
-      io.to(`session:${sessionId}`).emit('chat:message', msg);
-      io.to('admins').emit('chat:message', msg);
-    } catch (e) { console.error('customer:message error', e); }
-  });
-
-  // Admin joins a session
-  socket.on('admin:join-session', async ({ sessionId }) => {
-    socket.join(`session:${sessionId}`);
-    const [msgs] = await pool.query(
-      'SELECT * FROM chat_messages WHERE session_id = ? ORDER BY created_at ASC LIMIT 100',
-      [sessionId]
-    );
-    socket.emit('chat:history', msgs);
-  });
-
-  // Message from admin
-  socket.on('admin:message', async ({ sessionId, message }) => {
-    try {
-      const [r] = await pool.query(
-        'INSERT INTO chat_messages (session_id, sender, message) VALUES (?, ?, ?)',
-        [sessionId, 'admin', message]
-      );
-      await pool.query('UPDATE chat_sessions SET updated_at=NOW() WHERE session_id=?', [sessionId]);
-      const msg = { id: r.insertId, session_id: sessionId, sender: 'admin', message, created_at: new Date() };
-      io.to(`session:${sessionId}`).emit('chat:message', msg);
-    } catch (e) { console.error('admin:message error', e); }
-  });
-
-  // Close session
-  socket.on('session:close', async ({ sessionId }) => {
-    await pool.query("UPDATE chat_sessions SET status='closed' WHERE session_id=?", [sessionId]).catch(() => {});
-    io.to('admins').emit('session:closed', { sessionId });
-  });
-
-  socket.on('disconnect', () => {
-    adminSockets.delete(socket.id);
-  });
-});
+setupChatSocket(io);
 
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
-app.use(cors({ origin(origin, cb) { if (!origin || allowedOrigins.includes(origin)) return cb(null, true); cb(new Error('CORS')); }, credentials: true }));
+app.use(cors({
+  origin(origin, cb) {
+    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+    const error = new Error('Origem não permitida');
+    error.status = 403;
+    cb(error);
+  },
+  credentials: true,
+}));
 app.use(rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 2000,
   standardHeaders: true,
   legacyHeaders: false,
+  // Fora de produção, o próprio computador não entra no limite.
   skip: (req) => {
+    if (isProduction) return false;
     const ip = req.ip || '';
     return ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1';
   },
 }));
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads'), { maxAge: '7d' }));
+// Imagens sobem por /upload (multipart); JSON grande não é necessário.
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads'), { maxAge: '7d', dotfiles: 'deny' }));
 
 // Routes
 app.use('/api/products', require('./routes/products'));
@@ -156,9 +109,16 @@ app.use('/api/checkout', require('./routes/checkout'));
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
 
+app.use('/api', (req, res) => res.status(404).json({ error: 'Rota não encontrada' }));
+
+// Erros com status (JSON malformado, corpo grande, CORS) respondem a própria
+// mensagem; erro inesperado não expõe detalhe interno.
 app.use((err, req, res, _next) => {
-  console.error('Error:', err.message);
-  res.status(err.status || 500).json({ error: err.message || 'Erro interno' });
+  const status = err.status || err.statusCode || 500;
+  if (status >= 500) console.error('Error:', err);
+  if (err.type === 'entity.parse.failed') return res.status(400).json({ error: 'JSON inválido' });
+  if (err.type === 'entity.too.large') return res.status(413).json({ error: 'Corpo da requisição muito grande' });
+  res.status(status).json({ error: status >= 500 ? 'Erro interno' : (err.message || 'Requisição inválida') });
 });
 
 async function startServer() {

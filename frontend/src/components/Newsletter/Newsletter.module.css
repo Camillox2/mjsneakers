@@ -74,6 +74,7 @@
 
 .msgSuccess { color: var(--pz-ok); }
 .msgError { color: var(--pz-danger); }
+.msgNeutral { color: var(--pz-text-2); }
 
 /* ---------- janela (variante popup) ---------- */
 .overlay {
@@ -120,9 +121,12 @@
   transition: color 0.2s var(--pz-ease), border-color 0.2s var(--pz-ease);
 }
 
-.closeBtn:hover {
-  color: var(--pz-text);
-  border-color: var(--pz-line-strong);
+@media (hover: hover) {
+  .closeBtn:hover {
+    color: var(--pz-text);
+    border-color: var(--pz-line-strong);
+  }
+  .skip:hover { color: var(--pz-text-2); }
 }
 
 .popupIcon {
@@ -185,14 +189,12 @@
   text-underline-offset: 3px;
 }
 
-.skip:hover { color: var(--pz-text-2); }
-
 /* ===== Responsivo ===== */
-@media (max-width: 860px) {
+@media (max-width: 767.98px) {
   .footer { grid-template-columns: 1fr; align-items: start; }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 479.98px) {
   .form { flex-direction: column; }
   .btn { width: 100%; }
   .popup { padding: 36px 20px 20px; }

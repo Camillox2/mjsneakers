@@ -3,6 +3,7 @@ import { AnimatePresence, motion, MotionConfig } from 'framer-motion'
 import { FiX } from 'react-icons/fi'
 import { BRAND } from '../../config/brand'
 import { lockScroll } from '../../lib/motion'
+import { useBackToClose } from '../../lib/layers'
 import styles from './PrivacyModal.module.css'
 
 const EASE = [0.22, 1, 0.36, 1]
@@ -10,6 +11,7 @@ const EASE = [0.22, 1, 0.36, 1]
 export default function PrivacyModal({ isOpen, onClose }) {
   const closeRef = useRef(onClose)
   closeRef.current = onClose
+  useBackToClose(isOpen, () => closeRef.current?.())
 
   // Esc fecha; a página atrás fica parada enquanto o texto está aberto
   useEffect(() => {

@@ -24,7 +24,12 @@ export default function SuccessScreen({ order, onClose }) {
 
   const orderId = order?.id || order?.order_id || order?.orderId || null
   const items = order?.items || []
-  const total = order?.total != null ? Number(order.total) : null
+  // valores que o servidor calculou (ele recalcula preço, cupom e frete)
+  const money = (v) => (v != null && v !== '' && Number.isFinite(Number(v)) ? Number(v) : null)
+  const total = money(order?.total)
+  const subtotal = money(order?.subtotal)
+  const discount = money(order?.discount_amount)
+  const shipping = money(order?.shipping_price)
   const fmt = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
 
   return (
@@ -56,11 +61,34 @@ export default function SuccessScreen({ order, onClose }) {
           <ul className={styles.items}>
             {items.map((item, i) => (
               <li key={i} className={styles.item}>
-                <span className={styles.itemName}>{item.product_name || item.name}</span>
+                <span className={styles.itemName}>
+                  {item.product_name || item.name}
+                  {item.size && <span className={styles.itemSize}> · tam. {item.size}</span>}
+                </span>
                 <span className={styles.itemQty}>× {item.quantity}</span>
               </li>
             ))}
           </ul>
+        )}
+        {total != null && subtotal != null && (
+          <dl className={styles.breakdown}>
+            <div>
+              <dt>Subtotal</dt>
+              <dd>{fmt(subtotal)}</dd>
+            </div>
+            {discount > 0 && (
+              <div className={styles.breakdownOk}>
+                <dt>Desconto</dt>
+                <dd>-{fmt(discount)}</dd>
+              </div>
+            )}
+            {shipping != null && (
+              <div>
+                <dt>Frete</dt>
+                <dd>{shipping > 0 ? fmt(shipping) : 'Grátis'}</dd>
+              </div>
+            )}
+          </dl>
         )}
         {total != null && (
           <div className={styles.total}>

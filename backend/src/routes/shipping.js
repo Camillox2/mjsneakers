@@ -1,7 +1,7 @@
 const express = require('express');
 const { body, param, query, validationResult } = require('express-validator');
 const { shippingController } = require('../controllers/shippingController');
-const { authMiddleware } = require('../middleware/auth');
+const { requireAdmin, adminWhenAll } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -42,7 +42,7 @@ function zoneValidations(includeActive = false) {
       }),
   ];
   if (includeActive) {
-    validations.push(body('active').isBoolean().withMessage('active deve ser booleano').toBoolean());
+    validations.push(body('active').optional().isBoolean().withMessage('active deve ser booleano').toBoolean());
   }
   return validations;
 }
@@ -92,27 +92,28 @@ function ruleValidations(includeActive = false) {
 const idParam = (name) => param(name).isInt({ min: 1 })
   .withMessage(`${name} deve ser um inteiro positivo`).toInt();
 
-router.get('/zones', shippingController.getZones);
-router.post('/zones', authMiddleware, ...zoneValidations(), validateRequest, shippingController.createZone);
-router.put('/zones/:id', authMiddleware, idParam('id'), ...zoneValidations(true), validateRequest, shippingController.updateZone);
-router.delete('/zones/:id', authMiddleware, idParam('id'), validateRequest, shippingController.deleteZone);
+router.get('/zones', ...adminWhenAll, shippingController.getZones);
+router.post('/zones', ...requireAdmin, ...zoneValidations(true), validateRequest, shippingController.createZone);
+router.put('/zones/:id', ...requireAdmin, idParam('id'), ...zoneValidations(true), validateRequest, shippingController.updateZone);
+router.delete('/zones/:id', ...requireAdmin, idParam('id'), validateRequest, shippingController.deleteZone);
 
 router.get(
   '/rules',
+  ...adminWhenAll,
   query('zone_id').optional().isInt({ min: 1 }).withMessage('zone_id deve ser um inteiro positivo').toInt(),
   validateRequest,
   shippingController.getRules
 );
-router.post('/rules', authMiddleware, ...ruleValidations(), validateRequest, shippingController.createRule);
-router.put('/rules/:id', authMiddleware, idParam('id'), ...ruleValidations(true), validateRequest, shippingController.updateRule);
-router.delete('/rules/:id', authMiddleware, idParam('id'), validateRequest, shippingController.deleteRule);
+router.post('/rules', ...requireAdmin, ...ruleValidations(), validateRequest, shippingController.createRule);
+router.put('/rules/:id', ...requireAdmin, idParam('id'), ...ruleValidations(true), validateRequest, shippingController.updateRule);
+router.delete('/rules/:id', ...requireAdmin, idParam('id'), validateRequest, shippingController.deleteRule);
 
 router.post(
   '/calculate',
   body('cep').customSanitizer(normalizeCep).matches(/^\d{8}$/).withMessage('CEP deve ter exatamente 8 dígitos'),
-  body('items').isArray({ min: 1 }).withMessage('items deve ser um array não vazio'),
+  body('items').isArray({ min: 1, max: 50 }).withMessage('items deve ser um array com 1 a 50 itens'),
   body('items.*.product_id').isInt({ min: 1 }).withMessage('product_id deve ser um inteiro positivo').toInt(),
-  body('items.*.quantity').isInt({ min: 1 }).withMessage('quantity deve ser maior ou igual a 1').toInt(),
+  body('items.*.quantity').isInt({ min: 1, max: 50 }).withMessage('quantity deve ficar entre 1 e 50').toInt(),
   body('order_total').isFloat({ min: 0 }).withMessage('order_total deve ser um número maior ou igual a zero').toFloat(),
   validateRequest,
   shippingController.calculate
@@ -128,24 +129,24 @@ router.get(
 
 router.post(
   '/label/:orderId/generate',
-  authMiddleware,
+  ...requireAdmin,
   idParam('orderId'),
   validateRequest,
   shippingController.generateLabel
 );
-router.get('/label/:orderId', authMiddleware, idParam('orderId'), validateRequest, shippingController.getLabel);
+router.get('/label/:orderId', ...requireAdmin, idParam('orderId'), validateRequest, shippingController.getLabel);
 
 router.post(
   '/whatsapp/:orderId',
-  authMiddleware,
+  ...requireAdmin,
   idParam('orderId'),
   validateRequest,
   shippingController.createWhatsApp
 );
-router.get('/whatsapp', authMiddleware, shippingController.getWhatsApp);
+router.get('/whatsapp', ...requireAdmin, shippingController.getWhatsApp);
 router.put(
   '/whatsapp/:id/sent',
-  authMiddleware,
+  ...requireAdmin,
   idParam('id'),
   validateRequest,
   shippingController.markWhatsAppSent

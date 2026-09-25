@@ -8,11 +8,14 @@ import { SAMPLE_PRODUCTS } from '../../data/drops'
 import { BRAND } from '../../config/brand'
 import { scrollToEl, scrollToY } from '../../lib/motion'
 import { cometFlying } from '../../lib/comets'
+import { useScrollLock } from '../../lib/useScrollLock'
+import { useBackToClose } from '../../lib/layers'
 import styles from './Header.module.css'
 import { cachedGet, TTL } from '../../services/cache'
 
 const brl = (p) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(p)
 const norm = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+const EASE = [0.22, 1, 0.36, 1]
 
 export default function Header() {
   const { cartCount, setCartOpen } = useContext(CartContext)
@@ -30,6 +33,11 @@ export default function Header() {
   const debounceRef = useRef(null)
   const lastCount = useRef(cartCount)
   const isHome = location.pathname === '/'
+
+  // menu do celular: a página para atrás dele, e o voltar do celular fecha
+  const closeMenu = useCallback(() => setMenuOpen(false), [])
+  useScrollLock(menuOpen)
+  useBackToClose(menuOpen, closeMenu)
 
   // a sacola dá um pulo quando entra um par novo; se o par vem num cometa,
   // o pulo espera o cometa chegar (evento 'pz:cart-hit' de lib/comets)
@@ -74,26 +82,41 @@ export default function Header() {
     return () => clearTimeout(debounceRef.current)
   }, [query])
 
-  useEffect(() => {
-    const close = (e) => {
-      if (searchRef.current && !searchRef.current.contains(e.target)) closeSearch()
-    }
-    document.addEventListener('mousedown', close)
-    return () => document.removeEventListener('mousedown', close)
-  }, [])
-
-  useEffect(() => setMenuOpen(false), [location.pathname])
-
-  const closeSearch = () => {
+  const closeSearch = useCallback(() => {
     setSearchOpen(false)
     setQuery('')
     setResults([])
+  }, [])
+
+  // toque ou clique fora da busca fecha a busca
+  useEffect(() => {
+    if (!searchOpen) return undefined
+    const close = (e) => {
+      if (searchRef.current && !searchRef.current.contains(e.target)) closeSearch()
+    }
+    document.addEventListener('pointerdown', close)
+    return () => document.removeEventListener('pointerdown', close)
+  }, [searchOpen, closeSearch])
+
+  // Esc fecha o menu
+  useEffect(() => {
+    if (!menuOpen) return undefined
+    const onKey = (e) => { if (e.key === 'Escape') setMenuOpen(false) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [menuOpen])
+
+  useEffect(() => setMenuOpen(false), [location.pathname])
+
+  const openSearch = () => {
+    setMenuOpen(false)
+    setSearchOpen(true)
   }
 
   const goShop = (e) => {
     e?.preventDefault()
     setMenuOpen(false)
-    if (isHome) scrollToEl(document.getElementById('loja'), -70)
+    if (isHome) scrollToEl(document.getElementById('loja'))
     else navigate('/#loja')
   }
 
@@ -111,115 +134,14 @@ export default function Header() {
   }
 
   return (
-    <header className={`${styles.header} ${isHome ? styles.overlay : ''}`} data-pz-header>
-      <div className={styles.inner}>
-        <a href="/" className={styles.logo} onClick={goTop} aria-label={`${BRAND.name}, início`}>
-          <img src={BRAND.logoSmall} alt="" className={styles.logoImg} />
-        </a>
-
-        <nav className={styles.nav} aria-label="Principal">
-          <a href="/" onClick={goTop}>
-            Drops
+    <>
+      <header className={`${styles.header} ${isHome ? styles.overlay : ''} ${menuOpen ? styles.menuOpen : ''}`} data-pz-header>
+        <div className={styles.inner}>
+          <a href="/" className={styles.logo} onClick={goTop} aria-label={`${BRAND.name}, início`}>
+            <img src={BRAND.logoSmall} alt="" className={styles.logoImg} />
           </a>
-          <a href="/#loja" onClick={goShop}>
-            Loja
-          </a>
-          <Link to="/rastrear">Rastrear pedido</Link>
-        </nav>
 
-        <div className={styles.actions}>
-          <div className={styles.searchWrap} ref={searchRef}>
-            <AnimatePresence initial={false}>
-              {searchOpen && (
-                <motion.div
-                  className={styles.searchBar}
-                  initial={{ width: 44, opacity: 0 }}
-                  animate={{ width: 'var(--search-w)', opacity: 1 }}
-                  exit={{ width: 44, opacity: 0 }}
-                  transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-                >
-                  <FiSearch className={styles.searchIcon} aria-hidden="true" />
-                  <input
-                    className={styles.searchInput}
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Escape' && closeSearch()}
-                    placeholder="Buscar tênis"
-                    aria-label="Buscar tênis"
-                    autoFocus
-                  />
-                  <button type="button" className={styles.searchClose} onClick={closeSearch} aria-label="Fechar busca">
-                    <FiX />
-                  </button>
-                </motion.div>
-              )}
-            </AnimatePresence>
-            {!searchOpen && (
-              <button type="button" className={styles.iconBtn} onClick={() => setSearchOpen(true)} aria-label="Buscar">
-                <FiSearch />
-              </button>
-            )}
-            <AnimatePresence>
-              {searchOpen && results.length > 0 && (
-                <motion.ul
-                  className={styles.results}
-                  initial={{ opacity: 0, y: -8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -8 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  {results.map((p) => (
-                    <li key={p.id}>
-                      <button type="button" className={styles.result} onClick={() => pick(p)}>
-                        <img src={getImageUrl(p.image_url, p.name)} alt="" className={p.fit === 'contain' ? styles.resultContain : ''} />
-                        <span className={styles.resultText}>
-                          <span className={styles.resultName}>{p.name}</span>
-                          <span className={styles.resultMeta}>{brl(p.price)}</span>
-                        </span>
-                      </button>
-                    </li>
-                  ))}
-                </motion.ul>
-              )}
-            </AnimatePresence>
-          </div>
-
-          <button type="button" className={`${styles.iconBtn} ${styles.hideSm}`} onClick={() => setWishlistOpen(true)} aria-label={`Favoritos (${wishlist.length})`}>
-            <FiHeart />
-            {wishlist.length > 0 && <span className={styles.badge}>{wishlist.length}</span>}
-          </button>
-
-          <button type="button" data-pz-cart className={`${styles.iconBtn} ${bump ? styles.bump : ''}`} onClick={() => setCartOpen(true)} aria-label={`Sacola (${cartCount})`}>
-            <FiShoppingBag />
-            {cartCount > 0 && <span className={styles.badge}>{cartCount}</span>}
-          </button>
-
-          {user ? (
-            <button type="button" className={`${styles.iconBtn} ${styles.hideSm}`} onClick={logout} aria-label="Sair">
-              <FiLogOut />
-            </button>
-          ) : (
-            <button type="button" className={`${styles.iconBtn} ${styles.hideSm}`} onClick={() => navigate('/admin')} aria-label="Painel da loja">
-              <FiUser />
-            </button>
-          )}
-
-          <button type="button" className={`${styles.iconBtn} ${styles.menuBtn}`} onClick={() => setMenuOpen((o) => !o)} aria-expanded={menuOpen} aria-label="Menu">
-            {menuOpen ? <FiX /> : <FiMenu />}
-          </button>
-        </div>
-      </div>
-
-      <AnimatePresence>
-        {menuOpen && (
-          <motion.nav
-            className={styles.sheet}
-            aria-label="Menu"
-            initial={{ opacity: 0, y: -12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -12 }}
-            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-          >
+          <nav className={styles.nav} aria-label="Principal">
             <a href="/" onClick={goTop}>
               Drops
             </a>
@@ -227,19 +149,159 @@ export default function Header() {
               Loja
             </a>
             <Link to="/rastrear">Rastrear pedido</Link>
+          </nav>
+
+          <div className={styles.actions}>
+            <div className={styles.searchWrap} ref={searchRef}>
+              <AnimatePresence initial={false}>
+                {searchOpen && (
+                  <motion.div
+                    className={styles.searchBar}
+                    initial={{ width: 44, opacity: 0 }}
+                    animate={{ width: 'var(--search-w)', opacity: 1 }}
+                    exit={{ width: 44, opacity: 0 }}
+                    transition={{ duration: 0.35, ease: EASE }}
+                  >
+                    <FiSearch className={styles.searchIcon} aria-hidden="true" />
+                    <input
+                      className={styles.searchInput}
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Escape' && closeSearch()}
+                      placeholder="Buscar tênis"
+                      aria-label="Buscar tênis"
+                      enterKeyHint="search"
+                      autoComplete="off"
+                      autoFocus
+                    />
+                    <button type="button" className={styles.searchClose} onClick={closeSearch} aria-label="Fechar busca">
+                      <FiX />
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+              {!searchOpen && (
+                <button type="button" className={styles.iconBtn} onClick={openSearch} aria-label="Buscar">
+                  <FiSearch />
+                </button>
+              )}
+              <AnimatePresence>
+                {searchOpen && results.length > 0 && (
+                  <motion.ul
+                    className={styles.results}
+                    initial={{ opacity: 0, y: -8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ duration: 0.2 }}
+                    data-lenis-prevent
+                  >
+                    {results.map((p) => (
+                      <li key={p.id}>
+                        <button type="button" className={styles.result} onClick={() => pick(p)}>
+                          <img src={getImageUrl(p.image_url, p.name)} alt="" className={p.fit === 'contain' ? styles.resultContain : ''} />
+                          <span className={styles.resultText}>
+                            <span className={styles.resultName}>{p.name}</span>
+                            <span className={styles.resultMeta}>{brl(p.price)}</span>
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </motion.ul>
+                )}
+              </AnimatePresence>
+            </div>
+
+            <button type="button" className={`${styles.iconBtn} ${styles.hideSm}`} onClick={() => setWishlistOpen(true)} aria-label={`Favoritos (${wishlist.length})`}>
+              <FiHeart />
+              {wishlist.length > 0 && <span className={styles.badge}>{wishlist.length}</span>}
+            </button>
+
             <button
               type="button"
+              data-pz-cart
+              className={`${styles.iconBtn} ${bump ? styles.bump : ''}`}
               onClick={() => {
                 setMenuOpen(false)
-                setWishlistOpen(true)
+                setCartOpen(true)
               }}
+              aria-label={`Sacola (${cartCount})`}
             >
-              Favoritos {wishlist.length > 0 && `(${wishlist.length})`}
+              <FiShoppingBag />
+              {cartCount > 0 && <span className={styles.badge}>{cartCount}</span>}
             </button>
-            <Link to="/admin">Painel da loja</Link>
-          </motion.nav>
+
+            {user ? (
+              <button type="button" className={`${styles.iconBtn} ${styles.hideSm}`} onClick={logout} aria-label="Sair">
+                <FiLogOut />
+              </button>
+            ) : (
+              <button type="button" className={`${styles.iconBtn} ${styles.hideSm}`} onClick={() => navigate('/admin')} aria-label="Painel da loja">
+                <FiUser />
+              </button>
+            )}
+
+            <button
+              type="button"
+              className={`${styles.iconBtn} ${styles.menuBtn}`}
+              onClick={() => setMenuOpen((o) => !o)}
+              aria-expanded={menuOpen}
+              aria-controls="menu-loja"
+              aria-label={menuOpen ? 'Fechar menu' : 'Abrir menu'}
+            >
+              {menuOpen ? <FiX /> : <FiMenu />}
+            </button>
+          </div>
+        </div>
+
+        <AnimatePresence>
+          {menuOpen && (
+            <motion.nav
+              id="menu-loja"
+              className={styles.sheet}
+              aria-label="Menu"
+              initial={{ opacity: 0, y: -12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -12 }}
+              transition={{ duration: 0.25, ease: EASE }}
+              data-lenis-prevent
+            >
+              <a href="/" onClick={goTop}>
+                Drops
+              </a>
+              <a href="/#loja" onClick={goShop}>
+                Loja
+              </a>
+              <Link to="/rastrear">Rastrear pedido</Link>
+              <button
+                type="button"
+                onClick={() => {
+                  setMenuOpen(false)
+                  setWishlistOpen(true)
+                }}
+              >
+                Favoritos {wishlist.length > 0 && <span className={styles.sheetCount}>{wishlist.length}</span>}
+              </button>
+              <Link to="/admin" className={styles.sheetMinor}>Painel da loja</Link>
+            </motion.nav>
+          )}
+        </AnimatePresence>
+      </header>
+
+      {/* fundo do menu: toque fora fecha. Fora do header, porque o vidro dele
+          prenderia um position: fixed dentro da própria caixa */}
+      <AnimatePresence>
+        {menuOpen && (
+          <motion.div
+            className={styles.scrim}
+            onClick={closeMenu}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25, ease: EASE }}
+            aria-hidden="true"
+          />
         )}
       </AnimatePresence>
-    </header>
+    </>
   )
 }

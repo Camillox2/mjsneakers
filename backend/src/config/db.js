@@ -1,5 +1,16 @@
 const mysql = require('mysql2/promise');
+const crypto = require('crypto');
 require('dotenv').config();
+
+// Fuso das datas no banco. O Brasil não tem mais horário de verão, então um
+// deslocamento fixo basta; DB_TIMEZONE troca (formato +HH:MM ou -HH:MM).
+const DEFAULT_DB_TIMEZONE = '-03:00';
+const DB_TIMEZONE = /^[+-](0\d|1[0-4]):[0-5]\d$/.test(process.env.DB_TIMEZONE || '')
+  ? process.env.DB_TIMEZONE
+  : DEFAULT_DB_TIMEZONE;
+if (process.env.DB_TIMEZONE && process.env.DB_TIMEZONE !== DB_TIMEZONE) {
+  console.warn(`[Aviso] DB_TIMEZONE "${process.env.DB_TIMEZONE}" inválido; usando ${DEFAULT_DB_TIMEZONE}.`);
+}
 
 const pool = mysql.createPool({
   host: process.env.DB_HOST,
@@ -9,18 +20,34 @@ const pool = mysql.createPool({
   database: process.env.DB_NAME,
   waitForConnections: true,
   connectionLimit: 10,
-  queueLimit: 0
+  queueLimit: 0,
+  // DECIMAL chega como Number (preço, total, valor de cupom), não string.
+  decimalNumbers: true,
+  // Datas lidas e gravadas no mesmo fuso da sessão do banco (abaixo).
+  timezone: DB_TIMEZONE
 });
 
+// Cada conexão nova do pool usa o fuso da loja: NOW(), CURDATE() e a
+// leitura de TIMESTAMP ficam no horário de Brasília.
+pool.on('connection', (connection) => {
+  connection.query('SET time_zone = ?', [DB_TIMEZONE], (error) => {
+    if (error) console.error('Erro ao ajustar o fuso da conexão:', error.message);
+  });
+});
+
+// Devolve true quando a coluna acabou de ser criada (útil para migrar dado
+// uma única vez junto com ela).
 async function ensureColumn(connection, tableName, columnName, definition) {
   try {
     const [rows] = await connection.query(`SHOW COLUMNS FROM \`${tableName}\` LIKE ?`, [columnName]);
     if (rows.length === 0) {
       await connection.query(`ALTER TABLE \`${tableName}\` ADD COLUMN \`${columnName}\` ${definition}`);
+      return true;
     }
   } catch (err) {
     if (err.code !== 'ER_DUP_FIELDNAME') throw err;
   }
+  return false;
 }
 
 async function ensureIndex(connection, tableName, indexName, columns) {
@@ -44,7 +71,9 @@ async function initDatabase() {
     port: parseInt(process.env.DB_PORT) || 3306,
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
+    timezone: DB_TIMEZONE,
   });
+  await connection.query('SET time_zone = ?', [DB_TIMEZONE]);
 
   await connection.query(`CREATE DATABASE IF NOT EXISTS \`${process.env.DB_NAME}\``);
   await connection.query(`USE \`${process.env.DB_NAME}\``);
@@ -57,6 +86,8 @@ async function initDatabase() {
   await ensureColumn(connection, 'users', 'last_login', 'DATETIME');
   await ensureColumn(connection, 'users', 'active', 'BOOLEAN DEFAULT TRUE');
   await ensureColumn(connection, 'users', 'role', "ENUM('super_admin','admin','editor','atendimento') DEFAULT 'admin'");
+  // Sobe a cada troca de senha: tokens emitidos antes deixam de valer.
+  await ensureColumn(connection, 'users', 'token_version', 'INT NOT NULL DEFAULT 0');
 
   await connection.query(`CREATE TABLE IF NOT EXISTS brands (
     id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(100) NOT NULL UNIQUE,
@@ -138,6 +169,18 @@ async function initDatabase() {
     UNIQUE KEY unique_alert (product_id, email)
   )`);
 
+  // Aviso por tamanho: '' significa "qualquer tamanho". A chave única passa a
+  // incluir o tamanho (a antiga, só produto e e-mail, sai depois da nova existir).
+  await ensureColumn(connection, 'stock_alerts', 'size', "VARCHAR(10) NOT NULL DEFAULT ''");
+  const [alertSizeIndex] = await connection.query("SHOW INDEX FROM stock_alerts WHERE Key_name = 'unique_alert_size'");
+  if (alertSizeIndex.length === 0) {
+    await connection.query('ALTER TABLE stock_alerts ADD UNIQUE KEY unique_alert_size (product_id, email, size)');
+  }
+  const [alertOldIndex] = await connection.query("SHOW INDEX FROM stock_alerts WHERE Key_name = 'unique_alert'");
+  if (alertOldIndex.length > 0) {
+    await connection.query('ALTER TABLE stock_alerts DROP INDEX unique_alert');
+  }
+
   await connection.query(`CREATE TABLE IF NOT EXISTS newsletter_subscribers (
     id INT AUTO_INCREMENT PRIMARY KEY, email VARCHAR(255) NOT NULL UNIQUE,
     name VARCHAR(255), coupon_sent BOOLEAN DEFAULT FALSE,
@@ -161,6 +204,8 @@ async function initDatabase() {
   )`);
   await ensureColumn(connection, 'banners', 'active_from', 'DATETIME');
   await ensureColumn(connection, 'banners', 'active_until', 'DATETIME');
+  // Imagem própria para celular (a principal continua em image_url).
+  await ensureColumn(connection, 'banners', 'image_url_mobile', 'VARCHAR(2048) DEFAULT NULL');
 
   await connection.query(`CREATE TABLE IF NOT EXISTS reviews (
     id INT AUTO_INCREMENT PRIMARY KEY, product_id INT, customer_name VARCHAR(255) NOT NULL,
@@ -205,6 +250,13 @@ async function initDatabase() {
     points INT NOT NULL, description VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   )`);
+  // Estorno de pontos de pedido cancelado depois de entregue.
+  const [loyaltyType] = await connection.query("SHOW COLUMNS FROM loyalty_transactions LIKE 'type'");
+  if (loyaltyType.length && !String(loyaltyType[0].Type).includes("'reversal'")) {
+    await connection.query(
+      "ALTER TABLE loyalty_transactions MODIFY COLUMN type ENUM('earn','redeem','expire','bonus','reversal') NOT NULL"
+    );
+  }
 
   // ── Live Chat ──
   await connection.query(`CREATE TABLE IF NOT EXISTS chat_sessions (
@@ -220,6 +272,8 @@ async function initDatabase() {
     sender ENUM('customer','admin','bot') NOT NULL,
     message TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   )`);
+  // Último aviso por e-mail de mensagem sem atendente (no máximo 1 a cada 30 min).
+  await ensureColumn(connection, 'chat_sessions', 'admin_notified_at', 'DATETIME DEFAULT NULL');
 
   // ── Advanced stock management ──
   await connection.query(`CREATE TABLE IF NOT EXISTS product_sizes (
@@ -332,6 +386,28 @@ async function initDatabase() {
   await ensureColumn(connection, 'orders', 'shipping_rule_id', 'INT');
   await ensureColumn(connection, 'orders', 'gift_wrap', 'BOOLEAN DEFAULT FALSE');
   await ensureColumn(connection, 'orders', 'gift_message', 'TEXT');
+  // Valores calculados no servidor e marcas de "já feito" para cancelamento
+  // (estoque devolvido) e entrega (pontos de fidelidade creditados).
+  await ensureColumn(connection, 'orders', 'subtotal', 'DECIMAL(10,2) DEFAULT NULL');
+  await ensureColumn(connection, 'orders', 'gift_wrap_price', 'DECIMAL(10,2) DEFAULT 0');
+  await ensureColumn(connection, 'orders', 'stock_restored', 'BOOLEAN DEFAULT FALSE');
+  await ensureColumn(connection, 'orders', 'loyalty_awarded', 'BOOLEAN DEFAULT FALSE');
+  await ensureColumn(connection, 'orders', 'loyalty_reversed', 'BOOLEAN DEFAULT FALSE');
+
+  // Cupom de uso único por e-mail (ex.: BEMVINDO10 da newsletter).
+  const addedOncePerEmail = await ensureColumn(connection, 'coupons', 'once_per_email', 'BOOLEAN DEFAULT FALSE');
+  if (addedOncePerEmail) {
+    await connection.query("UPDATE coupons SET once_per_email = TRUE WHERE code = 'BEMVINDO10'");
+  }
+  await connection.query(`CREATE TABLE IF NOT EXISTS coupon_redemptions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    coupon_id INT NOT NULL,
+    customer_email VARCHAR(255) NOT NULL,
+    order_id INT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_coupon_email (coupon_id, customer_email),
+    FOREIGN KEY (coupon_id) REFERENCES coupons(id) ON DELETE CASCADE
+  )`);
 
   // ── Visual site editor ──
   await connection.query(`CREATE TABLE IF NOT EXISTS custom_sections (
@@ -388,7 +464,7 @@ async function initDatabase() {
     },
     trust_strip: [
       { icon: '', text: 'Frete Grátis' },
-      { icon: '✅', text: 'Original Garantido' },
+      { icon: '✅', text: 'Qualidade 100% garantida' },
       { icon: '', text: 'Troca Fácil' },
       { icon: '⚡', text: 'Entrega Rápida' },
     ],
@@ -422,13 +498,27 @@ async function initDatabase() {
   await ensureIndex(connection, 'whatsapp_notifications', 'idx_whatsapp_order_created', 'order_id, created_at');
   await ensureIndex(connection, 'custom_sections', 'idx_custom_sections_active_sort', 'active, sort_order');
   await ensureIndex(connection, 'checkout_events', 'idx_checkout_events_session_created', 'session_id, created_at');
+  await ensureIndex(connection, 'coupon_redemptions', 'idx_coupon_redemptions_order', 'order_id');
+  await ensureIndex(connection, 'stock_alerts', 'idx_stock_alerts_notified', 'notified');
+  await ensureIndex(connection, 'chat_messages', 'idx_chat_messages_session', 'session_id, id');
+  await ensureIndex(connection, 'chat_sessions', 'idx_chat_sessions_status_updated', 'status, updated_at');
+  await ensureIndex(connection, 'audit_logs', 'idx_audit_logs_entity_action', 'entity, action');
 
   // ── Seed admin (first run only) ──
+  // Sem ADMIN_DEFAULT_PASSWORD, gera uma senha aleatória e mostra uma única
+  // vez no console. Nunca existe senha padrão fixa.
   const [users] = await connection.query('SELECT COUNT(*) as count FROM users');
-  if (users[0].count === 0) {
+  if (Number(users[0].count) === 0) {
     const bcrypt = require('bcryptjs');
-    const pw = await bcrypt.hash(process.env.ADMIN_DEFAULT_PASSWORD || 'admin123', 12);
+    const fromEnv = process.env.ADMIN_DEFAULT_PASSWORD;
+    const initialPassword = fromEnv || crypto.randomBytes(12).toString('base64url');
+    const pw = await bcrypt.hash(initialPassword, 12);
     await connection.query('INSERT INTO users (username, password, role) VALUES (?, ?, ?)', ['admin', pw, 'super_admin']);
+    if (fromEnv) {
+      console.log('[Seed] Usuário "admin" criado com a senha de ADMIN_DEFAULT_PASSWORD.');
+    } else {
+      console.log(`[Seed] Usuário "admin" criado. Senha inicial (anote, não será mostrada de novo): ${initialPassword}`);
+    }
   }
 
   // ── Seed categories (first run only) ──
@@ -443,4 +533,4 @@ async function initDatabase() {
   console.log('Database initialized successfully');
 }
 
-module.exports = { pool, initDatabase, slugify };
+module.exports = { pool, initDatabase, slugify, DB_TIMEZONE };

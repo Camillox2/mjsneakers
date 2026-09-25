@@ -79,6 +79,7 @@ export default function ShippingEstimate({ productId }) {
             onChange={handleCepChange}
             inputMode="numeric"
             autoComplete="postal-code"
+            enterKeyHint="go"
             onKeyDown={e => e.key === 'Enter' && calcular()}
           />
         </div>

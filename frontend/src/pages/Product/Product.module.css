@@ -72,11 +72,6 @@
   transition: color 0.2s var(--pz-ease), border-color 0.2s var(--pz-ease);
 }
 
-.backBtn:hover {
-  color: var(--pz-text);
-  border-color: var(--pz-line-strong);
-}
-
 .backBtn svg { width: 18px; height: 18px; }
 
 .content {
@@ -89,7 +84,7 @@
 /* ---------- vitrine ---------- */
 .gallery {
   position: sticky;
-  top: calc(var(--pz-header-h) + 20px);
+  top: calc(var(--pz-header-total) + 20px);
   display: grid;
   gap: 12px;
   min-width: 0;
@@ -110,8 +105,14 @@
 
 /* no computador a vitrine fica parada ao rolar; limitar a altura garante que
    as miniaturas caibam na tela em notebook baixo */
-@media (min-width: 901px) {
-  .stage { max-height: calc(100vh - var(--pz-header-h) - 140px); }
+@media (min-width: 1024px) {
+  .stage { max-height: calc(100vh - var(--pz-header-total) - 140px); }
+}
+
+/* celular e tablet: a vitrine não passa de ~2/3 da tela (no tablet em pé
+   a foto quadrada chegava a 700px e empurrava a compra para longe) */
+@media (max-width: 1023.98px) {
+  .stage { max-height: min(64svh, 600px); }
 }
 
 .stageContain {
@@ -138,13 +139,40 @@
   cursor: zoom-in;
 }
 
+/* lupa do mouse: a camada inteira amplia no ponto do cursor */
+.zoomLayer {
+  position: absolute;
+  inset: 0;
+  display: block;
+  transition: transform 0.2s ease-out;
+}
+
 .photo {
+  position: absolute;
+  inset: 0;
   display: block;
   width: 100%;
   height: 100%;
-  transition: transform 0.2s ease-out;
   user-select: none;
+  -webkit-user-drag: none;
 }
+
+.counter {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  padding: 4px 10px;
+  border-radius: var(--pz-radius-pill);
+  font-size: var(--pz-fs-xs);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  color: var(--pz-text-2);
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--pz-line);
+  pointer-events: none;
+}
+
+.zoomed .counter { opacity: 0; }
 
 .stageCover .photo { object-fit: cover; }
 
@@ -256,8 +284,6 @@
   object-fit: contain;
   padding: 8%;
 }
-
-.thumb:hover { opacity: 1; border-color: var(--pz-line-strong); }
 
 .thumbOn {
   opacity: 1;
@@ -430,18 +456,12 @@
 
 .wishBtn svg { width: 20px; height: 20px; }
 
-.wishBtn:hover {
-  border-color: rgba(233, 236, 241, 0.55);
-  background: rgba(255, 255, 255, 0.05);
-}
-
 .wished {
   color: #0a0a0b;
   background: var(--pz-chrome-flat);
   border-color: transparent;
 }
 
-.wished:hover { background: var(--pz-chrome-flat); }
 .wished svg { fill: currentColor; }
 
 .block {
@@ -621,10 +641,7 @@
 
 .starBtn svg { width: 22px; height: 22px; }
 
-.starBtn:hover { color: var(--pz-text-2); }
-
-.starBtnFilled,
-.starBtnFilled:hover { color: var(--pz-chrome-1); }
+.starBtnFilled { color: var(--pz-chrome-1); }
 
 .starBtnFilled svg { fill: currentColor; }
 
@@ -687,8 +704,65 @@
   color: var(--pz-text-3);
 }
 
+/* ---------- compra presa embaixo (celular e tablet) ---------- */
+.buyBar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: calc(var(--z-fab) + 30);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px max(16px, env(safe-area-inset-right, 0px)) calc(12px + var(--pz-safe-bottom)) max(16px, env(safe-area-inset-left, 0px));
+  background: rgba(7, 8, 10, 0.94);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-top: 1px solid var(--pz-line-strong);
+}
+
+.buyBarPrice {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.buyBarValue {
+  font-size: var(--pz-fs-l);
+  font-weight: 700;
+  font-stretch: 110%;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.buyBarSize {
+  overflow: hidden;
+  font-size: var(--pz-fs-xs);
+  color: var(--pz-text-2);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.buyBarBtn { flex: 1; min-width: 0; }
+
+@media (hover: hover) {
+  .backBtn:hover {
+    color: var(--pz-text);
+    border-color: var(--pz-line-strong);
+  }
+  .thumb:hover { opacity: 1; border-color: var(--pz-line-strong); }
+  .wishBtn:hover {
+    border-color: rgba(233, 236, 241, 0.55);
+    background: rgba(255, 255, 255, 0.05);
+  }
+  .wished:hover { background: var(--pz-chrome-flat); }
+  .starBtn:hover { color: var(--pz-text-2); }
+  .starBtnFilled:hover { color: var(--pz-chrome-1); }
+}
+
 /* ===== Responsivo ===== */
-@media (max-width: 900px) {
+@media (max-width: 1023.98px) {
   .content,
   .loading,
   .reviewsSection {
@@ -698,7 +772,7 @@
   .gallery { position: static; }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 479.98px) {
   .stage { border-radius: var(--pz-radius-m); }
   .thumbs { gap: 6px; }
   .thumb { flex-basis: 56px; width: 56px; height: 56px; border-radius: 10px; }

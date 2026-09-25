@@ -73,9 +73,11 @@
   to { transform: translateX(0); }
 }
 
-.tickerWrap:hover .tickerTrack { animation-play-state: paused; }
+@media (hover: hover) {
+  .tickerWrap:hover .tickerTrack { animation-play-state: paused; }
+}
 
-@media (max-width: 600px) {
+@media (max-width: 767.98px) {
   .tickerLine { padding: 8px 0; }
   .tickerItem { font-size: var(--pz-fs-xs); }
   .sep { margin: 0 20px; height: 12px; }

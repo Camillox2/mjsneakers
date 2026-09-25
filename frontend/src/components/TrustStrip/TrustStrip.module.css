@@ -89,12 +89,15 @@
   color: var(--pz-text-2);
 }
 
-@media (max-width: 1000px) {
+@media (max-width: 1023.98px) {
   .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 40px; }
   .item:nth-child(3) { border-left: 0; }
 }
 
-@media (max-width: 420px) {
-  .item { padding: 6px 12px; }
-  .big { font-size: 2.3rem; }
+/* celular pequeno: o número acompanha a largura (em 320px "30 dias" cabia
+   só por um fio e estourava a coluna) */
+@media (max-width: 479.98px) {
+  .item { padding: 6px 10px; }
+  .big { font-size: clamp(1.75rem, 9vw, 2.3rem); }
+  .sub { font-size: var(--pz-fs-xs); }
 }

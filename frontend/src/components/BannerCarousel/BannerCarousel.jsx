@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { AnimatePresence, motion, MotionConfig } from 'framer-motion'
 import { FiChevronLeft, FiChevronRight } from 'react-icons/fi'
 import { getImageUrl } from '../../utils/imageHelper'
+import { useSwipe } from '../../lib/useSwipe'
 import styles from './BannerCarousel.module.css'
 import { cachedGet, TTL } from '../../services/cache'
 
@@ -77,6 +78,9 @@ export default function BannerCarousel() {
   const [current, setCurrent] = useState(0)
   const [direction, setDirection] = useState(1)
   const [paused, setPaused] = useState(false)
+  // toque: pausa enquanto o dedo está no banner e mais um tempo depois
+  const [held, setHeld] = useState(false)
+  const holdTimer = useRef(0)
 
   useEffect(() => {
     cachedGet('/banners', { ttl: TTL.config, persist: true }).then((data) => setBanners(Array.isArray(data) ? data : [])).catch(() => {})
@@ -97,13 +101,27 @@ export default function BannerCarousel() {
     goTo((current - 1 + banners.length) % banners.length, -1)
   }, [current, banners.length, goTo])
 
-  // Avança sozinho; para enquanto o mouse ou o foco estão no banner
+  // Avança sozinho; para enquanto o mouse, o foco ou o dedo estão no banner
   useEffect(() => {
-    if (banners.length <= 1 || paused) return
+    if (banners.length <= 1 || paused || held) return
     const speed = banners[current]?.effect_speed || 'slow'
     const interval = setInterval(next, speedMap[speed] || 5000)
     return () => clearInterval(interval)
-  }, [current, banners, next, paused])
+  }, [current, banners, next, paused, held])
+
+  useEffect(() => () => clearTimeout(holdTimer.current), [])
+
+  const hold = () => {
+    clearTimeout(holdTimer.current)
+    setHeld(true)
+  }
+  const release = () => {
+    clearTimeout(holdTimer.current)
+    holdTimer.current = setTimeout(() => setHeld(false), 6000)
+  }
+
+  // deslizar o dedo troca de banner (e o banner acompanha o dedo)
+  const swipe = useSwipe({ enabled: banners.length > 1, onNext: next, onPrev: prev })
 
   if (banners.length === 0) return null
 
@@ -120,6 +138,9 @@ export default function BannerCarousel() {
         onMouseLeave={() => setPaused(false)}
         onFocus={() => setPaused(true)}
         onBlur={() => setPaused(false)}
+        onTouchStart={hold}
+        onTouchEnd={release}
+        onTouchCancel={release}
       >
         <div className={styles.bannerWrap} style={{ perspective: banner?.animation_type === 'flip' ? '1200px' : undefined }}>
           <AnimatePresence custom={direction} mode="wait">
@@ -132,11 +153,16 @@ export default function BannerCarousel() {
               animate="center"
               exit="exit"
               transition={{ duration: 0.6, ease: EASE }}
+              {...swipe.bind}
             >
               {banner.media_type === 'video' && banner.video_url ? (
                 <video className={styles.bannerVideo} src={banner.video_url} autoPlay muted loop playsInline />
               ) : (
-                <img className={styles.bannerImg} src={getImageUrl(banner.image_url, banner.title || 'Banner')} alt={banner.title || ''} />
+                // no celular entra a imagem em pé, quando o admin cadastrou uma
+                <picture style={{ display: 'contents' }}>
+                  {banner.image_url_mobile && <source media="(max-width: 767.98px)" srcSet={getImageUrl(banner.image_url_mobile, banner.title || 'Banner')} />}
+                  <img className={styles.bannerImg} src={getImageUrl(banner.image_url, banner.title || 'Banner')} alt={banner.title || ''} />
+                </picture>
               )}
             </motion.div>
           </AnimatePresence>

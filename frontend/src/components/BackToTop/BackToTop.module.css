@@ -1,8 +1,9 @@
-/* Fica na mesma coluna do botão do atendimento, logo acima dele. */
+/* Fica na mesma coluna do botão do atendimento, logo acima dele. Sobe junto
+   quando a página tem barra de compra presa embaixo (--pz-fab-lift). */
 .btn {
   position: fixed;
-  right: 28px;
-  bottom: calc(88px + env(safe-area-inset-bottom));
+  right: max(28px, env(safe-area-inset-right, 0px));
+  bottom: calc(88px + var(--pz-fab-lift) + var(--pz-safe-bottom));
   z-index: var(--z-fab, 380);
   display: grid;
   place-items: center;
@@ -17,17 +18,19 @@
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.8);
-  transition: border-color 0.2s var(--pz-ease), background 0.2s var(--pz-ease);
+  transition: border-color 0.2s var(--pz-ease), background 0.2s var(--pz-ease), bottom 0.35s var(--pz-ease);
 }
 
-.btn:hover {
-  border-color: rgba(233, 236, 241, 0.55);
-  background: rgba(31, 34, 39, 0.75);
+@media (hover: hover) {
+  .btn:hover {
+    border-color: rgba(233, 236, 241, 0.55);
+    background: rgba(31, 34, 39, 0.75);
+  }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 767.98px) {
   .btn {
-    right: 18px;
-    bottom: calc(74px + env(safe-area-inset-bottom));
+    right: max(18px, env(safe-area-inset-right, 0px));
+    bottom: calc(74px + var(--pz-fab-lift) + var(--pz-safe-bottom));
   }
 }

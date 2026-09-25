@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef, createContext, lazy, Suspense } from 'react'
-import { Routes, Route, useLocation, useNavigate } from 'react-router-dom'
+import { useState, useEffect, useRef, useCallback, createContext, lazy, Suspense } from 'react'
+import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { MotionConfig } from 'framer-motion'
 import Header from './components/Header/Header'
 import Home from './pages/Home/Home'
 // Admin (com gráficos), produto e rastreio carregam sob demanda: o cliente que
@@ -11,13 +12,15 @@ import CartDrawer from './components/Cart/CartDrawer'
 import WishlistDrawer from './components/WishlistDrawer/WishlistDrawer'
 import BackToTop from './components/BackToTop/BackToTop'
 import Footer from './components/Footer/Footer'
+import Maintenance from './components/Maintenance/Maintenance'
 import { ToastProvider } from './components/Toast/Toast'
 import ChatBot from './components/ChatBot/ChatBot'
 import { reserveStock, releaseStock } from './utils/stockSession'
 import { parseSizes } from './utils/sizes'
+import { isSample } from './data/drops'
 import { startSmoothScroll, stopSmoothScroll, scrollToY } from './lib/motion'
-import { clearCache } from './services/cache'
-import { cometToCart } from './lib/comets'
+import { cachedGet, clearCache, TTL } from './services/cache'
+import { cometFlying, cometToCart } from './lib/comets'
 
 export const CartContext = createContext()
 export const AuthContext = createContext()
@@ -25,15 +28,33 @@ export const SearchContext = createContext()
 export const WishlistContext = createContext()
 export const DarkModeContext = createContext()
 
+// Amostra da vitrine não existe no backend: não entra na sacola nem no pedido.
+const isSampleItem = (p) => isSample(p) || String(p?.id ?? '').startsWith('amostra-')
+// o admin pode gravar a chave como texto, número ou booleano
+const isOn = (v) => v === true || v === 1 || v === 'true' || v === '1'
+// quanto a loja espera as configurações antes de aparecer (manutenção)
+const BOOT_WAIT = 1500
+
+const readList = (key) => {
+  try {
+    const list = JSON.parse(localStorage.getItem(key) || '[]')
+    return Array.isArray(list) ? list : []
+  } catch {
+    return []
+  }
+}
+
 function App() {
   const location = useLocation()
   const navigate = useNavigate()
-  const isAdminRoute = location.pathname.startsWith('/admin')
+  const isAdminRoute = location.pathname === '/admin' || location.pathname.startsWith('/admin/')
   const [cart, setCart] = useState([])
   const [cartOpen, setCartOpen] = useState(false)
   const [user, setUser] = useState(null)
   const [wishlist, setWishlist] = useState([])
   const [wishlistOpen, setWishlistOpen] = useState(false)
+  // configurações que decidem se a loja abre ou mostra a manutenção
+  const [store, setStore] = useState({ ready: false, maintenance: false, message: '', email: '' })
   // onde foi o último toque/clique: é de lá que sai o cometa da sacola
   const lastPointer = useRef(null)
   useEffect(() => {
@@ -63,6 +84,29 @@ function App() {
     // voltando do admin, a loja lê configurações e produtos de novo
     if (wasAdmin.current && !isAdminRoute) clearCache()
     wasAdmin.current = isAdminRoute
+    if (isAdminRoute) return undefined
+
+    // Manutenção: a loja espera as configurações um instante antes de
+    // aparecer (para não piscar a vitrine e trocar pela tela de aviso). Se a
+    // API não responder a tempo ou estiver fora do ar, a loja abre normal.
+    let alive = true
+    const apply = (data) => {
+      if (!alive) return
+      setStore({
+        ready: true,
+        maintenance: isOn(data?.maintenance_mode),
+        message: data?.maintenance_message || '',
+        email: data?.footer_email || data?.contact_email || '',
+      })
+    }
+    const wait = setTimeout(() => alive && setStore((s) => (s.ready ? s : { ...s, ready: true })), BOOT_WAIT)
+    cachedGet('/settings', { ttl: TTL.config, persist: true })
+      .then(apply)
+      .catch(() => apply(null))
+    return () => {
+      alive = false
+      clearTimeout(wait)
+    }
   }, [isAdminRoute])
 
   useEffect(() => {
@@ -70,14 +114,9 @@ function App() {
   }, [location.pathname])
 
   useEffect(() => {
-    const savedCart = localStorage.getItem('mj_cart')
-    if (savedCart) {
-      try { setCart(JSON.parse(savedCart)) } catch {}
-    }
-    const savedWishlist = localStorage.getItem('mj_wishlist')
-    if (savedWishlist) {
-      try { setWishlist(JSON.parse(savedWishlist)) } catch {}
-    }
+    // sacola velha com amostra (de antes de a amostra sair de venda) volta sem ela
+    setCart(readList('mj_cart').filter((item) => !isSampleItem(item)))
+    setWishlist(readList('mj_wishlist'))
     const token = localStorage.getItem('mj_token')
     const savedUser = localStorage.getItem('mj_user')
     if (token && savedUser) {
@@ -94,17 +133,17 @@ function App() {
   }, [wishlist])
 
   const addToCart = async (product, size) => {
+    // amostra não está à venda; e sem tamanho não há par para reservar
+    if (isSampleItem(product)) return { ok: false, reason: 'sample' }
+    if (!size && parseSizes(product.sizes).length > 0) return { ok: false, reason: 'size' }
     // Reserva o estoque antes de adicionar. Em 409 (esgotou agora) cancela.
-    // Exemplar de amostra não existe no backend: não há estoque para reservar.
-    if (!product.sample) {
-      try {
-        await reserveStock({ product_id: product.id, size, quantity: 1 })
-      } catch (err) {
-        if (err?.response?.status === 409) {
-          return { ok: false, reason: 'out_of_stock' }
-        }
-        // Outros erros (ex.: rota de reserva indisponível) -> segue sem bloquear a venda.
+    try {
+      await reserveStock({ product_id: product.id, size, quantity: 1 })
+    } catch (err) {
+      if (err?.response?.status === 409) {
+        return { ok: false, reason: 'out_of_stock' }
       }
+      // Outros erros (ex.: rota de reserva indisponível) -> segue sem bloquear a venda.
     }
     const pct = Math.min(Math.max(Number(product.discount_percentage || 0), 0), 90)
     const unit = pct > 0 ? Math.round(Number(product.price) * (1 - pct / 100) * 100) / 100 : Number(product.price)
@@ -127,6 +166,25 @@ function App() {
     })
     return { ok: true }
   }
+
+  // Abre a sacola depois que o cometa chega nela e ela dá o pulo: abrir na
+  // hora cobria a sacola do topo e ninguém via a chegada.
+  const revealCart = useCallback(() => {
+    if (!cometFlying()) {
+      setCartOpen(true)
+      return
+    }
+    let done = false
+    const open = () => {
+      if (done) return
+      done = true
+      window.removeEventListener('pz:cart-hit', onHit)
+      setCartOpen(true)
+    }
+    const onHit = () => setTimeout(open, 420)
+    window.addEventListener('pz:cart-hit', onHit)
+    setTimeout(open, 2000) // o cometa sempre chega antes; é só uma garantia
+  }, [])
 
   const removeFromCart = (productId, size) => {
     setCart(prev => prev.filter(item => !(item.id === productId && item.size === size)))
@@ -181,44 +239,77 @@ function App() {
     localStorage.removeItem('mj_user')
   }
 
+  const pageFallback = <div style={{ minHeight: '100svh' }} aria-busy="true" />
+
+  let content
+  if (isAdminRoute) {
+    // O admin ocupa a tela inteira: nada da loja em volta dele.
+    content = (
+      <Suspense fallback={pageFallback}>
+        <Routes>
+          <Route path="/admin/*" element={<Admin />} />
+        </Routes>
+      </Suspense>
+    )
+  } else if (!store.ready) {
+    content = pageFallback
+  } else if (store.maintenance) {
+    content = <Maintenance message={store.message} email={store.email} />
+  } else {
+    content = (
+      <>
+        <Header />
+        <Suspense fallback={pageFallback}>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/produto/:id" element={<Product wishlist={wishlist} onToggleWishlist={toggleWishlist} />} />
+            <Route path="/rastrear" element={<Track />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
+        <CartDrawer />
+        <WishlistDrawer
+          isOpen={wishlistOpen}
+          onClose={() => setWishlistOpen(false)}
+          items={wishlist}
+          onRemove={removeFromWishlist}
+          onAddToCart={async (item, size) => {
+            const result = await addToCart(item, size)
+            if (result?.ok) {
+              setWishlistOpen(false)
+              revealCart()
+            }
+            return result
+          }}
+          onProductClick={(item) => {
+            // no início abre o modal; nas outras páginas vai para a página do produto
+            if (location.pathname === '/') setSearchProduct(item)
+            else navigate(`/produto/${item.id}`)
+          }}
+        />
+        {location.pathname !== '/' && <Footer />}
+        <BackToTop />
+        <ChatBot />
+      </>
+    )
+  }
+
   return (
-    <ToastProvider>
-      <DarkModeContext.Provider value={{ darkMode, setDarkMode }}>
-        <AuthContext.Provider value={{ user, login, logout }}>
-          <CartContext.Provider value={{ cart, addToCart, removeFromCart, updateQuantity, clearCart, cartTotal, cartCount, cartOpen, setCartOpen }}>
-            <WishlistContext.Provider value={{ wishlist, toggleWishlist, removeFromWishlist, wishlistOpen, setWishlistOpen }}>
-              <SearchContext.Provider value={{ searchProduct, setSearchProduct }}>
-                <Header />
-                <Suspense fallback={<div style={{ minHeight: '100svh' }} aria-busy="true" />}>
-                  <Routes>
-                    <Route path="/" element={<Home />} />
-                    <Route path="/admin" element={<Admin />} />
-                    <Route path="/produto/:id" element={<Product wishlist={wishlist} onToggleWishlist={toggleWishlist} />} />
-                    <Route path="/rastrear" element={<Track />} />
-                  </Routes>
-                </Suspense>
-                <CartDrawer />
-                <WishlistDrawer
-                       isOpen={wishlistOpen}
-                  onClose={() => setWishlistOpen(false)}
-                  items={wishlist}
-                  onRemove={removeFromWishlist}
-                  onAddToCart={(item) => { addToCart(item, parseSizes(item.sizes)[0] || '42'); setWishlistOpen(false); setCartOpen(true) }}
-                  onProductClick={(item) => {
-                    // no início abre o modal; nas outras páginas vai para a página do produto
-                    if (location.pathname === '/') setSearchProduct(item)
-                    else navigate(`/produto/${item.id}`)
-                  }}
-                />
-                {!isAdminRoute && location.pathname !== '/' && <Footer />}
-                {!isAdminRoute && <BackToTop />}
-                {!isAdminRoute && <ChatBot />}
-              </SearchContext.Provider>
-            </WishlistContext.Provider>
-          </CartContext.Provider>
-        </AuthContext.Provider>
-      </DarkModeContext.Provider>
-    </ToastProvider>
+    <MotionConfig reducedMotion="user">
+      <ToastProvider>
+        <DarkModeContext.Provider value={{ darkMode, setDarkMode }}>
+          <AuthContext.Provider value={{ user, login, logout }}>
+            <CartContext.Provider value={{ cart, addToCart, removeFromCart, updateQuantity, clearCart, cartTotal, cartCount, cartOpen, setCartOpen, revealCart }}>
+              <WishlistContext.Provider value={{ wishlist, toggleWishlist, removeFromWishlist, wishlistOpen, setWishlistOpen }}>
+                <SearchContext.Provider value={{ searchProduct, setSearchProduct }}>
+                  {content}
+                </SearchContext.Provider>
+              </WishlistContext.Provider>
+            </CartContext.Provider>
+          </AuthContext.Provider>
+        </DarkModeContext.Provider>
+      </ToastProvider>
+    </MotionConfig>
   )
 }
 

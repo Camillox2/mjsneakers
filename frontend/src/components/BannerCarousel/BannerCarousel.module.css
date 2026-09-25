@@ -28,6 +28,9 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+  user-select: none;
+  -webkit-user-drag: none;
+  pointer-events: none; /* o arrasto é da moldura, não da imagem */
 }
 
 /* sombra embaixo só para o texto ler bem sobre qualquer foto */
@@ -78,7 +81,7 @@
 
 .dot {
   position: relative;
-  width: 32px;
+  width: 44px;
   height: 44px;
   padding: 0;
   background: none;
@@ -96,8 +99,6 @@
   background: rgba(233, 236, 241, 0.35);
   transition: width 0.3s var(--pz-ease), background 0.3s var(--pz-ease);
 }
-
-.dot:hover::before { background: rgba(233, 236, 241, 0.6); }
 
 .activeDot::before {
   width: 20px;
@@ -125,9 +126,12 @@
   transition: border-color 0.2s var(--pz-ease), background 0.2s var(--pz-ease);
 }
 
-.arrow:hover {
-  border-color: rgba(233, 236, 241, 0.55);
-  background: rgba(31, 34, 39, 0.75);
+@media (hover: hover) {
+  .dot:hover::before { background: rgba(233, 236, 241, 0.6); }
+  .arrow:hover {
+    border-color: rgba(233, 236, 241, 0.55);
+    background: rgba(31, 34, 39, 0.75);
+  }
 }
 
 .arrowLeft { left: 14px; }
@@ -262,13 +266,19 @@
   100% { transform: translateX(300%) skewX(-15deg); }
 }
 
-@media (max-width: 768px) {
-  .bannerWrap { border-radius: var(--pz-radius-m); }
-  .arrow { top: auto; bottom: 8px; translate: none; width: 44px; height: 44px; font-size: 18px; }
-  .arrowLeft { left: 8px; }
-  .arrowRight { right: auto; left: 58px; }
-  .dots { right: 8px; }
-  .bannerOverlay { padding: 20px 20px 64px; }
+@media (max-width: 767.98px) {
+  .bannerWrap { border-radius: var(--pz-radius-m); height: clamp(240px, 62vw, 340px); }
+  .bannerOverlay { padding: 20px 20px 56px; }
+  .bannerSub {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    font-size: var(--pz-fs-s);
+  }
+  /* no celular o dedo troca o banner: as setas saem e os pontos (44px) ficam */
+  .arrow { display: none; }
+  .dots { left: 0; right: 0; justify-content: center; }
 }
 
 @media (prefers-reduced-motion: reduce) {

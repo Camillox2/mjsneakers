@@ -1,5 +1,6 @@
-/* Modal de produto: vitrine à esquerda, compra à direita. No celular vira
-   uma folha que sobe da base, com o fechar sempre à mão. */
+/* Modal de produto: vitrine à esquerda, compra à direita. No celular e no
+   tablet vira uma folha que sobe da base, com o fechar sempre à mão e a
+   compra presa no pé. */
 
 .overlay {
   --pm-pad: clamp(16px, 3vw, 40px);
@@ -55,11 +56,6 @@
   background: rgba(10, 10, 12, 0.72);
   border: 1px solid var(--pz-line);
   transition: background 0.2s var(--pz-ease), border-color 0.2s var(--pz-ease);
-}
-
-.closeBtn:hover {
-  background: var(--pz-surface-3);
-  border-color: var(--pz-line-strong);
 }
 
 .body {
@@ -118,6 +114,23 @@
 
 .cover .photo { object-fit: cover; }
 
+/* qual foto de quantas (a folha no celular não mostra setas) */
+.counter {
+  position: absolute;
+  z-index: 2;
+  left: 14px;
+  bottom: 12px;
+  padding: 3px 10px;
+  border-radius: var(--pz-radius-pill);
+  font-size: var(--pz-fs-xs);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  color: var(--pz-text-2);
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--pz-line);
+  pointer-events: none;
+}
+
 /* o giro é 4:3; cabe inteiro na vitrine seja ela mais larga ou mais alta */
 .spinBox {
   position: relative;
@@ -150,8 +163,6 @@
   opacity: 0.6;
   transition: opacity 0.2s var(--pz-ease), border-color 0.2s var(--pz-ease), box-shadow 0.2s var(--pz-ease);
 }
-
-.thumb:hover { opacity: 0.9; }
 
 .thumb img {
   display: block;
@@ -375,11 +386,6 @@
   transition: border-color 0.2s var(--pz-ease), background 0.2s var(--pz-ease);
 }
 
-.reviewToggle:hover {
-  border-color: rgba(233, 236, 241, 0.55);
-  background: rgba(255, 255, 255, 0.04);
-}
-
 .reviewMsg {
   padding: 12px 14px;
   border-radius: var(--pz-radius-m);
@@ -438,7 +444,6 @@
   transition: color 0.15s var(--pz-ease);
 }
 
-.starBtn:hover,
 .starOn { color: var(--pz-chrome-1); }
 .starOn svg { fill: currentColor; }
 
@@ -495,9 +500,66 @@
   color: var(--pz-text-3);
 }
 
-/* ---------- folha no celular ---------- */
+/* ---------- compra presa no pé da folha ---------- */
+/* alça no alto da folha; deixa as laterais livres para o fechar */
+.grab {
+  position: absolute;
+  z-index: 6;
+  top: 0;
+  left: 72px;
+  right: 72px;
+  height: 30px;
+}
 
-@media (max-width: 860px) {
+.buyBar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px max(16px, env(safe-area-inset-right, 0px)) calc(12px + var(--pz-safe-bottom)) max(16px, env(safe-area-inset-left, 0px));
+  background: rgba(7, 8, 10, 0.96);
+  border-top: 1px solid var(--pz-line-strong);
+}
+
+.buyBarPrice {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.buyBarValue {
+  font-size: var(--pz-fs-l);
+  font-weight: 700;
+  font-stretch: 110%;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.buyBarSize {
+  font-size: var(--pz-fs-xs);
+  color: var(--pz-text-2);
+  white-space: nowrap;
+}
+
+.buyBar > :last-child { flex: 1; min-width: 0; }
+
+@media (hover: hover) {
+  .closeBtn:hover {
+    background: var(--pz-surface-3);
+    border-color: var(--pz-line-strong);
+  }
+  .thumb:hover { opacity: 0.9; }
+  .reviewToggle:hover {
+    border-color: rgba(233, 236, 241, 0.55);
+    background: rgba(255, 255, 255, 0.04);
+  }
+  .starBtn:hover { color: var(--pz-chrome-1); }
+}
+
+/* ---------- folha no celular e no tablet ---------- */
+
+@media (max-width: 1023.98px) {
   .overlay {
     --pm-pad: 0px;
     place-items: end stretch;
@@ -506,12 +568,12 @@
   .dialog {
     width: 100%;
     height: auto;
-    max-height: calc(100dvh - 24px);
+    max-height: calc(100dvh - max(24px, var(--pz-safe-top) + 8px));
     border-radius: var(--pz-radius-l) var(--pz-radius-l) 0 0;
     border-bottom: 0;
   }
 
-  .closeBtn { top: 12px; right: 12px; }
+  .closeBtn { top: 12px; right: max(12px, env(safe-area-inset-right, 0px)); }
 
   .body {
     display: block;
@@ -537,7 +599,7 @@
 
   .info {
     overflow: visible;
-    padding: 22px 20px calc(28px + env(safe-area-inset-bottom));
+    padding: 22px max(20px, env(safe-area-inset-right, 0px)) 28px max(20px, env(safe-area-inset-left, 0px));
     gap: 16px;
   }
 
@@ -545,7 +607,19 @@
   .buy { gap: 16px; padding-top: 16px; }
 }
 
-@media (max-width: 400px) {
+/* tablet: a folha não precisa esticar de ponta a ponta */
+@media (min-width: 768px) and (max-width: 1023.98px) {
+  .dialog { width: min(720px, 100%); margin: 0 auto; }
+}
+
+@media (max-width: 479.98px) {
   .info { padding-left: 16px; padding-right: 16px; }
   .thumbs { padding-left: 12px; padding-right: 12px; }
+}
+
+/* celular deitado: vitrine baixa para a ficha e a compra caberem */
+@media (max-height: 500px) and (orientation: landscape) {
+  .stage { max-height: 62dvh; }
+  .spinBox { width: min(94%, calc(62dvh * 4 / 3)); }
+  .buyBar { padding-top: 8px; padding-bottom: calc(8px + var(--pz-safe-bottom)); }
 }

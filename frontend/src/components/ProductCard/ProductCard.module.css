@@ -49,8 +49,6 @@
   pointer-events: none;
 }
 
-.card:hover::before { opacity: 1; }
-
 /* ---------- vitrine ---------- */
 .stage {
   position: relative;
@@ -95,9 +93,16 @@
   pointer-events: none;
 }
 
-.contain:hover .photo { transform: translate3d(0, -3%, 0) scale(1.03); }
-.contain:hover .floor { transform: scaleX(0.84); opacity: 0.6; }
-.cover:hover .photo { transform: scale(1.04); }
+@media (hover: hover) {
+  .card:hover::before { opacity: 1; }
+  .contain:hover .photo { transform: translate3d(0, -3%, 0) scale(1.03); }
+  .contain:hover .floor { transform: scaleX(0.84); opacity: 0.6; }
+  .cover:hover .photo { transform: scale(1.04); }
+}
+
+/* no toque, o card responde ao dedo com um afundar curto */
+.card:active { transform: scale(0.985); }
+.card { transition: transform 0.2s var(--pz-ease); }
 
 .photoHidden { opacity: 0; }
 
@@ -151,6 +156,7 @@
   z-index: 2;
   top: 12px;
   left: 12px;
+  right: 60px; /* não passa por baixo do coração */
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
@@ -175,8 +181,8 @@
   right: 10px;
   display: grid;
   place-items: center;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   font-size: 16px;
   color: #fff;
@@ -185,7 +191,7 @@
   transition: transform 0.2s var(--pz-ease), background 0.2s;
 }
 
-.wish:hover { transform: scale(1.08); background: rgba(0, 0, 0, 0.5); }
+.wish:active { transform: scale(0.92); }
 .wished { color: #0a0a0b; background: var(--pz-chrome-flat); border-color: transparent; }
 .wished svg { fill: currentColor; }
 
@@ -207,7 +213,6 @@
   transition: transform 0.4s var(--pz-ease);
 }
 
-.card:hover .quick,
 .quick:focus-within { transform: translate3d(0, 0, 0); }
 
 .quick button {
@@ -224,12 +229,17 @@
   transition: background 0.15s, color 0.15s;
 }
 
-.quick button:hover {
-  color: #0a0a0b;
-  background: var(--pz-chrome-flat);
-  border-color: transparent;
+@media (hover: hover) {
+  .wish:hover { transform: scale(1.08); background: rgba(0, 0, 0, 0.5); }
+  .card:hover .quick { transform: translate3d(0, 0, 0); }
+  .quick button:hover {
+    color: #0a0a0b;
+    background: var(--pz-chrome-flat);
+    border-color: transparent;
+  }
 }
 
+/* tamanho rápido é só de mouse: no toque o card abre o produto */
 @media (hover: none) {
   .quick { display: none; }
 }
@@ -306,8 +316,9 @@
 
 .priceRow {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
-  gap: 10px;
+  gap: 2px 10px;
   margin-top: 8px;
 }
 
@@ -339,14 +350,25 @@
 .feature .name { font-size: var(--pz-fs-2xl); line-height: 1; letter-spacing: -0.02em; }
 .feature .price { font-size: var(--pz-fs-xl); }
 
-@media (max-width: 760px) {
+@media (max-width: 767.98px) {
   .card { border-radius: var(--pz-radius-m); }
   .info { padding: 2px 12px 14px; }
   .name { font-size: var(--pz-fs-m); }
   .price { font-size: var(--pz-fs-m); }
-  .wish { width: 36px; height: 36px; font-size: 14px; }
-  .badges { top: 8px; left: 8px; }
-  .wish { top: 8px; right: 8px; }
+  /* o círculo desenhado fica pequeno; a área de toque continua com 44px */
+  .wish { top: 2px; right: 2px; font-size: 14px; background: none; border: 0; }
+  .wish::before {
+    content: '';
+    position: absolute;
+    inset: 5px;
+    z-index: -1;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.32);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+  }
+  .wished { background: none; color: #0a0a0b; }
+  .wished::before { background: var(--pz-chrome-flat); border-color: transparent; }
+  .badges { top: 8px; left: 8px; right: 48px; }
   .feature .stage { min-height: 0; aspect-ratio: 4 / 3; flex: none; }
   .feature .info { padding: 4px 16px 18px; }
   .feature .name { font-size: var(--pz-fs-xl); }

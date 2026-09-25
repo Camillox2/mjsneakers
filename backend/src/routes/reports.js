@@ -1,34 +1,43 @@
 const express = require('express');
 const router = express.Router();
 const { pool } = require('../config/db');
-const { authMiddleware, adminMiddleware } = require('../middleware/auth');
+const { requireAdmin } = require('../middleware/auth');
 
-router.get('/revenue-by-brand', authMiddleware, adminMiddleware, async (req, res) => {
+router.use(...requireAdmin);
+
+const num = (value) => Number(value) || 0;
+
+// Receita por marca: soma dos itens (preço x quantidade), sem frete e sem
+// pedidos cancelados.
+router.get('/revenue-by-brand', async (req, res) => {
   try {
     const [rows] = await pool.query(`
-      SELECT b.name as name, COALESCE(SUM(o.total),0) as revenue, COUNT(DISTINCT o.id) as orders
-      FROM brands b
-      LEFT JOIN products p ON p.brand_id = b.id
-      LEFT JOIN order_items oi ON oi.product_id = p.id
-      LEFT JOIN orders o ON o.id = oi.order_id AND o.status != 'cancelled'
-      GROUP BY b.id, b.name ORDER BY revenue DESC
+      SELECT COALESCE(b.name, 'Sem marca') as name,
+        COALESCE(SUM(oi.price * oi.quantity), 0) as revenue,
+        COALESCE(SUM(oi.quantity), 0) as quantity,
+        COUNT(DISTINCT o.id) as orders
+      FROM order_items oi
+      JOIN orders o ON o.id = oi.order_id AND o.status <> 'cancelled'
+      LEFT JOIN products p ON p.id = oi.product_id
+      LEFT JOIN brands b ON b.id = p.brand_id
+      GROUP BY COALESCE(b.name, 'Sem marca') ORDER BY revenue DESC
     `);
-    res.json(rows);
-  } catch (e) { res.status(500).json({ error: 'Erro' }); }
+    res.json(rows.map((row) => ({ name: row.name, revenue: num(row.revenue), quantity: num(row.quantity), orders: num(row.orders) })));
+  } catch (e) { res.status(500).json({ error: 'Erro ao gerar relatório' }); }
 });
 
-router.get('/hourly-heatmap', authMiddleware, adminMiddleware, async (req, res) => {
+router.get('/hourly-heatmap', async (req, res) => {
   try {
     const [rows] = await pool.query(`
       SELECT DAYOFWEEK(created_at)-1 as day, HOUR(created_at) as hour, COUNT(*) as orders
-      FROM orders WHERE created_at >= DATE_SUB(NOW(), INTERVAL 90 DAY)
+      FROM orders WHERE created_at >= DATE_SUB(NOW(), INTERVAL 90 DAY) AND status <> 'cancelled'
       GROUP BY day, hour ORDER BY day, hour
     `);
-    res.json(rows);
-  } catch (e) { res.status(500).json({ error: 'Erro' }); }
+    res.json(rows.map((row) => ({ day: num(row.day), hour: num(row.hour), orders: num(row.orders) })));
+  } catch (e) { res.status(500).json({ error: 'Erro ao gerar relatório' }); }
 });
 
-router.get('/monthly-revenue', authMiddleware, adminMiddleware, async (req, res) => {
+router.get('/monthly-revenue', async (req, res) => {
   try {
     const [rows] = await pool.query(`
       SELECT DATE_FORMAT(created_at,'%Y-%m') as month,
@@ -38,37 +47,39 @@ router.get('/monthly-revenue', authMiddleware, adminMiddleware, async (req, res)
       FROM orders WHERE created_at >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
       GROUP BY month ORDER BY month ASC
     `);
-    res.json(rows);
-  } catch (e) { res.status(500).json({ error: 'Erro' }); }
+    res.json(rows.map((row) => ({ month: row.month, revenue: num(row.revenue), orders: num(row.orders), cancelled: num(row.cancelled) })));
+  } catch (e) { res.status(500).json({ error: 'Erro ao gerar relatório' }); }
 });
 
-router.get('/top-products', authMiddleware, adminMiddleware, async (req, res) => {
+// Top 10 por receita: name é o nome do produto, brand a marca.
+router.get('/top-products', async (req, res) => {
   try {
     const [rows] = await pool.query(`
-      SELECT p.name, b.name as name,
+      SELECT oi.product_id as id, p.name as name, b.name as brand,
         SUM(oi.quantity) as sales,
         SUM(oi.quantity * oi.price) as revenue
       FROM order_items oi
-      JOIN products p ON p.id = oi.product_id
-      LEFT JOIN brands b ON b.id = p.brand_id
       JOIN orders o ON o.id = oi.order_id AND o.status != 'cancelled'
-      GROUP BY p.id ORDER BY revenue DESC LIMIT 10
+      LEFT JOIN products p ON p.id = oi.product_id
+      LEFT JOIN brands b ON b.id = p.brand_id
+      GROUP BY oi.product_id, p.name, b.name ORDER BY revenue DESC LIMIT 10
     `);
-    res.json(rows);
-  } catch (e) { res.status(500).json({ error: 'Erro' }); }
+    res.json(rows.map((row) => ({ id: num(row.id), name: row.name, brand: row.brand, sales: num(row.sales), revenue: num(row.revenue) })));
+  } catch (e) { res.status(500).json({ error: 'Erro ao gerar relatório' }); }
 });
 
-router.get('/funnel', authMiddleware, adminMiddleware, async (req, res) => {
+// Funil dos últimos 30 dias (visualizações não têm data: é o total acumulado).
+router.get('/funnel', async (req, res) => {
   try {
     const [[views]] = await pool.query('SELECT SUM(view_count) as total FROM products WHERE active=TRUE');
     const [[carts]] = await pool.query('SELECT COUNT(*) as total FROM orders WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)');
     const [[completed]] = await pool.query("SELECT COUNT(*) as total FROM orders WHERE status NOT IN ('cancelled','pending') AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)");
     res.json([
-      { stage: 'Visualizações', value: Number(views.total) || 0 },
-      { stage: 'Pedidos iniciados', value: Number(carts.total) || 0 },
-      { stage: 'Pedidos confirmados', value: Number(completed.total) || 0 },
+      { stage: 'Visualizações', value: num(views.total) },
+      { stage: 'Pedidos iniciados', value: num(carts.total) },
+      { stage: 'Pedidos confirmados', value: num(completed.total) },
     ]);
-  } catch (e) { res.status(500).json({ error: 'Erro' }); }
+  } catch (e) { res.status(500).json({ error: 'Erro ao gerar relatório' }); }
 });
 
 module.exports = router;

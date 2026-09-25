@@ -1,0 +1,98 @@
+/* Tela de manutenção: céu estrelado da abertura, logo cromado e o recado. */
+.page {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  min-height: 100svh;
+  padding: calc(40px + var(--pz-safe-top)) var(--pz-gutter) calc(40px + var(--pz-safe-bottom));
+  overflow: hidden;
+  isolation: isolate;
+  background: #000;
+  color: var(--pz-text);
+}
+
+.sky {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* brilho frio atrás do logo, como a órbita da abertura */
+.glow {
+  position: absolute;
+  z-index: -1;
+  left: 50%;
+  top: 46%;
+  width: min(120vw, 1100px);
+  aspect-ratio: 2 / 1;
+  translate: -50% -50%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(205, 222, 255, 0.1), transparent 72%);
+  pointer-events: none;
+}
+
+.content {
+  display: grid;
+  justify-items: center;
+  gap: 18px;
+  max-width: 620px;
+  text-align: center;
+  animation: rise 0.9s var(--pz-ease) both;
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translate3d(0, 14px, 0); }
+  to { opacity: 1; transform: none; }
+}
+
+.logo { width: min(78vw, 460px); margin-bottom: 10px; }
+
+.title {
+  padding: 0 0.1em 0.08em 0;
+  font-family: var(--pz-serif);
+  font-style: italic;
+  font-weight: 800;
+  font-size: var(--pz-fs-3xl);
+  line-height: 1;
+  letter-spacing: -0.03em;
+  background: var(--pz-chrome);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+.message {
+  max-width: 42ch;
+  font-size: var(--pz-fs-l);
+  line-height: 1.55;
+  color: var(--pz-text-2);
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+
+.contact {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  margin-top: 6px;
+  padding: 0 20px;
+  border-radius: var(--pz-radius-pill);
+  font-size: var(--pz-fs-s);
+  font-weight: 600;
+  color: var(--pz-text);
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--pz-line-strong);
+  transition: border-color 0.25s var(--pz-ease), background 0.25s var(--pz-ease);
+}
+
+.contact svg { width: 16px; height: 16px; color: var(--pz-text-2); }
+
+@media (hover: hover) {
+  .contact:hover { border-color: rgba(233, 236, 241, 0.55); background: rgba(255, 255, 255, 0.05); }
+}

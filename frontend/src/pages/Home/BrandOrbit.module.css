@@ -124,7 +124,9 @@
 
 .base { transition: color 0.35s var(--pz-ease); }
 
-.fore:hover .base { color: #fff; }
+@media (hover: hover) {
+  .fore:hover .base { color: #fff; }
+}
 
 /* respiro à direita e embaixo: o itálico passa da caixa e o cromo seria cortado */
 .chrome {
@@ -164,8 +166,12 @@
   color: var(--pz-text-2);
 }
 
-@media (max-width: 760px) {
+@media (max-width: 767.98px) {
   .stage { height: clamp(360px, 92vw, 460px); }
   .center { width: 68vw; }
   .brand { font-size: 1.85rem; padding: 8px 12px; }
+}
+
+@media (max-width: 479.98px) {
+  .brand { font-size: 1.55rem; padding: 10px 10px; }
 }

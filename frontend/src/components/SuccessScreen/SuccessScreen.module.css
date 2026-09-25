@@ -96,6 +96,31 @@
   font-variant-numeric: tabular-nums;
 }
 
+.itemSize { color: var(--pz-text-3); }
+
+.breakdown {
+  display: grid;
+  gap: 6px;
+  padding-top: 12px;
+  border-top: 1px solid var(--pz-line);
+  font-size: var(--pz-fs-s);
+  color: var(--pz-text-2);
+}
+
+.breakdown > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.breakdown dd {
+  font-variant-numeric: tabular-nums;
+  color: var(--pz-text);
+}
+
+.breakdown .breakdownOk dt,
+.breakdown .breakdownOk dd { color: var(--pz-ok); }
+
 .total {
   display: flex;
   align-items: baseline;
@@ -129,7 +154,7 @@
 
 .btn { width: 100%; }
 
-@media (max-width: 480px) {
+@media (max-width: 479.98px) {
   .container { padding: 32px 16px calc(24px + env(safe-area-inset-bottom)); }
   .card { padding: 16px; }
 }

@@ -1,0 +1,162 @@
+.prod { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.prodName { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 280px; }
+.prodMeta { font-size: 13px; color: var(--a-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 280px; }
+
+.price { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.priceNow { font-weight: 700; font-variant-numeric: tabular-nums; }
+.priceWas { font-size: 12.5px; color: var(--a-muted); text-decoration: line-through; font-variant-numeric: tabular-nums; }
+.priceBtn {
+  border: 0;
+  background: none;
+  padding: 4px 6px;
+  margin: -4px -6px;
+  border-radius: 8px;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-align: right;
+}
+.priceBtn:hover { background: var(--a-hover); }
+
+.runCell { min-width: 180px; max-width: 320px; }
+
+.rowActions { display: flex; gap: 2px; justify-content: flex-end; }
+
+/* ---------- editor ---------- */
+
+.editor { display: grid; gap: 24px; }
+
+.part { display: grid; gap: 14px; }
+.partHead { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.partTitle { margin: 0; font-size: 15.5px; font-weight: 700; }
+.partHint { margin: 0; font-size: 13.5px; color: var(--a-muted); }
+
+.photos { display: flex; gap: 10px; flex-wrap: wrap; list-style: none; margin: 0; padding: 0; }
+
+.photo {
+  position: relative;
+  width: 116px;
+  height: 116px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--a-sunken);
+  border: 1px solid var(--a-line-strong);
+  touch-action: none;
+  cursor: grab;
+}
+
+.photo:active { cursor: grabbing; }
+.photo img { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; }
+
+.photoCover {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  background: var(--a-primary-bg);
+  color: var(--a-primary-text);
+}
+
+.photoTools {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: flex;
+  gap: 2px;
+}
+
+.photoBtn {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(8, 10, 20, 0.72);
+  color: #fff;
+  cursor: pointer;
+  font-size: 15px;
+}
+
+.photoBtn:hover { background: rgba(8, 10, 20, 0.92); }
+
+.photoAdd {
+  width: 116px;
+  height: 116px;
+  border-radius: 12px;
+  border: 1.5px dashed var(--a-line-strong);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--a-text-2);
+  font-size: 13px;
+  cursor: pointer;
+  background: transparent;
+}
+
+.photoAdd:hover { border-color: var(--a-accent); color: var(--a-text); }
+.photoAdd svg { font-size: 22px; }
+
+@media (max-width: 479.98px) {
+  .photos { gap: 8px; }
+  .photo, .photoAdd { width: calc((100vw - 40px - 24px) / 4); height: calc((100vw - 40px - 24px) / 4); max-width: 96px; max-height: 96px; }
+  .photoTools { top: 2px; right: 2px; }
+  .photoBtn { width: 28px; height: 28px; font-size: 14px; }
+  /* no celular a ordem muda arrastando; só o botão de tirar fica */
+  .photoMove { display: none; }
+}
+
+.pricePreview {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  border-radius: var(--a-radius-m);
+  background: var(--a-sunken);
+  border: 1px solid var(--a-line);
+}
+
+.pricePreviewNow { font-size: 22px; font-weight: 750; font-stretch: 88%; }
+
+.more { border-top: 1px solid var(--a-line); padding-top: 14px; }
+.more summary {
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 15px;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  list-style: none;
+}
+.more summary::-webkit-details-marker { display: none; }
+.more summary::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--a-muted);
+  border-bottom: 2px solid var(--a-muted);
+  transform: rotate(-45deg);
+  transition: transform 0.2s;
+  margin-right: 4px;
+}
+.more[open] summary::before { transform: rotate(45deg); }
+.moreBody { display: grid; gap: 14px; padding-top: 10px; }
+
+.warn {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--a-warning-wash);
+  font-size: 14px;
+}
+
+.warn svg { color: var(--a-warning); flex-shrink: 0; margin-top: 2px; }

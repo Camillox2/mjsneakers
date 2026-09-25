@@ -15,7 +15,7 @@ export function getCartSessionId() {
   return id
 }
 
-// Lê sem criar — útil para liberar reservas só quando já existe sessão.
+// Lê sem criar: útil para liberar reservas só quando já existe sessão.
 export function peekCartSessionId() {
   return localStorage.getItem(KEY)
 }
@@ -38,7 +38,7 @@ export async function releaseStock() {
   }
 }
 
-// Remove o session_id — após pedido concluído, o próximo carrinho começa zerado.
+// Remove o session_id: após pedido concluído, o próximo carrinho começa zerado.
 export function clearCartSession() {
   localStorage.removeItem(KEY)
 }

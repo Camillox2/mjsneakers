@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useId } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { FiAlertTriangle, FiCheck } from 'react-icons/fi'
+import { FiAlertCircle, FiAlertTriangle, FiCheck } from 'react-icons/fi'
 import api from '../../services/api'
 import SizeGuide from '../SizeGuide/SizeGuide'
 import styles from './SizeSelector.module.css'
@@ -16,8 +16,11 @@ const isSampleId = (id) => typeof id === 'string' && id.startsWith('amostra-')
  * Se a rota ainda não existir, cai no fallback de `fallbackSizes`
  * (tamanhos do produto, tratados como disponíveis) para a loja seguir funcionando.
  * Amostras usam direto o `fallbackSizes`, sem chamar a API.
+ * `error`: aviso quando a pessoa tenta comprar sem escolher (a grade
+ * chacoalha e o aviso aparece embaixo dela); `errorTick` muda a cada
+ * tentativa, para a grade chacoalhar de novo.
  */
-export default function SizeSelector({ productId, fallbackSizes, selected, onSelect }) {
+export default function SizeSelector({ productId, fallbackSizes, selected, onSelect, error = '', errorTick = 0 }) {
   const [sizesStock, setSizesStock] = useState(null) // null = carregando
   const [notifyFor, setNotifyFor] = useState(null)   // tamanho com form de aviso aberto
   const [email, setEmail] = useState('')
@@ -26,6 +29,7 @@ export default function SizeSelector({ productId, fallbackSizes, selected, onSel
   const [guideOpen, setGuideOpen] = useState(false)
   const labelId = useId()
   const emailId = useId()
+  const errorId = useId()
   const sample = isSampleId(productId)
 
   useEffect(() => {
@@ -79,7 +83,8 @@ export default function SizeSelector({ productId, fallbackSizes, selected, onSel
     if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return
     setSending(true)
     try {
-      await api.post('/stock-alerts/subscribe', { product_id: productId, email: email.trim().toLowerCase() })
+      // com o tamanho, o aviso sai quando aquele número volta (não qualquer um)
+      await api.post('/stock-alerts/subscribe', { product_id: productId, size: String(size), email: email.trim().toLowerCase() })
       setNotified(prev => ({ ...prev, [size]: true }))
       setNotifyFor(null)
       setEmail('')
@@ -106,7 +111,13 @@ export default function SizeSelector({ productId, fallbackSizes, selected, onSel
         </button>
       </div>
 
-      <div className={styles.grid} role="group" aria-labelledby={labelId}>
+      <div
+        key={error ? `erro-${errorTick}` : 'grade'}
+        className={`${styles.grid} ${error ? styles.gridError : ''}`}
+        role="group"
+        aria-labelledby={labelId}
+        aria-describedby={error ? errorId : undefined}
+      >
         {list.map((item) => {
           const isOut = item.available === 0
           const isScarce = item.available != null && item.available > 0 && item.available < 5
@@ -128,6 +139,12 @@ export default function SizeSelector({ productId, fallbackSizes, selected, onSel
           )
         })}
       </div>
+
+      {error && (
+        <p className={styles.error} id={errorId} role="alert">
+          <FiAlertCircle aria-hidden /> {error}
+        </p>
+      )}
 
       {anyScarce && !selectedScarce && (
         <p className={styles.legend}><span className={styles.legendDot} aria-hidden /> Poucas unidades</p>
@@ -169,6 +186,8 @@ export default function SizeSelector({ productId, fallbackSizes, selected, onSel
                       className={styles.notifyInput}
                       type="email"
                       autoComplete="email"
+                      autoCapitalize="none"
+                      enterKeyHint="send"
                       placeholder="seu@email.com"
                       value={email}
                       onChange={e => setEmail(e.target.value)}

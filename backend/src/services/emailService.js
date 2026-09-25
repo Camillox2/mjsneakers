@@ -1,4 +1,13 @@
 const nodemailer = require('nodemailer');
+const { storeUrl, trackingUrl } = require('../utils/storeUrl');
+
+// Tudo que vem do cliente (nome, endereço, e-mail) passa por aqui antes de
+// entrar no HTML do e-mail.
+function esc(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[c]));
+}
 
 function createTransporter() {
   if (process.env.EMAIL_HOST) {
@@ -46,13 +55,14 @@ function wrapEmail(title, body) {
 }
 
 function formatPrice(v) {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(v) || 0);
 }
 
 function statusLabel(status) {
   const map = {
     pending: 'Aguardando confirmação',
     confirmed: 'Confirmado',
+    processing: 'Em separação',
     shipped: 'Enviado',
     delivered: 'Entregue',
     cancelled: 'Cancelado',
@@ -64,6 +74,7 @@ function statusColor(status) {
   const map = {
     pending: '#f59e0b',
     confirmed: '#3b82f6',
+    processing: '#0ea5e9',
     shipped: '#8b5cf6',
     delivered: '#10b981',
     cancelled: '#ef4444',
@@ -77,8 +88,8 @@ function orderConfirmationEmail(order, items) {
   const itemsHtml = items.map(i => `
     <tr>
       <td style="padding: 10px 0; border-bottom: 1px solid #f0f0f0;">
-        <strong>${i.product_name || 'Produto'}</strong><br>
-        <span style="color:#666; font-size:13px;">Tamanho: ${i.size} · Qtd: ${i.quantity}</span>
+        <strong>${esc(i.product_name || 'Produto')}</strong><br>
+        <span style="color:#666; font-size:13px;">Tamanho: ${esc(i.size)} · Qtd: ${esc(i.quantity)}</span>
       </td>
       <td style="padding: 10px 0; border-bottom: 1px solid #f0f0f0; text-align:right; white-space:nowrap;">
         ${formatPrice(i.price * i.quantity)}
@@ -88,7 +99,7 @@ function orderConfirmationEmail(order, items) {
 
   const body = `
     <h2 style="margin:0 0 8px; font-size:20px;">Pedido confirmado!</h2>
-    <p style="color:#555; margin:0 0 24px;">Olá, <strong>${order.customer_name}</strong>! Recebemos seu pedido e estamos processando.</p>
+    <p style="color:#555; margin:0 0 24px;">Olá, <strong>${esc(order.customer_name)}</strong>! Recebemos seu pedido e estamos processando.</p>
 
     <div style="background:#f9f9f9; border-radius:8px; padding:16px; margin-bottom:24px;">
       <p style="margin:0 0 4px; font-size:13px; color:#888;">NÚMERO DO PEDIDO</p>
@@ -98,13 +109,13 @@ function orderConfirmationEmail(order, items) {
     <table style="width:100%; border-collapse:collapse;">
       <tbody>${itemsHtml}</tbody>
       <tfoot>
-        ${order.discount_amount > 0 ? `
+        ${Number(order.discount_amount) > 0 ? `
         <tr>
-          <td style="padding:8px 0; color:#10b981;">Desconto (${order.coupon_code})</td>
+          <td style="padding:8px 0; color:#10b981;">Desconto (${esc(order.coupon_code)})</td>
           <td style="text-align:right; color:#10b981;">-${formatPrice(order.discount_amount)}</td>
         </tr>` : ''}
         <tr>
-          <td style="padding:8px 0; color:#666;">Frete (${order.shipping_type || 'Standard'})</td>
+          <td style="padding:8px 0; color:#666;">Frete (${esc(order.shipping_type || 'Standard')})</td>
           <td style="text-align:right;">${formatPrice(order.shipping_price || 0)}</td>
         </tr>
         <tr>
@@ -118,16 +129,16 @@ function orderConfirmationEmail(order, items) {
 
     <h3 style="margin:0 0 12px; font-size:15px;">Endereço de entrega</h3>
     <p style="margin:0; color:#555; line-height:1.8;">
-      ${order.address_street}, ${order.address_number}${order.address_complement ? ' – ' + order.address_complement : ''}<br>
-      ${order.address_neighborhood} – ${order.address_city}/${order.address_state}<br>
-      CEP: ${order.address_cep}
+      ${esc(order.address_street)}, ${esc(order.address_number)}${order.address_complement ? ', ' + esc(order.address_complement) : ''}<br>
+      ${esc(order.address_neighborhood)}, ${esc(order.address_city)}/${esc(order.address_state)}<br>
+      CEP: ${esc(order.address_cep)}
     </p>
 
     <hr style="border:none; border-top:1px solid #eee; margin:24px 0;">
-    <p style="color:#555; margin:0;">Acompanhe seu pedido a qualquer momento acessando nossa loja com o e-mail <strong>${order.customer_email}</strong> e número do pedido <strong>#${order.id}</strong>.</p>
+    <p style="color:#555; margin:0;">Acompanhe seu pedido a qualquer momento acessando nossa loja com o e-mail <strong>${esc(order.customer_email)}</strong> e número do pedido <strong>#${order.id}</strong>.</p>
 
     <div style="margin-top:28px; text-align:center;">
-      <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/rastrear?id=${order.id}&email=${encodeURIComponent(order.customer_email)}"
+      <a href="${esc(trackingUrl(order.id, order.customer_email))}"
          style="background:#000; color:#fff; padding:14px 32px; border-radius:8px; text-decoration:none; font-weight:bold; display:inline-block;">
         Rastrear Pedido
       </a>
@@ -139,9 +150,9 @@ function orderConfirmationEmail(order, items) {
 function adminNewOrderEmail(order, items) {
   const itemsHtml = items.map(i => `
     <tr>
-      <td style="padding:8px 0; border-bottom:1px solid #f0f0f0;">${i.product_name || '#' + i.product_id}</td>
-      <td style="padding:8px 0; border-bottom:1px solid #f0f0f0; text-align:center;">${i.size}</td>
-      <td style="padding:8px 0; border-bottom:1px solid #f0f0f0; text-align:center;">${i.quantity}</td>
+      <td style="padding:8px 0; border-bottom:1px solid #f0f0f0;">${esc(i.product_name || '#' + i.product_id)}</td>
+      <td style="padding:8px 0; border-bottom:1px solid #f0f0f0; text-align:center;">${esc(i.size)}</td>
+      <td style="padding:8px 0; border-bottom:1px solid #f0f0f0; text-align:center;">${esc(i.quantity)}</td>
       <td style="padding:8px 0; border-bottom:1px solid #f0f0f0; text-align:right;">${formatPrice(i.price * i.quantity)}</td>
     </tr>
   `).join('');
@@ -162,9 +173,9 @@ function adminNewOrderEmail(order, items) {
     </div>
 
     <h3 style="font-size:14px; margin:0 0 8px;">Cliente</h3>
-    <p style="margin:0 0 4px;">${order.customer_name}</p>
-    <p style="margin:0 0 4px; color:#555;">${order.customer_email}</p>
-    <p style="margin:0 0 20px; color:#555;">${order.customer_phone}</p>
+    <p style="margin:0 0 4px;">${esc(order.customer_name)}</p>
+    <p style="margin:0 0 4px; color:#555;">${esc(order.customer_email)}</p>
+    <p style="margin:0 0 20px; color:#555;">${esc(order.customer_phone)}</p>
 
     <h3 style="font-size:14px; margin:0 0 8px;">Itens</h3>
     <table style="width:100%; border-collapse:collapse; font-size:14px;">
@@ -180,7 +191,7 @@ function adminNewOrderEmail(order, items) {
     </table>
 
     <div style="margin-top:20px; text-align:center;">
-      <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/admin"
+      <a href="${esc(storeUrl('/admin'))}"
          style="background:#000; color:#fff; padding:12px 28px; border-radius:8px; text-decoration:none; font-weight:bold; display:inline-block;">
         Ver no Painel Admin
       </a>
@@ -221,7 +232,7 @@ function orderStatusEmail(order, newStatus, trackingCode) {
       <h2 style="margin:8px 0 0;">${info.title}</h2>
     </div>
 
-    <p style="color:#555;">Olá, <strong>${order.customer_name}</strong>! ${info.msg}</p>
+    <p style="color:#555;">Olá, <strong>${esc(order.customer_name)}</strong>! ${info.msg}</p>
 
     <div style="background:#f9f9f9; border-radius:8px; padding:16px; margin:20px 0; text-align:center;">
       <p style="margin:0 0 4px; font-size:12px; color:#888; text-transform:uppercase;">Pedido</p>
@@ -236,13 +247,13 @@ function orderStatusEmail(order, newStatus, trackingCode) {
     ${trackingCode ? `
     <div style="background:#f0f9ff; border:1px solid #bae6fd; border-radius:8px; padding:16px; margin:20px 0; text-align:center;">
       <p style="margin:0 0 4px; font-size:12px; color:#0284c7; text-transform:uppercase;">Código de Rastreio</p>
-      <p style="margin:0; font-size:18px; font-weight:bold; letter-spacing:2px;">${trackingCode}</p>
+      <p style="margin:0; font-size:18px; font-weight:bold; letter-spacing:2px;">${esc(trackingCode)}</p>
       <p style="margin:4px 0 0; font-size:12px; color:#0284c7;">Rastreie em: rastreamento.correios.com.br</p>
     </div>
     ` : ''}
 
     <div style="margin-top:24px; text-align:center;">
-      <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/rastrear?id=${order.id}&email=${encodeURIComponent(order.customer_email)}"
+      <a href="${esc(trackingUrl(order.id, order.customer_email))}"
          style="background:#000; color:#fff; padding:14px 32px; border-radius:8px; text-decoration:none; font-weight:bold; display:inline-block;">
         Rastrear Pedido
       </a>
@@ -258,18 +269,18 @@ function newsletterWelcomeEmail(email, name, couponCode) {
       <h2 style="margin:8px 0 0;">Bem-vindo(a) à família MJ Sneakers!</h2>
     </div>
 
-    <p style="color:#555; text-align:center;">Obrigado por se inscrever${name ? ', ' + name : ''}! Aqui está seu cupom exclusivo de boas-vindas:</p>
+    <p style="color:#555; text-align:center;">Obrigado por se inscrever${name ? ', ' + esc(name) : ''}! Aqui está seu cupom exclusivo de boas-vindas:</p>
 
     ${couponCode ? `
     <div style="background:#000; border-radius:12px; padding:24px; margin:24px 0; text-align:center;">
       <p style="color:#888; margin:0 0 4px; font-size:13px; text-transform:uppercase; letter-spacing:2px;">Seu cupom de 10% OFF</p>
-      <p style="color:#fff; margin:0; font-size:28px; font-weight:bold; letter-spacing:4px;">${couponCode}</p>
+      <p style="color:#fff; margin:0; font-size:28px; font-weight:bold; letter-spacing:4px;">${esc(couponCode)}</p>
     </div>
     <p style="color:#555; text-align:center; font-size:14px;">Use no carrinho antes de finalizar sua compra. Válido para qualquer produto!</p>
     ` : ''}
 
     <div style="margin-top:28px; text-align:center;">
-      <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}"
+      <a href="${esc(storeUrl('/'))}"
          style="background:#000; color:#fff; padding:14px 32px; border-radius:8px; text-decoration:none; font-weight:bold; display:inline-block;">
         Ver Coleção
       </a>
@@ -292,13 +303,13 @@ function stockAlertEmail(email, product) {
     <p style="color:#555; text-align:center;">O tênis que você queria voltou ao estoque:</p>
 
     <div style="background:#f9f9f9; border-radius:12px; padding:20px; margin:20px 0; text-align:center;">
-      <h3 style="margin:0 0 4px;">${product.name}</h3>
+      <h3 style="margin:0 0 4px;">${esc(product.name)}</h3>
       <p style="margin:0; font-size:20px; font-weight:bold; color:#000;">${formatPrice(finalPrice)}</p>
       ${product.discount_percentage > 0 ? `<p style="margin:4px 0 0; color:#ef4444; font-size:13px;">${product.discount_percentage}% OFF</p>` : ''}
     </div>
 
     <div style="text-align:center; margin-top:24px;">
-      <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/?produto=${product.id}"
+      <a href="${esc(storeUrl(`/produto/${Number(product.id)}`))}"
          style="background:#000; color:#fff; padding:14px 32px; border-radius:8px; text-decoration:none; font-weight:bold; display:inline-block;">
         Comprar Agora
       </a>
@@ -306,6 +317,28 @@ function stockAlertEmail(email, product) {
     <p style="text-align:center; color:#999; font-size:12px; margin-top:16px;">Corra! Estoque limitado.</p>
   `;
   return { subject: `🔔 ${product.name} voltou ao estoque! – MJ Sneakers`, html: wrapEmail('Produto Disponível', body) };
+}
+
+// Aviso para a equipe: cliente escreveu no chat e não havia ninguém online.
+function chatWaitingEmail({ customerName, customerEmail, excerpt }) {
+  const body = `
+    <h2 style="margin:0 0 8px;">Nova mensagem no chat da loja</h2>
+    <p style="color:#555; margin:0 0 20px;">Um cliente escreveu no chat e não havia ninguém da equipe online.</p>
+
+    <div style="background:#f9f9f9; border-radius:8px; padding:16px; margin-bottom:20px;">
+      <p style="margin:0 0 4px;"><strong>${esc(customerName || 'Cliente')}</strong></p>
+      <p style="margin:0 0 12px; color:#555;">${esc(customerEmail || 'Sem e-mail informado')}</p>
+      <p style="margin:0; color:#1a1a1a; white-space:pre-wrap;">${esc(excerpt)}</p>
+    </div>
+
+    <div style="text-align:center;">
+      <a href="${esc(storeUrl('/admin/conversas'))}"
+         style="background:#000; color:#fff; padding:12px 28px; border-radius:8px; text-decoration:none; font-weight:bold; display:inline-block;">
+        Abrir conversas
+      </a>
+    </div>
+  `;
+  return { subject: 'Nova mensagem no chat da loja', html: wrapEmail('Nova mensagem no chat', body) };
 }
 
 // ── Send helper ──
@@ -325,7 +358,7 @@ async function sendEmail(to, { subject, html }) {
     console.log('[Email] Enviado:', info.messageId);
     return info;
   } catch (err) {
-    console.error('[Email] Erro ao enviar:', err.message);
+    console.error('[Email] Erro ao enviar:', subject, '|', err.message);
     return null;
   }
 }
@@ -337,4 +370,5 @@ module.exports = {
   orderStatusEmail,
   newsletterWelcomeEmail,
   stockAlertEmail,
+  chatWaitingEmail,
 };

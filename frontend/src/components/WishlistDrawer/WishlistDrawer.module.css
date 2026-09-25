@@ -11,7 +11,7 @@
   top: 0;
   right: 0;
   bottom: 0;
-  z-index: 801;
+  z-index: calc(var(--z-wishlist, 800) + 1);
   display: flex;
   flex-direction: column;
   width: 420px;
@@ -21,7 +21,7 @@
   box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.1), -40px 0 90px -20px rgba(0, 0, 0, 0.85);
   will-change: transform;
   backface-visibility: hidden;
-  padding-bottom: env(safe-area-inset-bottom);
+  padding-bottom: var(--pz-safe-bottom);
 }
 
 .header {
@@ -29,8 +29,8 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 14px 16px 14px 24px;
-  padding-top: max(14px, env(safe-area-inset-top));
+  padding: 14px max(16px, env(safe-area-inset-right, 0px)) 14px 24px;
+  padding-top: calc(14px + var(--pz-safe-top));
   border-bottom: 1px solid var(--pz-line);
 }
 
@@ -77,11 +77,6 @@
   background: transparent;
   border: 1px solid var(--pz-line);
   transition: color 0.2s var(--pz-ease), border-color 0.2s var(--pz-ease);
-}
-
-.closeBtn:hover {
-  color: var(--pz-text);
-  border-color: var(--pz-line-strong);
 }
 
 /* ---------- vazio ---------- */
@@ -138,13 +133,17 @@
 }
 
 .item {
-  display: flex;
-  align-items: center;
-  gap: 14px;
+  flex: none;
   padding: 10px;
   border-radius: var(--pz-radius-m);
   background: var(--pz-surface-1);
   border: 1px solid var(--pz-line);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
 }
 
 .thumb {
@@ -206,12 +205,11 @@
   text-overflow: ellipsis;
 }
 
-.name:hover { text-decoration: underline; text-underline-offset: 3px; }
-
 .priceRow {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
-  gap: 8px;
+  gap: 0 8px;
   margin-top: 2px;
 }
 
@@ -257,22 +255,94 @@
   transition: color 0.2s var(--pz-ease), border-color 0.2s var(--pz-ease), background 0.2s var(--pz-ease);
 }
 
-.cartBtn:hover {
+.cartBtnOn {
   color: #0a0a0b;
   background: var(--pz-chrome-flat);
   border-color: transparent;
 }
 
-.removeBtn:hover {
-  color: var(--pz-danger);
-  border-color: color-mix(in srgb, var(--pz-danger) 45%, transparent);
+/* amostra: aviso no lugar da sacola */
+.soon {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 8px 12px;
+  border-radius: var(--pz-radius-s);
+  font-size: var(--pz-fs-xs);
+  font-weight: 600;
+  color: var(--pz-text-2);
+  border: 1px dashed var(--pz-line-strong);
+}
+
+.soon svg { flex: none; width: 14px; height: 14px; color: var(--pz-text-3); }
+
+/* escolha do tamanho antes de ir para a sacola */
+.sizes { overflow: hidden; }
+
+.sizesInner {
+  display: grid;
+  gap: 10px;
+  padding-top: 12px;
+  margin-top: 10px;
+  border-top: 1px solid var(--pz-line);
+}
+
+.sizesLabel {
+  font-size: var(--pz-fs-s);
+  font-weight: 600;
+  color: var(--pz-text-2);
+}
+
+.sizeGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
+  gap: 6px;
+}
+
+.size {
+  height: 44px;
+  border-radius: var(--pz-radius-s);
+  font-size: var(--pz-fs-m);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  color: var(--pz-text);
+  background: var(--pz-black);
+  border: 1px solid var(--pz-line);
+  transition: background 0.2s var(--pz-ease), color 0.2s var(--pz-ease), border-color 0.2s var(--pz-ease);
+}
+
+.size:active:not(:disabled) {
+  color: #0a0a0b;
+  background: var(--pz-chrome-flat);
+  border-color: transparent;
+}
+
+.size:disabled { opacity: 0.5; }
+
+@media (hover: hover) {
+  .closeBtn:hover {
+    color: var(--pz-text);
+    border-color: var(--pz-line-strong);
+  }
+  .name:hover { text-decoration: underline; text-underline-offset: 3px; }
+  .cartBtn:hover {
+    color: #0a0a0b;
+    background: var(--pz-chrome-flat);
+    border-color: transparent;
+  }
+  .removeBtn:hover {
+    color: var(--pz-danger);
+    border-color: color-mix(in srgb, var(--pz-danger) 45%, transparent);
+  }
+  .size:hover:not(:disabled) { border-color: var(--pz-line-strong); }
 }
 
 /* ===== Responsivo ===== */
-@media (max-width: 480px) {
+@media (max-width: 479.98px) {
   .drawer { width: 100vw; box-shadow: none; }
   .header { padding-left: 18px; }
   .list { padding: 10px; }
-  .item { gap: 10px; }
+  .row { gap: 10px; }
   .thumb { width: 64px; height: 64px; }
 }

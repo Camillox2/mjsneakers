@@ -36,7 +36,7 @@ export default function Footer() {
     const shop = document.getElementById('loja')
     if (!shop) return // fora do início: o link leva para /#loja
     e.preventDefault()
-    scrollToEl(shop, -70)
+    scrollToEl(shop)
   }
 
   const goTop = (e) => {

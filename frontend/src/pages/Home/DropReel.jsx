@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { DROPS } from '../../data/drops'
-import { FrameClock, FrameSequence, Settle, SpinCanvas, curveIndex, frameDelta, idleFps, loadManifest, pickSize, turnsAt } from '../../lib/frames'
-import { gsap, ScrollTrigger, lockScroll, prefersReducedMotion, scrollToY } from '../../lib/motion'
+import { FiChevronsDown } from 'react-icons/fi'
+import { FrameClock, FrameSequence, Settle, SpinCanvas, curveIndex, frameDelta, idleFps, loadManifest, netProfile, pickSize, turnsAt } from '../../lib/frames'
+import { gsap, ScrollTrigger, headerHeight, lockScroll, prefersReducedMotion, scrollToY } from '../../lib/motion'
+import { MQ, matches } from '../../lib/breakpoints'
 import { StarField } from '../../lib/starfield'
 import ChromeLogo from '../../components/ChromeLogo/ChromeLogo'
 import DropReelStatic from './DropReelStatic'
@@ -34,6 +36,10 @@ function buildScript(n) {
 }
 const T = buildScript(DROPS.length)
 const TOTAL = T.exit[1]
+// No celular o roteiro é o mesmo, só que corre em menos rolagem: a seção
+// fica com MOBILE_SCROLL telas de rolagem até a loja (no computador são TOTAL).
+// Tudo é medido em frações do roteiro, então nada precisa ser recalculado.
+const MOBILE_SCROLL = 7
 // a inundação é um círculo de 100vmax (camada pequena na placa de vídeo)
 // ampliado até cobrir a tela inteira a partir do tênis
 const FLOOD_SCALE = 1.75
@@ -111,6 +117,10 @@ function calloutTime(i, at) {
 
 export default function DropReel({ onPick, onIntroDone, catalogRef }) {
   const [reduced] = useState(prefersReducedMotion)
+  // Rede: com economia de dados ou 2g o giro nem começa (fica a versão com
+  // pôster); em 3g, no celular e no toque, os quadros vêm sob demanda.
+  const [net] = useState(netProfile)
+  const [onDemand] = useState(() => net.slow || matches(MQ.phone) || matches(MQ.touch))
   const [manifests, setManifests] = useState(null)
   const [failed, setFailed] = useState(false)
   const pctRef = useRef(0) // progresso real da primeira passada (sem re-render)
@@ -130,17 +140,56 @@ export default function DropReel({ onPick, onIntroDone, catalogRef }) {
   const starsRef = useRef(null)
   const spinFrom = useRef(Infinity) // quando o giro solto pode começar (abertura)
 
-  // 0) header escondido enquanto a abertura roda (só se houver abertura animada)
+  const still = reduced || net.lean
+  const readyRef = useRef(false)
+  readyRef.current = ready
+
+  // 0) header escondido enquanto a abertura roda (só se houver abertura
+  //    animada). Rede lenta não pode prender a pessoa sem menu: se em 3,5 s
+  //    os quadros ainda não chegaram, ele volta.
   useLayoutEffect(() => {
-    if (reduced || failed) return undefined
+    if (still || failed) return undefined
     const root = document.documentElement
     root.classList.add('pz-intro')
-    return () => root.classList.remove('pz-intro')
-  }, [reduced, failed])
+    const back = setTimeout(() => {
+      if (!readyRef.current) root.classList.remove('pz-intro')
+    }, 3500)
+    return () => {
+      clearTimeout(back)
+      root.classList.remove('pz-intro')
+    }
+  }, [still, failed])
+
+  // Altura estável da tela para a seção e o palco. Com o teclado aberto (a
+  // página encolhe junto no Android, ver interactive-widget no index.html) o
+  // svh também encolheria, e a seção de ~8 telas perderia milhares de pixels
+  // de uma vez: a página pularia ao digitar na busca ou na newsletter. A
+  // medida só muda quando a largura muda (girou o celular) ou no computador.
+  useLayoutEffect(() => {
+    const root = rootRef.current
+    if (!root) return undefined
+    const probe = document.createElement('div')
+    probe.setAttribute('aria-hidden', 'true')
+    probe.style.cssText = 'position:fixed;left:0;top:0;width:0;height:100svh;visibility:hidden;pointer-events:none'
+    document.body.appendChild(probe)
+    let width = 0
+    const measure = () => {
+      if (window.innerWidth === width && !matches(MQ.hover)) return
+      width = window.innerWidth
+      const h = probe.offsetHeight
+      if (h) root.style.setProperty('--svh', `${h / 100}px`)
+    }
+    measure()
+    window.addEventListener('resize', measure)
+    return () => {
+      window.removeEventListener('resize', measure)
+      probe.remove()
+    }
+  }, [still, failed])
 
   // 1) manifestos + primeira passada de quadros do primeiro tênis
   useEffect(() => {
-    if (reduced) return undefined
+    if (still) return undefined
     let alive = true
     Promise.all(DROPS.map((d) => loadManifest(d.id)))
       .then((list) => {
@@ -153,7 +202,7 @@ export default function DropReel({ onPick, onIntroDone, catalogRef }) {
           if (seq.settled >= seq.firstPass) off()
         })
         // os outros só começam depois da abertura (ver onComplete da abertura)
-        first.start(6)
+        first.start(net.slow ? 3 : 6)
         setManifests(list)
       })
       .catch(() => {
@@ -166,22 +215,22 @@ export default function DropReel({ onPick, onIntroDone, catalogRef }) {
       clearTimeout(stuck)
       seqs.current.forEach((seq) => seq.dispose())
     }
-  }, [reduced])
+  }, [still, net.slow])
 
   // 2) pronto quando a primeira passada chegou e as fontes carregaram
   //    (com teto de tempo, para ninguém ficar preso numa rede ruim)
   // teto fixo: conta a partir de quando os manifestos chegaram, não reinicia a cada quadro
   useEffect(() => {
-    if (reduced || failed || !manifests) return undefined
+    if (still || failed || !manifests) return undefined
     const cap = setTimeout(() => setReady(true), 6000)
     return () => clearTimeout(cap)
-  }, [manifests, reduced, failed])
+  }, [manifests, still, failed])
 
   // A contagem sobe no ritmo do croqui se desenhando (mínimo MIN_LOAD ms),
   // mesmo que os quadros cheguem na hora (cache): assim o desenho termina
   // antes de a abertura começar. Atualiza o número direto no DOM, sem render.
   useEffect(() => {
-    if (reduced || failed || !manifests || ready) return undefined
+    if (still || failed || !manifests || ready) return undefined
     let fontsReady = false
     let raf = 0
     let done = false
@@ -206,19 +255,30 @@ export default function DropReel({ onPick, onIntroDone, catalogRef }) {
       done = true
       cancelAnimationFrame(raf)
     }
-  }, [manifests, ready, failed, reduced])
+  }, [manifests, ready, failed, still])
 
+  // A rolagem só fica presa enquanto carrega no computador com rede boa, e
+  // no máximo 4 s. No toque ou em rede lenta ela fica livre: quem rolar antes
+  // da hora só vê o palco carregando passar.
   useEffect(() => {
-    if (reduced || failed) {
+    if (still || failed) {
       onIntroDone?.()
       return undefined
     }
-    if (!ready) {
-      lockScroll(true)
-      return () => lockScroll(false)
+    if (ready || onDemand || net.slow) return undefined
+    lockScroll(true)
+    let locked = true
+    const release = () => {
+      if (!locked) return
+      locked = false
+      lockScroll(false)
     }
-    return undefined
-  }, [ready, reduced, failed, onIntroDone])
+    const cap = setTimeout(release, 4000)
+    return () => {
+      clearTimeout(cap)
+      release()
+    }
+  }, [ready, still, failed, onIntroDone, onDemand, net.slow])
 
   // 3) croqui do tênis se desenhando enquanto carrega
   useLayoutEffect(() => {
@@ -293,7 +353,7 @@ export default function DropReel({ onPick, onIntroDone, catalogRef }) {
 
     // céu estrelado atrás do tênis e do logo (aparece enquanto a página carrega)
     const starCanvas = starsRef.current
-    const stars = starCanvas ? new StarField(starCanvas, window.matchMedia('(max-width: 760px)').matches ? 140 : 260) : null
+    const stars = starCanvas ? new StarField(starCanvas, matches(MQ.phone) ? 140 : 260) : null
     const starsBorn = performance.now()
     const starsRo = new ResizeObserver(() => stars?.resize())
     if (starCanvas) starsRo.observe(starCanvas)
@@ -353,6 +413,9 @@ export default function DropReel({ onPick, onIntroDone, catalogRef }) {
           lastIndex[i] = null
           continue
         }
+        // sob demanda: o tênis que entrou em cena (até pelo atalho da
+        // navegação) começa a baixar na hora
+        if (!seq.started) seq.start(net.slow ? 2 : 3)
         const r = rot.current[i].v + (i === 0 ? sway : 0)
         const index = curveIndex(seq.curve, seq.count, r)
         const speed = lastIndex[i] === null ? 0 : frameDelta(lastIndex[i], index, seq.count)
@@ -366,6 +429,12 @@ export default function DropReel({ onPick, onIntroDone, catalogRef }) {
           const v = seq.view(index, speed)
           painter.blend(v.a, v.b, settles[i].weight(v.pair, v.t, speed, dtMs))
         }
+      }
+
+      // sob demanda: com um tênis em cena, o próximo já vai baixando
+      if (onDemand && leadAlpha > 0.5) {
+        const nextSeq = seqs.current[lead + 1]
+        if (nextSeq && !nextSeq.started) nextSeq.start(net.slow ? 2 : 3)
       }
 
       const r = rot.current[lead].v + (lead === 0 ? sway : 0)
@@ -396,7 +465,7 @@ export default function DropReel({ onPick, onIntroDone, catalogRef }) {
       io.disconnect()
       starsRo.disconnect()
     }
-  }, [manifests])
+  }, [manifests, onDemand, net.slow])
 
   // 6) abertura (uma vez) + roteiro amarrado à rolagem. O roteiro fica num
   //    gsap.matchMedia: se o layout muda (celular girado, janela redimensionada
@@ -416,11 +485,13 @@ export default function DropReel({ onPick, onIntroDone, catalogRef }) {
             setIntroDone(true)
             onIntroDone?.()
             // Os outros giros só entram na fila quando a pessoa começa a rolar
-            // (ou depois de 4 s parada): o giro do topo roda sem disputa.
+            // (ou depois de 4 s parada): o giro do topo roda sem disputa. Sob
+            // demanda, só o próximo; o resto vem conforme cada um entra.
             const startOthers = () => {
               window.removeEventListener('scroll', startOthers)
               clearTimeout(othersTimer)
-              seqs.current.forEach((seq) => seq.start(3))
+              const queue = onDemand ? seqs.current.slice(0, 2) : seqs.current
+              queue.forEach((seq) => seq.start(net.slow ? 2 : 3))
             }
             const othersTimer = setTimeout(startOthers, 4000)
             window.addEventListener('scroll', startOthers, { passive: true, once: true })
@@ -437,7 +508,7 @@ export default function DropReel({ onPick, onIntroDone, catalogRef }) {
     const mm = gsap.matchMedia(root)
     // "desktop" garante que sempre há uma condição verdadeira (o matchMedia só
     // roda a função quando pelo menos uma bate)
-    mm.add({ mobile: '(max-width: 760px)', desktop: '(min-width: 761px)', touch: '(pointer: coarse)' }, (context) => {
+    mm.add({ mobile: MQ.phone, desktop: MQ.wide, touch: MQ.touch }, (context) => {
       const { mobile, touch } = context.conditions
       const stage = q('[data-part="stage"]')[0]
       const box = q('[data-part="box"]')[0]
@@ -649,7 +720,7 @@ export default function DropReel({ onPick, onIntroDone, catalogRef }) {
       if (header) {
         ScrollTrigger.create({
           trigger: root,
-          start: 'bottom 70px',
+          start: () => `bottom ${headerHeight()}px`,
           end: 'max',
           onToggle: (self) => header.classList.toggle('pz-solid', self.isActive),
         })
@@ -667,7 +738,7 @@ export default function DropReel({ onPick, onIntroDone, catalogRef }) {
       mm.revert()
       intro.revert()
     }
-  }, [ready, onIntroDone])
+  }, [ready, onIntroDone, onDemand, net.slow])
 
   const jumpTo = useCallback((i) => {
     const root = rootRef.current
@@ -680,10 +751,10 @@ export default function DropReel({ onPick, onIntroDone, catalogRef }) {
 
   const toCatalog = useCallback(() => {
     const el = catalogRef?.current
-    if (el) scrollToY(el.getBoundingClientRect().top + window.scrollY - 70)
+    if (el) scrollToY(el.getBoundingClientRect().top + window.scrollY - headerHeight())
   }, [catalogRef])
 
-  if (reduced || failed) return <DropReelStatic onPick={onPick} />
+  if (still || failed) return <DropReelStatic onPick={onPick} />
 
   const profile = manifests?.[0]?.profile
   const sketchBox = manifests?.[0]?.sizes?.d
@@ -692,7 +763,7 @@ export default function DropReel({ onPick, onIntroDone, catalogRef }) {
     <section
       ref={rootRef}
       className={styles.reel}
-      style={{ '--screens': TOTAL + 1 }}
+      style={{ '--screens': TOTAL + 1, '--screens-m': MOBILE_SCROLL + 1, '--drops': DROPS.length }}
       aria-label="Os drops girando"
     >
       <div className={styles.stage} data-part="stage" style={{ ...START_INK }}>
@@ -825,10 +896,14 @@ export default function DropReel({ onPick, onIntroDone, catalogRef }) {
               <span className={styles.navLabel}>{d.word}</span>
             </button>
           ))}
-          <button type="button" className={styles.navSkip} onClick={toCatalog}>
-            Pular para a loja
-          </button>
         </nav>
+
+        {/* sempre à mão, da abertura até a saída do giro */}
+        <button type="button" className={styles.skip} onClick={toCatalog} aria-label="Pular para a loja">
+          <FiChevronsDown aria-hidden="true" />
+          <span className={styles.skipText}>Pular para a loja</span>
+          <span className={styles.skipShort} aria-hidden="true">Loja</span>
+        </button>
 
         <div className={styles.cue} data-part="cue" aria-hidden="true">
           <div className={styles.cueIn} data-part="cue-in">

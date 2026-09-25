@@ -2,6 +2,7 @@ import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { DrawSVGPlugin } from 'gsap/DrawSVGPlugin'
 import Lenis from 'lenis'
+import { MQ } from './breakpoints'
 
 gsap.registerPlugin(ScrollTrigger, DrawSVGPlugin)
 
@@ -15,7 +16,7 @@ export const prefersReducedMotion = () =>
 // Rolagem suave só com mouse/trackpad. No toque a rolagem nativa do celular é
 // a mais fluida que existe; suavizar por cima só atrasa o dedo.
 const wantsSmooth = () =>
-  typeof window !== 'undefined' && window.matchMedia('(pointer: fine)').matches && !prefersReducedMotion()
+  typeof window !== 'undefined' && window.matchMedia(MQ.hover).matches && !prefersReducedMotion()
 
 let lenis = null
 let locks = 0
@@ -95,9 +96,17 @@ export function scrollToY(y, { immediate = false } = {}) {
   }, 230)
 }
 
-export function scrollToEl(el, offset = 0) {
+// Altura real do header (muda no celular e com o entalhe da tela): é o quanto
+// um salto para uma seção precisa descontar para ela não ficar embaixo dele.
+export function headerHeight() {
+  if (typeof document === 'undefined') return 70
+  const el = document.querySelector('[data-pz-header]')
+  return el ? Math.round(el.getBoundingClientRect().height) : 70
+}
+
+export function scrollToEl(el, offset) {
   if (!el) return
-  const y = el.getBoundingClientRect().top + window.scrollY + offset
+  const y = el.getBoundingClientRect().top + window.scrollY + (offset ?? -headerHeight())
   scrollToY(y)
 }
 
@@ -108,7 +117,10 @@ export function lockScroll(locked) {
     if (on) lenis.stop()
     else lenis.start()
   }
-  document.documentElement.style.overflow = on ? 'hidden' : ''
+  const root = document.documentElement.style
+  root.overflow = on ? 'hidden' : ''
+  // sem isto o arrasto no fim de uma lista da camada ainda puxa a página
+  root.overscrollBehavior = on ? 'none' : ''
 }
 
 export { gsap, ScrollTrigger }

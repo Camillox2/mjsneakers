@@ -70,6 +70,7 @@ export default function CouponInput({ subtotal, onApply, onRemove, appliedCoupon
             aria-label="Cupom de desconto"
             autoComplete="off"
             autoCapitalize="characters"
+            enterKeyHint="done"
             spellCheck={false}
             maxLength={30}
           />

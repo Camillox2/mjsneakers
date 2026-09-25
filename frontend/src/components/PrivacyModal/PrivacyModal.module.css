@@ -5,7 +5,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 20px;
+  padding: max(20px, var(--pz-safe-top)) 20px max(20px, var(--pz-safe-bottom));
   /* fundo sólido: desfocar a página inteira durante a animação travava */
   background: rgba(0, 0, 0, 0.8);
 }
@@ -17,7 +17,7 @@
   width: 100%;
   max-width: 720px;
   max-height: 86vh;
-  max-height: 86dvh;
+  max-height: min(86dvh, calc(100dvh - 40px - var(--pz-safe-top) - var(--pz-safe-bottom)));
   overflow: hidden;
   border-radius: var(--pz-radius-l);
   background: #07080a;
@@ -65,11 +65,6 @@
   transition: color 0.2s var(--pz-ease), border-color 0.2s var(--pz-ease);
 }
 
-.closeBtn:hover {
-  color: var(--pz-text);
-  border-color: var(--pz-line-strong);
-}
-
 .content {
   padding: 8px 32px 32px;
   overflow-y: auto;
@@ -115,11 +110,24 @@
   text-decoration-color: var(--pz-line-strong);
 }
 
-.content a:hover { text-decoration-color: currentColor; }
+@media (hover: hover) {
+  .closeBtn:hover {
+    color: var(--pz-text);
+    border-color: var(--pz-line-strong);
+  }
+  .content a:hover { text-decoration-color: currentColor; }
+}
 
-@media (max-width: 768px) {
-  .overlay { padding: 12px; }
+/* celular: folha que sobe da base, igual às outras camadas */
+@media (max-width: 767.98px) {
+  .overlay { padding: 0; align-items: flex-end; }
+  .modal {
+    max-width: none;
+    max-height: calc(100dvh - max(24px, var(--pz-safe-top) + 8px));
+    border-radius: var(--pz-radius-l) var(--pz-radius-l) 0 0;
+    border-bottom: 0;
+  }
   .head { padding: 14px 12px 14px 20px; }
-  .content { padding: 4px 20px 24px; }
+  .content { padding: 4px 20px calc(24px + var(--pz-safe-bottom)); }
   .title { font-size: var(--pz-fs-xl); }
 }

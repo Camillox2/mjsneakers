@@ -2,6 +2,8 @@ import { useEffect, useId, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence, MotionConfig } from 'framer-motion'
 import { FiX } from 'react-icons/fi'
+import { useScrollLock } from '../../lib/useScrollLock'
+import { useBackToClose } from '../../lib/layers'
 import styles from './SizeGuide.module.css'
 
 const EASE = [0.22, 1, 0.36, 1]
@@ -29,6 +31,9 @@ export default function SizeGuide({ isOpen, onClose }) {
   const closeRef = useRef(null)
   const onCloseRef = useRef(onClose)
   onCloseRef.current = onClose
+  // a página de produto não trava a rolagem sozinha: o guia trava
+  useScrollLock(isOpen)
+  useBackToClose(isOpen, () => onCloseRef.current?.())
 
   useEffect(() => {
     if (!isOpen) return
@@ -81,6 +86,7 @@ export default function SizeGuide({ isOpen, onClose }) {
                 </button>
               </div>
 
+              <div className={styles.content} data-lenis-prevent>
               <p className={styles.tip}>Meça o pé em centímetros e procure o número na coluna cm.</p>
 
               <div className={styles.tableWrap}>
@@ -113,6 +119,7 @@ export default function SizeGuide({ isOpen, onClose }) {
                   <li>Meça com uma régua da borda da folha até a marca.</li>
                   <li>Compare com a coluna cm. Se ficar entre dois números, vá no maior.</li>
                 </ol>
+              </div>
               </div>
             </motion.div>
           </motion.div>

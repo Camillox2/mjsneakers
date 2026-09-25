@@ -18,6 +18,7 @@
   display: flex;
   flex-direction: column;
   width: min(440px, 100vw);
+  height: 100vh;
   height: 100dvh;
   background: #07080a;
   /* borda de luz como sombra interna: uma linha de 1 px numa gaveta que
@@ -35,7 +36,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: calc(14px + env(safe-area-inset-top)) 16px 14px 24px;
+  padding: calc(14px + var(--pz-safe-top)) max(16px, env(safe-area-inset-right, 0px)) 14px 24px;
   border-bottom: 1px solid var(--pz-line);
 }
 
@@ -74,11 +75,6 @@
   background: transparent;
   border: 1px solid var(--pz-line);
   transition: color 0.2s var(--pz-ease), border-color 0.2s var(--pz-ease);
-}
-
-.closeBtn:hover {
-  color: var(--pz-text);
-  border-color: var(--pz-line-strong);
 }
 
 .scroll {
@@ -253,10 +249,7 @@
   transition: color 0.2s var(--pz-ease), background 0.2s var(--pz-ease);
 }
 
-.qtyBtn:hover {
-  color: var(--pz-text);
-  background: rgba(255, 255, 255, 0.05);
-}
+.qtyBtn:active { background: rgba(255, 255, 255, 0.08); }
 
 .qty {
   min-width: 24px;
@@ -277,11 +270,6 @@
   color: var(--pz-text-3);
   background: transparent;
   transition: color 0.2s var(--pz-ease), background 0.2s var(--pz-ease);
-}
-
-.removeBtn:hover {
-  color: var(--pz-text);
-  background: rgba(255, 255, 255, 0.05);
 }
 
 /* ---------- frete, cupom e resumo ---------- */
@@ -355,11 +343,6 @@
   transition: border-color 0.2s var(--pz-ease), background 0.2s var(--pz-ease), opacity 0.2s var(--pz-ease);
 }
 
-.shipBtn:hover:not(:disabled) {
-  border-color: rgba(233, 236, 241, 0.55);
-  background: rgba(255, 255, 255, 0.05);
-}
-
 .shipBtn:disabled { opacity: 0.45; cursor: not-allowed; }
 
 .shipError { font-size: var(--pz-fs-s); color: var(--pz-danger); }
@@ -407,14 +390,12 @@
   transition: color 0.2s var(--pz-ease);
 }
 
-.clearBtn:hover { color: var(--pz-text); }
-
 /* ---------- rodapé preso ---------- */
 
 .footer {
   display: grid;
   gap: 12px;
-  padding: 16px 24px calc(16px + env(safe-area-inset-bottom));
+  padding: 16px max(24px, env(safe-area-inset-right, 0px)) calc(16px + var(--pz-safe-bottom)) 24px;
   border-top: 1px solid var(--pz-line-strong);
   background: #07080a;
 }
@@ -469,7 +450,32 @@
   text-align: center;
 }
 
-@media (max-width: 520px) {
+@media (hover: hover) {
+  .closeBtn:hover {
+    color: var(--pz-text);
+    border-color: var(--pz-line-strong);
+  }
+  .qtyBtn:hover {
+    color: var(--pz-text);
+    background: rgba(255, 255, 255, 0.05);
+  }
+  .removeBtn:hover {
+    color: var(--pz-text);
+    background: rgba(255, 255, 255, 0.05);
+  }
+  .shipBtn:hover:not(:disabled) {
+    border-color: rgba(233, 236, 241, 0.55);
+    background: rgba(255, 255, 255, 0.05);
+  }
+  .clearBtn:hover { color: var(--pz-text); }
+}
+
+/* teclado aberto no celular: o total e o botão voltam quando o campo solta */
+@media (max-width: 767.98px), (max-height: 500px) and (orientation: landscape) {
+  .footerAway { display: none; }
+}
+
+@media (max-width: 479.98px) {
   .drawer {
     width: 100vw;
     box-shadow: none;

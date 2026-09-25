@@ -2,7 +2,8 @@ const express = require('express');
 const rateLimit = require('express-rate-limit');
 const router = express.Router();
 const reviewController = require('../controllers/reviewController');
-const { authMiddleware, adminMiddleware } = require('../middleware/auth');
+const { requireAdmin, optionalAuth } = require('../middleware/auth');
+const { requireOrderProof } = require('../middleware/customerProof');
 
 // Rate limit: max 5 reviews per 15 min per IP
 const reviewLimiter = rateLimit({
@@ -13,12 +14,13 @@ const reviewLimiter = rateLimit({
 
 // Public routes
 router.get('/product/:productId', reviewController.getByProduct);
-router.get('/my', reviewController.getMyReviews);
+// ?email=&order_id= de um pedido feito com esse e-mail (ou token de admin)
+router.get('/my', optionalAuth, ...requireOrderProof, reviewController.getMyReviews);
 router.post('/', reviewLimiter, reviewController.create);
 
 // Admin routes
-router.get('/', authMiddleware, adminMiddleware, reviewController.getAll);
-router.put('/:id/status', authMiddleware, adminMiddleware, reviewController.updateStatus);
-router.delete('/:id', authMiddleware, adminMiddleware, reviewController.delete);
+router.get('/', ...requireAdmin, reviewController.getAll);
+router.put('/:id/status', ...requireAdmin, reviewController.updateStatus);
+router.delete('/:id', ...requireAdmin, reviewController.delete);
 
 module.exports = router;

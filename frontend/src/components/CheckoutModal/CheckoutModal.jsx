@@ -5,9 +5,13 @@ import api from '../../services/api'
 import SuccessScreen from '../SuccessScreen/SuccessScreen'
 import styles from './CheckoutModal.module.css'
 import { useScrollLock } from '../../lib/useScrollLock'
+import { useBackToClose } from '../../lib/layers'
+import { getCartSessionId } from '../../utils/stockSession'
+import { isSample } from '../../data/drops'
 
 const STEPS = ['Dados', 'Endereço', 'Frete', 'Revisão']
 const EASE = [0.22, 1, 0.36, 1]
+const UFS = ['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO']
 
 const sheetMotion = {
   initial: { y: 32, opacity: 0 },
@@ -20,6 +24,27 @@ const fadeMotion = {
   exit: { opacity: 0, transition: { duration: 0.2 } },
 }
 
+const digits = (v) => String(v || '').replace(/\D/g, '')
+
+// 00000-000
+const formatCep = (v) => {
+  const d = digits(v).slice(0, 8)
+  return d.length > 5 ? `${d.slice(0, 5)}-${d.slice(5)}` : d
+}
+
+// (00) 0000-0000 ou (00) 00000-0000, conforme vai sendo digitado
+const formatPhone = (v) => {
+  const d = digits(v).slice(0, 11)
+  if (!d) return ''
+  if (d.length <= 2) return `(${d}`
+  if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`
+  if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`
+  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`
+}
+
+// Amostra da vitrine não existe no backend (o pedido voltaria 400): nunca vai.
+const isSampleItem = (item) => isSample(item) || String(item?.id ?? '').startsWith('amostra-')
+
 export default function CheckoutModal({ isOpen, onClose, cartItems, coupon, onSuccess }) {
   useScrollLock(isOpen)
   const [step, setStep] = useState(0)
@@ -28,6 +53,7 @@ export default function CheckoutModal({ isOpen, onClose, cartItems, coupon, onSu
   const [shippingOptions, setShippingOptions] = useState([])
   const [shippingLoading, setShippingLoading] = useState(false)
   const [error, setError] = useState('')
+  const [cepStatus, setCepStatus] = useState('') // '' | loading | ok | notfound
 
   const [form, setForm] = useState({
     name: '', email: '', phone: '',
@@ -38,15 +64,23 @@ export default function CheckoutModal({ isOpen, onClose, cartItems, coupon, onSu
     estimated_days_min: '', estimated_days_max: '', shipping_is_free: false
   })
 
-  const set = (field) => (e) => setForm(prev => ({ ...prev, [field]: e.target.value }))
+  const set = (field, format) => (e) => {
+    const value = format ? format(e.target.value) : e.target.value
+    setForm(prev => ({ ...prev, [field]: value }))
+  }
 
   const titleId = useId()
+  const formId = useId()
   const dialogRef = useRef(null)
+  const bodyRef = useRef(null)
+  const streetRef = useRef(null)
+  const numberRef = useRef(null)
   const closeRef = useRef(null)
 
   // Sair da tela de pedido feito zera o checkout para a próxima compra.
   const closeSuccess = () => { setCompletedOrder(null); setStep(0); onClose() }
   closeRef.current = completedOrder ? closeSuccess : onClose
+  useBackToClose(isOpen, () => closeRef.current?.())
 
   // Esc fecha; o foco entra no modal quando ele abre.
   useEffect(() => {
@@ -60,7 +94,48 @@ export default function CheckoutModal({ isOpen, onClose, cartItems, coupon, onSu
     }
   }, [isOpen])
 
-  const subtotal = cartItems.reduce((s, i) => {
+  // cada etapa começa do topo
+  useEffect(() => {
+    if (bodyRef.current) bodyRef.current.scrollTop = 0
+  }, [step])
+
+  // CEP completo (8 dígitos): o ViaCEP preenche rua, bairro, cidade e estado
+  // na hora, sem esperar a pessoa sair do campo.
+  const cepDigits = digits(form.cep)
+  const lastCep = useRef('')
+  useEffect(() => {
+    if (!isOpen || cepDigits.length !== 8 || cepDigits === lastCep.current) return undefined
+    const ctrl = new AbortController()
+    setCepStatus('loading')
+    fetch(`https://viacep.com.br/ws/${cepDigits}/json/`, { signal: ctrl.signal })
+      .then((res) => res.json())
+      .then((data) => {
+        lastCep.current = cepDigits
+        if (data?.erro) {
+          setCepStatus('notfound')
+          return
+        }
+        setForm(prev => ({
+          ...prev,
+          street: data.logradouro || prev.street,
+          neighborhood: data.bairro || prev.neighborhood,
+          city: data.localidade || prev.city,
+          state: data.uf || prev.state
+        }))
+        setCepStatus('ok')
+        // CEP de rua já traz o logradouro: segue para o número; CEP de
+        // cidade pequena não traz, então a rua vem primeiro
+        requestAnimationFrame(() => (data.logradouro ? numberRef : streetRef).current?.focus())
+      })
+      .catch((err) => {
+        if (err?.name !== 'AbortError') setCepStatus('')
+      })
+    return () => ctrl.abort()
+  }, [cepDigits, isOpen])
+
+  const buyable = cartItems.filter((i) => !isSampleItem(i))
+
+  const subtotal = buyable.reduce((s, i) => {
     const discount = Math.min(Math.max(Number(i.discount_percentage || 0), 0), 90)
     const price = discount > 0 ? Number(i.price) * (1 - discount / 100) : Number(i.price)
     return s + price * i.quantity
@@ -80,14 +155,22 @@ export default function CheckoutModal({ isOpen, onClose, cartItems, coupon, onSu
         setError('Preencha nome, e-mail e telefone.')
         return false
       }
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
         setError('Confira o e-mail, parece incompleto.')
+        return false
+      }
+      if (digits(form.phone).length < 10) {
+        setError('Confira o telefone: DDD e número.')
         return false
       }
     }
     if (step === 1) {
       if (!form.cep || !form.street || !form.number || !form.neighborhood || !form.city || !form.state) {
         setError('Preencha os campos marcados com *.')
+        return false
+      }
+      if (cepDigits.length !== 8) {
+        setError('O CEP tem 8 dígitos.')
         return false
       }
     }
@@ -107,31 +190,12 @@ export default function CheckoutModal({ isOpen, onClose, cartItems, coupon, onSu
   }
   const back = () => { setError(''); setStep(s => Math.max(s - 1, 0)) }
 
-  const handleCepBlur = async () => {
-    const cep = form.cep.replace(/\D/g, '')
-    if (cep.length !== 8) return
-    try {
-      const res = await fetch(`https://viacep.com.br/ws/${cep}/json/`)
-      const data = await res.json()
-      if (!data.erro) {
-        setForm(prev => ({
-          ...prev,
-          street: data.logradouro || prev.street,
-          neighborhood: data.bairro || prev.neighborhood,
-          city: data.localidade || prev.city,
-          state: data.uf || prev.state
-        }))
-      }
-    } catch {}
-  }
-
   const fetchShipping = async () => {
-    const cep = form.cep.replace(/\D/g, '')
-    if (cep.length !== 8) return
+    if (cepDigits.length !== 8) return
     setShippingLoading(true)
     try {
-      const items = cartItems.map(i => ({ product_id: i.id, quantity: i.quantity }))
-      const { data } = await api.post('/shipping/calculate', { cep, items, order_total: subtotal })
+      const items = buyable.map(i => ({ product_id: i.id, quantity: i.quantity }))
+      const { data } = await api.post('/shipping/calculate', { cep: cepDigits, items, order_total: subtotal })
       const opts = Array.isArray(data) ? data : (data.options || [])
       setShippingOptions(opts)
       if (opts.length === 1) selectShipping(opts[0])
@@ -158,16 +222,24 @@ export default function CheckoutModal({ isOpen, onClose, cartItems, coupon, onSu
   }
 
   const handleSubmit = async () => {
+    if (loading) return
+    if (!buyable.length) {
+      setError('Não há par à venda na sacola para fechar o pedido.')
+      return
+    }
     setLoading(true)
     setError('')
     try {
-      const items = cartItems.map(i => ({
+      // O servidor recalcula preço, desconto e frete; os valores daqui só
+      // continuam indo como antes.
+      const items = buyable.map(i => ({
         product_id: i.id,
         size: i.selectedSize || i.size,
         quantity: i.quantity,
         price: Number(i.price)
       }))
       const payload = {
+        session_id: getCartSessionId(),
         customer_name: form.name.trim(),
         customer_email: form.email.trim(),
         customer_phone: form.phone.trim(),
@@ -176,7 +248,7 @@ export default function CheckoutModal({ isOpen, onClose, cartItems, coupon, onSu
         shipping_type: form.shipping_name || form.shipping_type,
         shipping_rule_id: form.shipping_rule_id || null,
         shipping_price: shipping,
-        address_cep: form.cep.replace(/\D/g, ''),
+        address_cep: cepDigits,
         address_street: form.street,
         address_number: form.number,
         address_complement: form.complement,
@@ -185,13 +257,31 @@ export default function CheckoutModal({ isOpen, onClose, cartItems, coupon, onSu
         address_state: form.state
       }
       const { data } = await api.post('/orders', payload)
-      setCompletedOrder({ ...data, items: cartItems.map(i => ({ product_name: i.name, quantity: i.quantity, price: i.price })) })
+      setCompletedOrder({ ...data, items: buyable.map(i => ({ product_name: i.name, size: i.size, quantity: i.quantity, price: i.price })) })
       onSuccess && onSuccess(data)
     } catch (err) {
       setError(err.response?.data?.error || 'Não deu para fechar o pedido. Tente de novo.')
     } finally {
       setLoading(false)
     }
+  }
+
+  // Enter (ou "Próximo" no teclado do celular) anda para o campo seguinte;
+  // no último campo da etapa, envia a etapa.
+  const onFormKeyDown = (e) => {
+    if (e.key !== 'Enter' || e.target.tagName !== 'INPUT') return
+    const fields = [...e.currentTarget.querySelectorAll('input, select')].filter((el) => !el.disabled)
+    const i = fields.indexOf(e.target)
+    if (i >= 0 && i < fields.length - 1) {
+      e.preventDefault()
+      fields[i + 1].focus()
+    }
+  }
+
+  const onFormSubmit = (e) => {
+    e.preventDefault()
+    if (step < 3) next()
+    else handleSubmit()
   }
 
   const formatPrice = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
@@ -231,7 +321,9 @@ export default function CheckoutModal({ isOpen, onClose, cartItems, coupon, onSu
   return (
     <MotionConfig reducedMotion="user">
       <AnimatePresence>
-        <motion.div className={styles.overlay} {...fadeMotion} onClick={onClose} data-lenis-prevent>
+        {/* tocar fora só fecha na primeira etapa: depois disso, um toque
+            perdido jogaria o endereço digitado para trás */}
+        <motion.div className={styles.overlay} {...fadeMotion} onClick={() => step === 0 && !loading && onClose()} data-lenis-prevent>
           <motion.div
             ref={dialogRef}
             className={styles.modal}
@@ -260,138 +352,152 @@ export default function CheckoutModal({ isOpen, onClose, cartItems, coupon, onSu
               ))}
             </ol>
 
-            <div className={styles.body}>
-              {step === 0 && (
-                <div className={styles.fields}>
-                  <label className={styles.label}>Nome completo *
-                    <input className={styles.input} value={form.name} onChange={set('name')} placeholder="João da Silva" autoComplete="name" />
-                  </label>
-                  <label className={styles.label}>E-mail *
-                    <input className={styles.input} type="email" value={form.email} onChange={set('email')} placeholder="joao@email.com" autoComplete="email" inputMode="email" />
-                  </label>
-                  <label className={styles.label}>Telefone ou WhatsApp *
-                    <input className={styles.input} type="tel" value={form.phone} onChange={set('phone')} placeholder="(11) 99999-9999" autoComplete="tel" inputMode="tel" />
-                  </label>
-                </div>
-              )}
-
-              {step === 1 && (
-                <div className={styles.fields}>
-                  <label className={styles.label}>CEP *
-                    <input className={styles.input} value={form.cep} onChange={set('cep')} onBlur={handleCepBlur} placeholder="00000-000" maxLength={9} autoComplete="postal-code" inputMode="numeric" />
-                  </label>
-                  <label className={styles.label}>Rua *
-                    <input className={styles.input} value={form.street} onChange={set('street')} placeholder="Rua exemplo" autoComplete="address-line1" />
-                  </label>
-                  <div className={styles.row}>
-                    <label className={styles.label}>Número *
-                      <input className={styles.input} value={form.number} onChange={set('number')} placeholder="123" inputMode="numeric" />
+            <div className={styles.body} ref={bodyRef}>
+              <form id={formId} onSubmit={onFormSubmit} onKeyDown={onFormKeyDown} noValidate>
+                {step === 0 && (
+                  <div className={styles.fields}>
+                    <label className={styles.label}>Nome completo *
+                      <input className={styles.input} value={form.name} onChange={set('name')} placeholder="João da Silva" autoComplete="name" autoCapitalize="words" enterKeyHint="next" />
                     </label>
-                    <label className={styles.label}>Complemento
-                      <input className={styles.input} value={form.complement} onChange={set('complement')} placeholder="Apto 4B" autoComplete="address-line2" />
+                    <label className={styles.label}>E-mail *
+                      <input className={styles.input} type="email" value={form.email} onChange={set('email')} placeholder="joao@email.com" autoComplete="email" inputMode="email" autoCapitalize="none" spellCheck={false} enterKeyHint="next" />
+                    </label>
+                    <label className={styles.label}>Telefone ou WhatsApp *
+                      <input className={styles.input} type="tel" value={form.phone} onChange={set('phone', formatPhone)} placeholder="(11) 99999-9999" autoComplete="tel-national" inputMode="tel" maxLength={16} enterKeyHint="go" />
                     </label>
                   </div>
-                  <label className={styles.label}>Bairro *
-                    <input className={styles.input} value={form.neighborhood} onChange={set('neighborhood')} placeholder="Centro" autoComplete="address-level3" />
-                  </label>
-                  <div className={`${styles.row} ${styles.rowCity}`}>
-                    <label className={styles.label}>Cidade *
-                      <input className={styles.input} value={form.city} onChange={set('city')} placeholder="São Paulo" autoComplete="address-level2" />
-                    </label>
-                    <label className={styles.label}>Estado *
-                      <input className={styles.input} value={form.state} onChange={set('state')} placeholder="SP" maxLength={2} autoComplete="address-level1" />
-                    </label>
-                  </div>
-                </div>
-              )}
+                )}
 
-              {step === 2 && (
-                <div className={styles.shippingSection}>
-                  {shippingLoading ? (
-                    <div className={styles.shippingLoading} role="status"><FiLoader className={styles.spinner} aria-hidden /> Calculando o frete…</div>
-                  ) : shippingOptions.length === 1 ? (
-                    <div className={styles.singleShip}>
-                      <FiTruck aria-hidden className={styles.singleIcon} />
-                      <div className={styles.shipInfo}>
-                        <span className={styles.shipName}>{shippingOptions[0].name}</span>
-                        <span className={styles.shipDays}>{shippingOptions[0].estimated_days_min} a {shippingOptions[0].estimated_days_max} dias úteis</span>
-                      </div>
-                      <span className={`${styles.shipPrice} ${shippingOptions[0].is_free ? styles.shipFree : ''}`}>
-                        {shippingOptions[0].is_free ? 'Grátis' : formatPrice(shippingOptions[0].price)}
+                {step === 1 && (
+                  <div className={styles.fields}>
+                    <label className={styles.label}>
+                      <span className={styles.labelRow}>
+                        CEP *
+                        {cepStatus === 'loading' && <span className={styles.cepHint}><FiLoader className={styles.spinner} aria-hidden /> Buscando o endereço</span>}
+                        {cepStatus === 'notfound' && <span className={`${styles.cepHint} ${styles.cepWarn}`}>CEP não encontrado, preencha à mão</span>}
                       </span>
+                      <input className={styles.input} value={form.cep} onChange={set('cep', formatCep)} placeholder="00000-000" maxLength={9} autoComplete="postal-code" inputMode="numeric" enterKeyHint="next" />
+                    </label>
+                    <label className={styles.label}>Rua *
+                      <input ref={streetRef} className={styles.input} value={form.street} onChange={set('street')} placeholder="Rua exemplo" autoComplete="address-line1" autoCapitalize="words" enterKeyHint="next" />
+                    </label>
+                    <div className={styles.row}>
+                      <label className={styles.label}>Número *
+                        {/* sem teclado numérico: tem número "123A" e "S/N" */}
+                        <input ref={numberRef} className={styles.input} value={form.number} onChange={set('number')} placeholder="123" enterKeyHint="next" />
+                      </label>
+                      <label className={styles.label}>Complemento
+                        <input className={styles.input} value={form.complement} onChange={set('complement')} placeholder="Apto 4B" autoComplete="address-line2" enterKeyHint="next" />
+                      </label>
                     </div>
-                  ) : shippingOptions.length > 0 ? (
-                    <>
-                      <div className={styles.shipList} role="radiogroup" aria-label="Opções de frete">
-                        {shippingOptions.map((opt, i) => {
-                          const selected = form.shipping_name === opt.name
-                          return (
-                            <button
-                              type="button"
-                              role="radio"
-                              aria-checked={selected}
-                              key={opt.id ?? opt.name ?? i}
-                              className={`${styles.shipOption} ${selected ? styles.shipSelected : ''}`}
-                              onClick={() => selectShipping(opt)}
-                            >
-                              <span className={styles.shipRadio} aria-hidden />
-                              <span className={styles.shipInfo}>
-                                <span className={styles.shipName}>{opt.name}</span>
-                                <span className={styles.shipDays}>{opt.estimated_days_min} a {opt.estimated_days_max} dias úteis</span>
-                              </span>
-                              <span className={`${styles.shipPrice} ${opt.is_free ? styles.shipFree : ''}`}>
-                                {opt.is_free ? 'Grátis' : formatPrice(opt.price)}
-                              </span>
-                            </button>
-                          )
-                        })}
-                      </div>
-                      {faltaGratis != null && (
-                        <div className={styles.faltaGratis}>
-                          Faltam {formatPrice(faltaGratis)} para o frete sair grátis.
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    <p className={styles.noShipping}>Não achamos entrega para esse CEP. Volte e confira o endereço.</p>
-                  )}
-                </div>
-              )}
+                    <label className={styles.label}>Bairro *
+                      <input className={styles.input} value={form.neighborhood} onChange={set('neighborhood')} placeholder="Centro" autoComplete="address-level3" autoCapitalize="words" enterKeyHint="next" />
+                    </label>
+                    <div className={`${styles.row} ${styles.rowCity}`}>
+                      <label className={styles.label}>Cidade *
+                        <input className={styles.input} value={form.city} onChange={set('city')} placeholder="São Paulo" autoComplete="address-level2" autoCapitalize="words" enterKeyHint="next" />
+                      </label>
+                      <label className={styles.label}>Estado *
+                        <span className={styles.selectWrap}>
+                          <select className={`${styles.input} ${styles.select}`} value={form.state} onChange={set('state')} autoComplete="address-level1">
+                            <option value="" disabled>UF</option>
+                            {UFS.map((uf) => <option key={uf} value={uf}>{uf}</option>)}
+                          </select>
+                        </span>
+                      </label>
+                    </div>
+                  </div>
+                )}
 
-              {step === 3 && (
-                <div className={styles.review}>
-                  <div className={styles.reviewSection}>
-                    <h4>Seus dados</h4>
-                    <p>{form.name}</p>
-                    <p>{form.email}</p>
-                    <p>{form.phone}</p>
-                  </div>
-                  <div className={styles.reviewSection}>
-                    <h4>Entrega</h4>
-                    <p>{form.street}, {form.number}{form.complement && `, ${form.complement}`}</p>
-                    <p>{form.neighborhood}, {form.city}/{form.state}</p>
-                    <p>CEP {form.cep}</p>
-                  </div>
-                  <div className={styles.reviewSection}>
-                    <h4>Itens ({cartItems.length})</h4>
-                    {cartItems.map((item, idx) => (
-                      <div key={idx} className={styles.reviewItem}>
-                        <span>{item.name} <span className={styles.reviewQty}>× {item.quantity}</span></span>
-                        <span className={styles.num}>{formatPrice(Number(item.price) * item.quantity)}</span>
+                {step === 2 && (
+                  <div className={styles.shippingSection}>
+                    {shippingLoading ? (
+                      <div className={styles.shippingLoading} role="status"><FiLoader className={styles.spinner} aria-hidden /> Calculando o frete…</div>
+                    ) : shippingOptions.length === 1 ? (
+                      <div className={styles.singleShip}>
+                        <FiTruck aria-hidden className={styles.singleIcon} />
+                        <div className={styles.shipInfo}>
+                          <span className={styles.shipName}>{shippingOptions[0].name}</span>
+                          <span className={styles.shipDays}>{shippingOptions[0].estimated_days_min} a {shippingOptions[0].estimated_days_max} dias úteis</span>
+                        </div>
+                        <span className={`${styles.shipPrice} ${shippingOptions[0].is_free ? styles.shipFree : ''}`}>
+                          {shippingOptions[0].is_free ? 'Grátis' : formatPrice(shippingOptions[0].price)}
+                        </span>
                       </div>
-                    ))}
+                    ) : shippingOptions.length > 0 ? (
+                      <>
+                        <div className={styles.shipList} role="radiogroup" aria-label="Opções de frete">
+                          {shippingOptions.map((opt, i) => {
+                            const selected = form.shipping_name === opt.name
+                            return (
+                              <button
+                                type="button"
+                                role="radio"
+                                aria-checked={selected}
+                                key={opt.id ?? opt.name ?? i}
+                                className={`${styles.shipOption} ${selected ? styles.shipSelected : ''}`}
+                                onClick={() => selectShipping(opt)}
+                              >
+                                <span className={styles.shipRadio} aria-hidden />
+                                <span className={styles.shipInfo}>
+                                  <span className={styles.shipName}>{opt.name}</span>
+                                  <span className={styles.shipDays}>{opt.estimated_days_min} a {opt.estimated_days_max} dias úteis</span>
+                                </span>
+                                <span className={`${styles.shipPrice} ${opt.is_free ? styles.shipFree : ''}`}>
+                                  {opt.is_free ? 'Grátis' : formatPrice(opt.price)}
+                                </span>
+                              </button>
+                            )
+                          })}
+                        </div>
+                        {faltaGratis != null && (
+                          <div className={styles.faltaGratis}>
+                            Faltam {formatPrice(faltaGratis)} para o frete sair grátis.
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <p className={styles.noShipping}>Não achamos entrega para esse CEP. Volte e confira o endereço.</p>
+                    )}
                   </div>
-                  <div className={styles.reviewTotals}>
-                    <div className={styles.totalRow}><span>Subtotal</span><span className={styles.num}>{formatPrice(subtotal)}</span></div>
-                    {couponDiscount > 0 && <div className={styles.totalRow}><span>Cupom {coupon?.code}</span><span className={`${styles.num} ${styles.discountText}`}>-{formatPrice(couponDiscount)}</span></div>}
-                    <div className={styles.totalRow}>
-                      <span>{form.shipping_is_free ? 'Frete' : `Frete (${form.shipping_name || form.shipping_type})`}</span>
-                      <span className={styles.num}>{form.shipping_is_free ? 'Grátis' : formatPrice(shipping)}</span>
+                )}
+
+                {step === 3 && (
+                  <div className={styles.review}>
+                    <div className={styles.reviewSection}>
+                      <h4>Seus dados</h4>
+                      <p>{form.name}</p>
+                      <p>{form.email}</p>
+                      <p>{form.phone}</p>
                     </div>
-                    <div className={`${styles.totalRow} ${styles.totalFinal}`}><span>Total</span><span className={styles.num}>{formatPrice(total)}</span></div>
+                    <div className={styles.reviewSection}>
+                      <h4>Entrega</h4>
+                      <p>{form.street}, {form.number}{form.complement && `, ${form.complement}`}</p>
+                      <p>{form.neighborhood}, {form.city}/{form.state}</p>
+                      <p>CEP {form.cep}</p>
+                    </div>
+                    <div className={styles.reviewSection}>
+                      <h4>Itens ({buyable.length})</h4>
+                      {buyable.map((item, idx) => (
+                        <div key={idx} className={styles.reviewItem}>
+                          <span>{item.name} <span className={styles.reviewQty}>{item.size ? `tam. ${item.size} ` : ''}× {item.quantity}</span></span>
+                          <span className={styles.num}>{formatPrice(Number(item.price) * item.quantity)}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className={styles.reviewTotals}>
+                      <div className={styles.totalRow}><span>Subtotal</span><span className={styles.num}>{formatPrice(subtotal)}</span></div>
+                      {couponDiscount > 0 && <div className={styles.totalRow}><span>Cupom {coupon?.code}</span><span className={`${styles.num} ${styles.discountText}`}>-{formatPrice(couponDiscount)}</span></div>}
+                      <div className={styles.totalRow}>
+                        <span>{form.shipping_is_free ? 'Frete' : `Frete (${form.shipping_name || form.shipping_type})`}</span>
+                        <span className={styles.num}>{form.shipping_is_free ? 'Grátis' : formatPrice(shipping)}</span>
+                      </div>
+                      <div className={`${styles.totalRow} ${styles.totalFinal}`}><span>Total</span><span className={styles.num}>{formatPrice(total)}</span></div>
+                      <p className={styles.totalNote}>A loja confere preços, cupom e frete ao confirmar; o valor final aparece na tela do pedido.</p>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+              </form>
             </div>
 
             <div className={styles.footer}>
@@ -401,9 +507,9 @@ export default function CheckoutModal({ isOpen, onClose, cartItems, coupon, onSu
                   <button type="button" className={`pz-btn-ghost ${styles.backBtn}`} onClick={back}><FiChevronLeft aria-hidden /> Voltar</button>
                 )}
                 {step < 3 ? (
-                  <button type="button" className={`pz-btn ${styles.nextBtn}`} onClick={next}>Continuar <FiChevronRight aria-hidden /></button>
+                  <button type="submit" form={formId} className={`pz-btn ${styles.nextBtn}`}>Continuar <FiChevronRight aria-hidden /></button>
                 ) : (
-                  <button type="button" className={`pz-btn ${styles.nextBtn}`} onClick={handleSubmit} disabled={loading}>
+                  <button type="submit" form={formId} className={`pz-btn ${styles.nextBtn}`} disabled={loading}>
                     {loading ? 'Enviando pedido…' : 'Confirmar pedido'}
                   </button>
                 )}

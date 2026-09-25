@@ -47,7 +47,7 @@ export default function BottomPromoBanner({ onProductClick }) {
     const el = document.getElementById(ANCHOR_ALIAS[id] || id)
     if (!el) return
     e.preventDefault()
-    scrollToEl(el, -70)
+    scrollToEl(el)
   }
 
   const formatPrice = (p) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(p)

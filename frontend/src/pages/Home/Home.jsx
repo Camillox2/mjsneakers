@@ -77,11 +77,11 @@ export default function Home() {
   const introDone = useCallback(() => {
     document.documentElement.classList.remove('pz-intro')
     // veio de outra página pelo link "Loja": vai direto para a vitrine
-    if (window.location.hash === '#loja') scrollToEl(document.getElementById('loja'), -70)
+    if (window.location.hash === '#loja') scrollToEl(document.getElementById('loja'))
   }, [])
 
   // marca escolhida na órbita: filtra a vitrine; o botão embaixo leva até ela
-  const seeBrand = useCallback(() => scrollToEl(shopRef.current, -70), [])
+  const seeBrand = useCallback(() => scrollToEl(shopRef.current), [])
 
   // "Quero esse" no giro: abre o produto real se o drop estiver ligado a um
   // produto do backend; senão, o exemplar de amostra.

@@ -10,6 +10,7 @@ import { useToast } from '../Toast/Toast'
 import api from '../../services/api'
 import styles from './CartDrawer.module.css'
 import { useScrollLock } from '../../lib/useScrollLock'
+import { useBackToClose } from '../../lib/layers'
 
 const EASE = [0.22, 1, 0.36, 1]
 
@@ -34,7 +35,11 @@ const unitPrice = (item) => {
 export default function CartDrawer() {
   const { cart, cartOpen, setCartOpen, removeFromCart, updateQuantity, cartTotal, clearCart } = useContext(CartContext)
   useScrollLock(cartOpen)
+  useBackToClose(cartOpen, () => setCartOpen(false))
   const [coupon, setCoupon] = useState(null)
+  // digitando CEP ou cupom no celular: o rodapé preso some para o teclado
+  // não espremer a lista num vão de poucos pixels
+  const [typing, setTyping] = useState(false)
   const [checkoutOpen, setCheckoutOpen] = useState(false)
   const [cep, setCep] = useState(() => formatCep(readLastCep()))
   const [shipInfo, setShipInfo] = useState(null) // { price, hasFree }
@@ -171,7 +176,11 @@ export default function CartDrawer() {
                 </button>
               </div>
 
-              <div className={styles.scroll}>
+              <div
+                className={styles.scroll}
+                onFocus={(e) => e.target.tagName === 'INPUT' && setTyping(true)}
+                onBlur={(e) => e.target.tagName === 'INPUT' && setTyping(false)}
+              >
                 {cart.length === 0 ? (
                   <div className={styles.empty}>
                     <span className={styles.emptyIcon} aria-hidden><FiShoppingBag /></span>
@@ -267,6 +276,7 @@ export default function CartDrawer() {
                                 maxLength={9}
                                 inputMode="numeric"
                                 autoComplete="postal-code"
+                                enterKeyHint="go"
                                 onKeyDown={e => e.key === 'Enter' && calcFrete()}
                               />
                             </div>
@@ -323,7 +333,7 @@ export default function CartDrawer() {
               </div>
 
               {cart.length > 0 && (
-                <div className={styles.footer}>
+                <div className={`${styles.footer} ${typing ? styles.footerAway : ''}`}>
                   {hasSample && (
                     <p className={styles.sampleWarn} role="note">
                       <FiInfo aria-hidden />

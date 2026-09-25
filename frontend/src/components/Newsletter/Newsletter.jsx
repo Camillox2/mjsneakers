@@ -8,33 +8,60 @@ import styles from './Newsletter.module.css'
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3305/api'
 const EASE = [0.22, 1, 0.36, 1]
 
+// O backend responde a inscrição de três jeitos:
+//   201 subscribed: e-mail novo, ganha o cupom (chuva de cometas);
+//   200 returning: e-mail que tinha saído e voltou (chuva também);
+//   409 already: já está na lista (sem chuva, aviso neutro, não é erro).
+const MESSAGES = {
+  subscribed: 'Pronto. O cupom de 10% vai para o seu e-mail.',
+  returning: 'Que bom ter você de volta. Os próximos drops chegam no seu e-mail.',
+  already: 'Esse e-mail já está na nossa lista. Os próximos drops chegam por lá.',
+}
+
 export default function Newsletter({ variant = 'footer' }) {
   const [email, setEmail] = useState('')
-  const [status, setStatus] = useState('idle') // idle | loading | success | error
+  const [status, setStatus] = useState('idle') // idle | loading | success | already | error
   const [msg, setMsg] = useState('')
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!email.trim()) return
+    if (!email.trim() || status === 'loading') return
     // a chuva de cometas cai dentro da seção (ou da janela) da inscrição
     const zone = e.currentTarget.closest('section, [role="dialog"]')
     setStatus('loading')
     try {
-      await axios.post(`${API}/newsletter/subscribe`, { email: email.trim() })
+      const res = await axios.post(`${API}/newsletter/subscribe`, { email: email.trim() })
+      const kind = res.data?.status === 'returning' ? 'returning' : 'subscribed'
       const box = zone?.getBoundingClientRect()
       cometShower(box && box.width ? box : null, { count: 18, duration: 1500 })
       setStatus('success')
-      setMsg('Pronto. O cupom de 10% vai para o seu e-mail.')
+      setMsg(MESSAGES[kind])
       setEmail('')
     } catch (err) {
+      if (err.response?.status === 409) {
+        // já inscrito: nada de erro vermelho nem de chuva
+        setStatus('already')
+        setMsg(MESSAGES.already)
+        return
+      }
       setStatus('error')
       setMsg(err.response?.data?.error || err.response?.data?.message || 'Não deu para inscrever agora. Tente de novo.')
-      setTimeout(() => setStatus('idle'), 3000)
     }
   }
 
+  // mexeu no e-mail depois de um aviso: o aviso sai
+  const typeEmail = (value) => {
+    setEmail(value)
+    if (status === 'already' || status === 'error') {
+      setStatus('idle')
+      setMsg('')
+    }
+  }
+
+  const msgClass = status === 'error' ? styles.msgError : status === 'already' ? styles.msgNeutral : styles.msgSuccess
+
   if (variant === 'popup') {
-    return <NewsletterPopup onSubmit={handleSubmit} email={email} setEmail={setEmail} status={status} msg={msg} />
+    return <NewsletterPopup onSubmit={handleSubmit} email={email} setEmail={typeEmail} status={status} msg={msg} msgClass={msgClass} />
   }
 
   const busy = status === 'loading' || status === 'success'
@@ -53,9 +80,12 @@ export default function Newsletter({ variant = 'footer' }) {
               id="newsletter-email"
               type="email"
               autoComplete="email"
+              autoCapitalize="none"
+              spellCheck={false}
+              enterKeyHint="send"
               placeholder="voce@email.com"
               value={email}
-              onChange={e => setEmail(e.target.value)}
+              onChange={e => typeEmail(e.target.value)}
               className={styles.input}
               disabled={busy}
             />
@@ -67,7 +97,8 @@ export default function Newsletter({ variant = 'footer' }) {
             <AnimatePresence>
               {msg && (
                 <motion.p
-                  className={`${styles.msg} ${status === 'error' ? styles.msgError : styles.msgSuccess}`}
+                  key={msg}
+                  className={`${styles.msg} ${msgClass}`}
                   initial={{ opacity: 0, y: 4 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0 }}
@@ -84,7 +115,7 @@ export default function Newsletter({ variant = 'footer' }) {
   )
 }
 
-function NewsletterPopup({ onSubmit, email, setEmail, status, msg }) {
+function NewsletterPopup({ onSubmit, email, setEmail, status, msg, msgClass }) {
   const [closed, setClosed] = useState(false)
 
   if (closed) return null
@@ -136,7 +167,7 @@ function NewsletterPopup({ onSubmit, email, setEmail, status, msg }) {
               </button>
             </form>
             {msg && (
-              <p className={`${styles.msg} ${status === 'error' ? styles.msgError : styles.msgSuccess}`} aria-live="polite">{msg}</p>
+              <p className={`${styles.msg} ${msgClass}`} aria-live="polite">{msg}</p>
             )}
             <button type="button" className={styles.skip} onClick={() => setClosed(true)}>Agora não</button>
           </motion.div>

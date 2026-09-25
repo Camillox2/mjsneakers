@@ -9,16 +9,19 @@ const MIN_ITEMS_PER_LOOP = 8
 
 export default function PromotionTicker({ position = 'top' }) {
   const [tickers, setTickers] = useState([])
-  const [settings, setSettings] = useState({})
+  const [settings, setSettings] = useState(null)
 
   useEffect(() => {
     cachedGet('/tickers', { ttl: TTL.config, persist: true }).then((data) => setTickers(Array.isArray(data) ? data : [])).catch(() => {})
-    cachedGet('/settings', { ttl: TTL.config, persist: true }).then((data) => setSettings(data || {})).catch(() => {})
+    cachedGet('/settings', { ttl: TTL.config, persist: true }).then((data) => setSettings(data || {})).catch(() => setSettings({}))
   }, [])
 
-  if (tickers.length === 0 || settings.ticker_enabled !== 'true') return null
+  // Sem a chave ticker_enabled a faixa aparece; só some quando o admin
+  // desliga de propósito. Espera as configurações para não piscar.
+  const off = [false, 0, 'false', '0'].includes(settings?.ticker_enabled)
+  if (!settings || tickers.length === 0 || off) return null
 
-  const showBottom = settings.ticker_double === 'true'
+  const showBottom = settings.ticker_double === 'true' || settings.ticker_double === true
 
   const reps = Math.max(1, Math.ceil(MIN_ITEMS_PER_LOOP / tickers.length))
   const loop = Array.from({ length: reps }, () => tickers).flat()

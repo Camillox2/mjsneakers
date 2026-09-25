@@ -2,7 +2,7 @@ const express = require('express');
 const rateLimit = require('express-rate-limit');
 const router = express.Router();
 const authController = require('../controllers/authController');
-const { authMiddleware, adminMiddleware } = require('../middleware/auth');
+const { authMiddleware, requireAdmin } = require('../middleware/auth');
 
 // Rate limit: max 10 login attempts per 15 min per IP
 const loginLimiter = rateLimit({
@@ -13,11 +13,20 @@ const loginLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// Troca de senha também tenta senha: mesmo teto, por IP.
+const passwordLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { error: 'Muitas tentativas. Tente novamente em 15 minutos.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 router.post('/login', loginLimiter, authController.login);
 router.get('/verify', authMiddleware, authController.verifyToken);
-router.get('/admins', authMiddleware, adminMiddleware, authController.listAdmins);
-router.post('/admins', authMiddleware, adminMiddleware, authController.createAdmin);
-router.put('/admins/:id/toggle', authMiddleware, adminMiddleware, authController.toggleAdmin);
-router.put('/change-password', authMiddleware, authController.changePassword);
+router.get('/admins', ...requireAdmin, authController.listAdmins);
+router.post('/admins', ...requireAdmin, authController.createAdmin);
+router.put('/admins/:id/toggle', ...requireAdmin, authController.toggleAdmin);
+router.put('/change-password', passwordLimiter, authMiddleware, authController.changePassword);
 
 module.exports = router;

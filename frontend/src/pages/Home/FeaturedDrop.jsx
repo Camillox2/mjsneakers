@@ -1,4 +1,5 @@
 import { useContext, useEffect, useState } from 'react'
+import { FiAlertCircle, FiInfo } from 'react-icons/fi'
 import { CartContext } from '../../App'
 import { GRID_SAMPLES } from '../../data/drops'
 import { cachedGet, TTL } from '../../services/cache'
@@ -14,11 +15,12 @@ const FALLBACK = () => GRID_SAMPLES.find((p) => p.id === 'amostra-jordan-1-low')
 // "O par da semana": o primeiro destaque do admin (ou uma amostra), com o
 // giro de arrastar quando o par tem giro, a ficha e os tamanhos à mão.
 export default function FeaturedDrop({ onOpen }) {
-  const { addToCart, setCartOpen } = useContext(CartContext)
+  const { addToCart, revealCart } = useContext(CartContext)
   const addToast = useToast()
   const [product, setProduct] = useState(null)
   const [size, setSize] = useState(null)
   const [nudge, setNudge] = useState(false)
+  const [missing, setMissing] = useState(false)
 
   useEffect(() => {
     let alive = true
@@ -39,8 +41,10 @@ export default function FeaturedDrop({ onOpen }) {
 
   const add = async () => {
     if (!size) {
+      // chacoalha a grade e diz o porquê (com menos movimento, só o aviso)
       setNudge(true)
       setTimeout(() => setNudge(false), 700)
+      setMissing(true)
       return
     }
     const result = await addToCart(product, size)
@@ -49,7 +53,7 @@ export default function FeaturedDrop({ onOpen }) {
       return
     }
     addToast(`${product.name}, tamanho ${size}, foi para a sacola.`, 'success')
-    setCartOpen(true)
+    revealCart()
   }
 
   return (
@@ -81,7 +85,7 @@ export default function FeaturedDrop({ onOpen }) {
             {product.sample && <span className={styles.sample}>Amostra</span>}
           </div>
 
-          {stock > 0 && sizes.length > 0 && (
+          {stock > 0 && sizes.length > 0 && !product.sample && (
             <fieldset className={`${styles.sizes} ${nudge ? styles.nudge : ''}`}>
               <legend>Escolha o tamanho</legend>
               <div className={styles.sizeGrid}>
@@ -91,19 +95,33 @@ export default function FeaturedDrop({ onOpen }) {
                     type="button"
                     className={`${styles.size} ${size === s ? styles.sizeOn : ''}`}
                     aria-pressed={size === s}
-                    onClick={() => setSize(s)}
+                    onClick={() => {
+                      setSize(s)
+                      setMissing(false)
+                    }}
                   >
                     {s}
                   </button>
                 ))}
               </div>
+              {missing && !size && (
+                <p className={styles.missing} role="alert">
+                  <FiAlertCircle aria-hidden="true" /> Escolha o tamanho antes de colocar na sacola.
+                </p>
+              )}
             </fieldset>
           )}
 
           <div className={styles.actions}>
-            <button type="button" className="pz-btn" onClick={add} disabled={stock === 0}>
-              {stock === 0 ? 'Esgotado' : 'Colocar na sacola'}
-            </button>
+            {product.sample ? (
+              <p className={`pz-soon ${styles.soon}`}>
+                <FiInfo aria-hidden="true" /> Amostra da vitrine, ainda não está à venda
+              </p>
+            ) : (
+              <button type="button" className="pz-btn" onClick={add} disabled={stock === 0}>
+                {stock === 0 ? 'Esgotado' : 'Colocar na sacola'}
+              </button>
+            )}
             <button type="button" className="pz-btn-ghost" onClick={() => onOpen?.(product)}>
               Ver detalhes do par
             </button>

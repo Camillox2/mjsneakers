@@ -2,7 +2,7 @@ const fs = require('fs');
 const express = require('express');
 const multer = require('multer');
 const { body, param, validationResult } = require('express-validator');
-const { authMiddleware } = require('../middleware/auth');
+const { requireAdmin } = require('../middleware/auth');
 const {
   appearanceController,
   VISUAL_SETTING_KEYS,
@@ -111,7 +111,7 @@ const positiveId = param('id').isInt({ min: 1 }).withMessage('id deve ser um int
 router.get('/settings', appearanceController.getSettings);
 router.post(
   '/settings',
-  authMiddleware,
+  ...requireAdmin,
   body().customSanitizer(sanitizeSettings),
   body().custom((payload) => {
     if (!isPlainObject(payload) || Object.keys(payload).length === 0) throw new Error('O body deve ser um objeto não vazio');
@@ -126,7 +126,7 @@ router.post(
 router.get('/sections-config', appearanceController.getSectionsConfig);
 router.put(
   '/sections-config',
-  authMiddleware,
+  ...requireAdmin,
   body('order').isArray({ min: 1 }).withMessage('order deve ser um array não vazio')
     .custom((order) => order.every((item) => typeof item === 'string' && item.trim() !== ''))
     .withMessage('order deve conter apenas strings não vazias'),
@@ -149,25 +149,25 @@ const customSectionValidations = () => [
 ];
 router.post(
   '/custom-sections',
-  authMiddleware,
+  ...requireAdmin,
   ...customSectionValidations(),
   validateRequest,
   appearanceController.createCustomSection
 );
 router.put(
   '/custom-sections/:id',
-  authMiddleware,
+  ...requireAdmin,
   positiveId,
   ...customSectionValidations(),
   validateRequest,
   appearanceController.updateCustomSection
 );
-router.delete('/custom-sections/:id', authMiddleware, positiveId, validateRequest, appearanceController.deleteCustomSection);
+router.delete('/custom-sections/:id', ...requireAdmin, positiveId, validateRequest, appearanceController.deleteCustomSection);
 
 router.get('/theme-presets', appearanceController.getThemePresets);
 router.post(
   '/theme-presets',
-  authMiddleware,
+  ...requireAdmin,
   body('name').isString().trim().notEmpty().withMessage('name é obrigatório')
     .isLength({ max: 50 }).withMessage('name deve ter no máximo 50 caracteres'),
   body('config').customSanitizer(sanitizeThemeConfig)
@@ -179,17 +179,17 @@ router.post(
 );
 router.put(
   '/theme-presets/:id/activate',
-  authMiddleware,
+  ...requireAdmin,
   param('id').isInt().withMessage('id deve ser um inteiro').toInt(),
   validateRequest,
   appearanceController.activateThemePreset
 );
-router.delete('/theme-presets/:id', authMiddleware, positiveId, validateRequest, appearanceController.deleteThemePreset);
+router.delete('/theme-presets/:id', ...requireAdmin, positiveId, validateRequest, appearanceController.deleteThemePreset);
 
 router.get('/google-fonts', appearanceController.getGoogleFonts);
 router.post(
   '/upload-og-image',
-  authMiddleware,
+  ...requireAdmin,
   uploadOg,
   body('_file').custom((_, { req }) => {
     if (!req.file) throw new Error('A imagem é obrigatória no campo image');

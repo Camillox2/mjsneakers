@@ -1,6 +1,6 @@
-import { useState, useEffect, useContext, useMemo } from 'react'
+import { useState, useEffect, useContext, useMemo, useRef } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
-import { motion, MotionConfig } from 'framer-motion'
+import { AnimatePresence, motion, MotionConfig } from 'framer-motion'
 import { FiAlertTriangle, FiArrowLeft, FiHeart, FiInfo, FiMaximize2, FiShoppingBag, FiStar } from 'react-icons/fi'
 import api from '../../services/api'
 import { CartContext } from '../../App'
@@ -18,11 +18,20 @@ import RelatedProducts from '../../components/RelatedProducts/RelatedProducts'
 import { addRecentlyViewed } from '../../components/RecentlyViewed/RecentlyViewed'
 import styles from './Product.module.css'
 import { cachedGet, TTL } from '../../services/cache'
+import { MQ, useMedia } from '../../lib/breakpoints'
+import { useSwipe } from '../../lib/useSwipe'
 
 // Ids de amostra começam assim; o produto sai de data/drops.js, não da API.
 const SAMPLE_PREFIX = 'amostra-'
 const EASE = [0.22, 1, 0.36, 1]
 const brl = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
+
+// a foto que chega entra pelo lado de onde o dedo puxou
+const photoVariants = {
+  enter: (dir) => ({ opacity: 0, x: dir * 40 }),
+  center: { opacity: 1, x: 0 },
+  exit: (dir) => ({ opacity: 0, x: dir * -40 }),
+}
 
 export default function Product({ wishlist, onToggleWishlist }) {
   const { id } = useParams()
@@ -34,6 +43,15 @@ export default function Product({ wishlist, onToggleWishlist }) {
   const [product, setProduct] = useState(null)
   const [reviews, setReviews] = useState([])
   const [selectedSize, setSelectedSize] = useState('')
+  const [sizeError, setSizeError] = useState('')
+  const [sizeTick, setSizeTick] = useState(0)
+  const [dir, setDir] = useState(1)
+  // barra de compra presa embaixo (celular e tablet) quando o botão da ficha sai da tela
+  const [barOn, setBarOn] = useState(false)
+  const actionsRef = useRef(null)
+  const sizesRef = useRef(null)
+  const compact = useMedia(MQ.compact)
+  const touch = useMedia(MQ.touch)
   // o que ocupa a vitrine: 'spin' (giro 360°) ou o índice da foto
   const [view, setView] = useState(0)
   const [zoom, setZoom] = useState(false)
@@ -50,8 +68,9 @@ export default function Product({ wishlist, onToggleWishlist }) {
     const show = (p, list) => {
       setProduct(p)
       setReviews(list)
-      const sizes = parseSizes(p.sizes)
-      setSelectedSize(sizes[0] || '')
+      // tamanho é escolha da pessoa: começa sem nenhum marcado
+      setSelectedSize('')
+      setSizeError('')
       setView(p.spin ? 'spin' : 0)
       setZoom(false)
       setLightboxOpen(false)
@@ -98,6 +117,43 @@ export default function Product({ wishlist, onToggleWishlist }) {
     return list.length ? list : [null]
   }, [product])
 
+  // A barra de baixo aparece quando o botão da ficha some da tela (nos dois
+  // sentidos) e sai quando ele volta. Os botões flutuantes sobem junto
+  // (classe pz-buybar no <html>, lida pelo global.css).
+  const buyable = Boolean(product) && !product.sample && Number(product.stock) !== 0
+  useEffect(() => {
+    const el = actionsRef.current
+    if (!el || !compact || !buyable) {
+      setBarOn(false)
+      return undefined
+    }
+    const io = new IntersectionObserver(([entry]) => setBarOn(!entry.isIntersecting), { rootMargin: '0px 0px -40px 0px' })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [compact, buyable, product?.id, loading])
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('pz-buybar', barOn)
+    return () => document.documentElement.classList.remove('pz-buybar')
+  }, [barOn])
+
+  const photoCount = photos.length
+  const currentPhoto = typeof view === 'number' ? Math.min(view, photoCount - 1) : 0
+  // deslizar na foto troca de foto (no giro o dedo gira o tênis)
+  const swipe = useSwipe({
+    enabled: touch && view !== 'spin' && photoCount > 1,
+    onNext: () => {
+      if (currentPhoto >= photoCount - 1) return
+      setDir(1)
+      setView(currentPhoto + 1)
+    },
+    onPrev: () => {
+      if (currentPhoto <= 0) return
+      setDir(-1)
+      setView(currentPhoto - 1)
+    },
+  })
+
   const handlePointerMove = (e) => {
     if (e.pointerType !== 'mouse') return
     const rect = e.currentTarget.getBoundingClientRect()
@@ -112,8 +168,20 @@ export default function Product({ wishlist, onToggleWishlist }) {
     else navigate(-1)
   }
 
+  const pickSize = (size) => {
+    setSelectedSize(size)
+    setSizeError('')
+  }
+
   const handleAddToCart = async () => {
-    if (!product || product.stock === 0) return
+    if (!product || product.stock === 0 || product.sample) return
+    if (parseSizes(product.sizes).length > 0 && !selectedSize) {
+      // sem tamanho: leva até a grade, que chacoalha e diz o porquê
+      setSizeError('Escolha o tamanho antes de colocar na sacola.')
+      setSizeTick((n) => n + 1)
+      sizesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      return
+    }
     const result = await addToCart(product, selectedSize)
     if (result && result.ok === false) {
       if (result.reason === 'out_of_stock') {
@@ -163,7 +231,7 @@ export default function Product({ wishlist, onToggleWishlist }) {
   const drop = product.spin ? DROPS.find((d) => d.id === product.spin) : null
   const contain = product.fit === 'contain'
   const spinOn = Boolean(product.spin) && view === 'spin'
-  const photoIndex = typeof view === 'number' ? Math.min(view, photos.length - 1) : 0
+  const photoIndex = currentPhoto
 
   const discount = Math.min(Math.max(Number(product.discount_percentage || 0), 0), 90)
   const finalPrice = discount > 0 ? Number(product.price) * (1 - discount / 100) : Number(product.price)
@@ -174,6 +242,7 @@ export default function Product({ wishlist, onToggleWishlist }) {
   const lightboxImages = photos.map((url) => getImageUrl(url, product.name))
 
   const pickPhoto = (i) => {
+    setDir(typeof view === 'number' && i < view ? -1 : 1)
     setView(i)
     setZoom(false)
   }
@@ -208,16 +277,35 @@ export default function Product({ wishlist, onToggleWishlist }) {
                   onPointerEnter={(e) => e.pointerType === 'mouse' && setZoom(true)}
                   onPointerLeave={() => setZoom(false)}
                   onPointerMove={handlePointerMove}
-                  onClick={() => setLightboxOpen(true)}
+                  onClick={() => !swipe.justDragged() && setLightboxOpen(true)}
                   aria-label={`Ampliar a foto ${photoIndex + 1} de ${product.name}`}
                 >
-                  <img
-                    className={styles.photo}
-                    src={getImageUrl(photos[photoIndex], product.name)}
-                    alt={product.name}
-                    draggable={false}
+                  {/* camada da lupa (mouse): amplia no ponto do cursor; a foto
+                      dentro dela desliza quando o dedo troca de foto */}
+                  <span
+                    className={styles.zoomLayer}
                     style={zoom ? { transformOrigin: `${zoomPos.x}% ${zoomPos.y}%`, transform: 'scale(2)' } : undefined}
-                  />
+                  >
+                    <AnimatePresence initial={false} custom={dir}>
+                      <motion.img
+                        key={photoIndex}
+                        className={styles.photo}
+                        src={getImageUrl(photos[photoIndex], product.name)}
+                        alt={product.name}
+                        draggable={false}
+                        custom={dir}
+                        variants={photoVariants}
+                        initial="enter"
+                        animate="center"
+                        exit="exit"
+                        transition={{ duration: 0.28, ease: EASE }}
+                        {...swipe.bind}
+                      />
+                    </AnimatePresence>
+                  </span>
+                  {photos.length > 1 && (
+                    <span className={styles.counter} aria-hidden="true">{photoIndex + 1} / {photos.length}</span>
+                  )}
                   <span className={styles.zoomHint} aria-hidden="true">
                     <FiMaximize2 />
                     <span className={styles.hintMouse}>Passe o mouse para zoom</span>
@@ -319,28 +407,35 @@ export default function Product({ wishlist, onToggleWishlist }) {
               </p>
             )}
 
-            {sizes.length > 0 && (
-              <div className={styles.sizesSection}>
-                {/* amostra não existe no estoque: sem id, a grade usa os tamanhos do próprio exemplar */}
+            {sizes.length > 0 && !sample && product.stock !== 0 && (
+              <div className={styles.sizesSection} ref={sizesRef}>
                 <SizeSelector
-                  productId={sample ? null : product.id}
+                  productId={product.id}
                   fallbackSizes={sizes}
                   selected={selectedSize}
-                  onSelect={setSelectedSize}
+                  onSelect={pickSize}
+                  error={sizeError}
+                  errorTick={sizeTick}
                 />
               </div>
             )}
 
-            <div className={styles.actions}>
-              <button
-                type="button"
-                className={`pz-btn ${styles.addBtn}`}
-                onClick={handleAddToCart}
-                disabled={product.stock === 0}
-              >
-                <FiShoppingBag aria-hidden="true" />
-                {product.stock === 0 ? 'Indisponível' : 'Colocar na sacola'}
-              </button>
+            <div className={styles.actions} ref={actionsRef}>
+              {sample ? (
+                <p className={`pz-soon ${styles.addBtn}`}>
+                  <FiInfo aria-hidden="true" /> Amostra da vitrine, ainda não está à venda
+                </p>
+              ) : (
+                <button
+                  type="button"
+                  className={`pz-btn ${styles.addBtn}`}
+                  onClick={handleAddToCart}
+                  disabled={product.stock === 0}
+                >
+                  <FiShoppingBag aria-hidden="true" />
+                  {product.stock === 0 ? 'Indisponível' : 'Colocar na sacola'}
+                </button>
+              )}
               <button
                 type="button"
                 className={`${styles.wishBtn} ${isWished ? styles.wished : ''}`}
@@ -468,6 +563,27 @@ export default function Product({ wishlist, onToggleWishlist }) {
         )}
 
         <RelatedProducts productId={product.id} onProductClick={(p) => navigate(`/produto/${p.id}`)} />
+
+        {/* compra presa embaixo no celular e no tablet, com a área segura */}
+        <AnimatePresence>
+          {barOn && (
+            <motion.div
+              className={styles.buyBar}
+              initial={{ y: '110%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '110%' }}
+              transition={{ duration: 0.32, ease: EASE }}
+            >
+              <span className={styles.buyBarPrice}>
+                <span className={styles.buyBarValue}>{brl(finalPrice)}</span>
+                <span className={styles.buyBarSize}>{selectedSize ? `Tamanho ${selectedSize}` : sizes.length ? 'Escolha o tamanho' : product.name}</span>
+              </span>
+              <button type="button" className={`pz-btn ${styles.buyBarBtn}`} onClick={handleAddToCart}>
+                <FiShoppingBag aria-hidden="true" /> Colocar na sacola
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <Lightbox
           images={lightboxImages}

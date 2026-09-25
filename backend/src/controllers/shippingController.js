@@ -1,5 +1,13 @@
 const { pool } = require('../config/db');
 const { createWhatsAppNotification } = require('../utils/whatsapp');
+const { auditReq } = require('./auditController');
+const { unitPrice } = require('../utils/pricing');
+const { trackingUrl } = require('../utils/storeUrl');
+
+const VALID_UFS = new Set([
+  'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG',
+  'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO',
+]);
 
 const DEFAULT_OPTIONS = [
   {
@@ -86,9 +94,11 @@ function buildOptions(rules, totalWeight, orderTotal) {
     let missingForFree;
 
     if (rule.type === 'free') {
+      // Grátis acima do valor; abaixo dele, cobra o preço base da regra (0 se
+      // o admin não definiu, como era antes).
       const freeAbove = Number(rule.free_above);
-      price = 0;
       isFree = orderTotal >= freeAbove;
+      price = isFree ? 0 : basePrice;
       if (!isFree) missingForFree = roundMoney(freeAbove - orderTotal);
     } else if (rule.type === 'by_weight') {
       if (rule.max_weight_g !== null && totalWeight > Number(rule.max_weight_g)) return options;
@@ -109,30 +119,44 @@ function buildOptions(rules, totalWeight, orderTotal) {
   }, []).sort((first, second) => first.price - second.price);
 }
 
-async function getShippingOptions({ cep, items, orderTotal }) {
-  let response;
+// Descobre a UF do CEP no ViaCEP. Se o serviço estiver fora, usa a UF
+// informada (fallbackUf), quando houver; CEP inexistente é sempre erro.
+async function resolveUf(cep, fallbackUf) {
+  let response = null;
   try {
-    response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5000);
+    response = await fetch(`https://viacep.com.br/ws/${cep}/json/`, { signal: controller.signal });
+    clearTimeout(timer);
   } catch (_error) {
-    throw httpError(502, 'Não foi possível consultar o CEP');
+    response = null;
   }
-  if (!response.ok) throw httpError(502, 'Não foi possível consultar o CEP');
+  if (response && response.ok) {
+    const address = await response.json().catch(() => null);
+    if (address && address.uf && !address.erro) return address.uf;
+    if (address && address.erro) throw httpError(400, 'CEP não encontrado');
+  }
+  const uf = String(fallbackUf || '').trim().toUpperCase();
+  if (VALID_UFS.has(uf)) return uf;
+  throw httpError(502, 'Não foi possível consultar o CEP');
+}
 
-  const address = await response.json();
-  if (address.erro || !address.uf) throw httpError(400, 'CEP não encontrado');
-
+async function getShippingOptions({ cep, items, orderTotal, fallbackUf }) {
+  const uf = await resolveUf(cep, fallbackUf);
   const [rules, totalWeight] = await Promise.all([
-    findZoneRules(address.uf),
+    findZoneRules(uf),
     calculateTotalWeight(items),
   ]);
   return buildOptions(rules, totalWeight, Number(orderTotal));
 }
 
 const shippingController = {
+  // Público: todas as zonas, como sempre. Com ?all=1 a rota exige admin
+  // (mesmo contrato das regras); o conjunto devolvido é o mesmo.
   async getZones(_req, res) {
     try {
       const [rows] = await pool.query('SELECT * FROM shipping_zones ORDER BY name');
-      res.json(rows);
+      res.json(rows.map((row) => ({ ...row, active: Boolean(row.active) })));
     } catch (error) {
       console.error('Get shipping zones error:', error);
       res.status(500).json({ error: 'Erro ao buscar zonas de entrega' });
@@ -142,9 +166,10 @@ const shippingController = {
   async createZone(req, res) {
     try {
       const [result] = await pool.query(
-        'INSERT INTO shipping_zones (name, states) VALUES (?, ?)',
-        [req.body.name, req.body.states.join(',')]
+        'INSERT INTO shipping_zones (name, states, active) VALUES (?, ?, ?)',
+        [req.body.name, req.body.states.join(','), req.body.active ?? true]
       );
+      auditReq(req, 'create', 'shipping_zone', result.insertId, { name: req.body.name, states: req.body.states });
       res.status(201).json({ id: result.insertId, success: true });
     } catch (error) {
       console.error('Create shipping zone error:', error);
@@ -155,10 +180,11 @@ const shippingController = {
   async updateZone(req, res) {
     try {
       const [result] = await pool.query(
-        'UPDATE shipping_zones SET name = ?, states = ?, active = ? WHERE id = ?',
-        [req.body.name, req.body.states.join(','), req.body.active, req.params.id]
+        'UPDATE shipping_zones SET name = ?, states = ?, active = COALESCE(?, active) WHERE id = ?',
+        [req.body.name, req.body.states.join(','), req.body.active ?? null, req.params.id]
       );
       if (result.affectedRows === 0) return res.status(404).json({ error: 'Zona de entrega não encontrada' });
+      auditReq(req, 'update', 'shipping_zone', req.params.id, { name: req.body.name, states: req.body.states, active: req.body.active });
       res.json({ success: true });
     } catch (error) {
       console.error('Update shipping zone error:', error);
@@ -177,6 +203,7 @@ const shippingController = {
       }
       const [result] = await pool.query('DELETE FROM shipping_zones WHERE id = ?', [req.params.id]);
       if (result.affectedRows === 0) return res.status(404).json({ error: 'Zona de entrega não encontrada' });
+      auditReq(req, 'delete', 'shipping_zone', req.params.id);
       res.json({ success: true });
     } catch (error) {
       console.error('Delete shipping zone error:', error);
@@ -184,17 +211,19 @@ const shippingController = {
     }
   },
 
+  // Sem ?all=1, só as ativas (como a loja usa). Com ?all=1 (admin), todas.
   async getRules(req, res) {
     try {
       const zoneId = req.query.zone_id ?? null;
+      const all = req.query.all === '1';
       const [rows] = await pool.query(
         `SELECT sr.*, sz.name AS zone_name FROM shipping_rules sr
          LEFT JOIN shipping_zones sz ON sr.zone_id = sz.id
-         WHERE (? IS NULL OR sr.zone_id = ?) AND sr.active = 1
-         ORDER BY sr.sort_order ASC`,
+         WHERE (? IS NULL OR sr.zone_id = ?) ${all ? '' : 'AND sr.active = 1'}
+         ORDER BY sr.sort_order ASC, sr.id ASC`,
         [zoneId, zoneId]
       );
-      res.json(rows);
+      res.json(rows.map((row) => ({ ...row, active: Boolean(row.active) })));
     } catch (error) {
       console.error('Get shipping rules error:', error);
       res.status(500).json({ error: 'Erro ao buscar regras de frete' });
@@ -215,6 +244,7 @@ const shippingController = {
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [zone_id, name, type, price, free_above, estimated_days_min, estimated_days_max, max_weight_g, sort_order]
       );
+      auditReq(req, 'create', 'shipping_rule', result.insertId, { name, type, price, free_above, zone_id });
       res.status(201).json({ id: result.insertId, success: true });
     } catch (error) {
       if (error.code === 'ER_NO_REFERENCED_ROW_2') return res.status(400).json({ error: 'Zona de entrega inválida' });
@@ -239,6 +269,7 @@ const shippingController = {
           max_weight_g, sort_order, active, req.params.id]
       );
       if (result.affectedRows === 0) return res.status(404).json({ error: 'Regra de frete não encontrada' });
+      auditReq(req, 'update', 'shipping_rule', req.params.id, { name, type, price, free_above, zone_id, active, sort_order });
       res.json({ success: true });
     } catch (error) {
       if (error.code === 'ER_NO_REFERENCED_ROW_2') return res.status(400).json({ error: 'Zona de entrega inválida' });
@@ -251,6 +282,7 @@ const shippingController = {
     try {
       const [result] = await pool.query('UPDATE shipping_rules SET active = 0 WHERE id = ?', [req.params.id]);
       if (result.affectedRows === 0) return res.status(404).json({ error: 'Regra de frete não encontrada' });
+      auditReq(req, 'delete', 'shipping_rule', req.params.id);
       res.json({ success: true });
     } catch (error) {
       console.error('Delete shipping rule error:', error);
@@ -275,8 +307,7 @@ const shippingController = {
   async estimate(req, res) {
     try {
       const [products] = await pool.query(
-        `SELECT price * (1 - COALESCE(discount_percentage, 0) / 100) AS current_price
-         FROM products WHERE id = ? AND active = 1`,
+        'SELECT price, discount_percentage, promo_start, promo_end FROM products WHERE id = ? AND active = 1',
         [req.query.product_id]
       );
       if (products.length === 0) return res.status(404).json({ error: 'Produto não encontrado' });
@@ -284,7 +315,7 @@ const shippingController = {
       const options = await getShippingOptions({
         cep: req.query.cep,
         items: [{ product_id: req.query.product_id, quantity: 1 }],
-        orderTotal: Number(products[0].current_price),
+        orderTotal: unitPrice(products[0]),
       });
       if (options.length === 0) return res.status(404).json({ error: 'Nenhuma opção de frete disponível' });
       const cheapest = options[0];
@@ -333,6 +364,7 @@ const shippingController = {
         },
         items,
         tracking_code: order.tracking_code,
+        tracking_url: trackingUrl(order.id),
         store: {
           name: settings.store_name || 'MJ Sneakers',
           address: settings.store_address || '',
@@ -346,6 +378,7 @@ const shippingController = {
          ON DUPLICATE KEY UPDATE tracking_code = VALUES(tracking_code), generated_at = CURRENT_TIMESTAMP`,
         [order.id, order.tracking_code]
       );
+      auditReq(req, 'generate_label', 'order', order.id);
       res.status(201).json(label);
     } catch (error) {
       console.error('Generate shipping label error:', error);
@@ -382,6 +415,7 @@ const shippingController = {
       if (!orders[0].customer_phone) return res.status(400).json({ error: 'Pedido sem telefone do cliente' });
 
       const notification = await createWhatsAppNotification(pool, orders[0]);
+      auditReq(req, 'whatsapp_notification', 'order', orders[0].id);
       res.status(201).json(notification);
     } catch (error) {
       console.error('Create WhatsApp notification error:', error);
@@ -410,6 +444,7 @@ const shippingController = {
         [req.params.id]
       );
       if (result.affectedRows === 0) return res.status(404).json({ error: 'Notificação não encontrada' });
+      auditReq(req, 'whatsapp_sent', 'whatsapp_notification', req.params.id);
       res.json({ success: true });
     } catch (error) {
       console.error('Mark WhatsApp notification error:', error);
@@ -418,4 +453,4 @@ const shippingController = {
   },
 };
 
-module.exports = { shippingController, getShippingOptions, buildOptions };
+module.exports = { shippingController, getShippingOptions, buildOptions, VALID_UFS };

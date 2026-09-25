@@ -32,10 +32,6 @@
   transition: color 0.2s var(--pz-ease), text-decoration-color 0.2s var(--pz-ease);
 }
 
-.cepLink:hover {
-  color: var(--pz-text);
-  text-decoration-color: currentColor;
-}
 
 .row {
   display: flex;
@@ -93,9 +89,15 @@
   transition: border-color 0.2s var(--pz-ease), background 0.2s var(--pz-ease), opacity 0.2s var(--pz-ease);
 }
 
-.calcBtn:hover:not(:disabled) {
-  border-color: rgba(233, 236, 241, 0.55);
-  background: rgba(255, 255, 255, 0.05);
+@media (hover: hover) {
+  .cepLink:hover {
+    color: var(--pz-text);
+    text-decoration-color: currentColor;
+  }
+  .calcBtn:hover:not(:disabled) {
+    border-color: rgba(233, 236, 241, 0.55);
+    background: rgba(255, 255, 255, 0.05);
+  }
 }
 
 .calcBtn:disabled {
@@ -155,7 +157,7 @@
   border-color: color-mix(in srgb, var(--pz-danger) 30%, transparent);
 }
 
-@media (max-width: 380px) {
+@media (max-width: 479.98px) {
   .field { padding: 0 12px; gap: 8px; }
   .calcBtn { padding: 0 16px; }
 }

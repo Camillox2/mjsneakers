@@ -15,13 +15,14 @@ const smooth = (a, b, x) => {
 }
 
 // Um nome no ângulo th da elipse: onde fica, tamanho, brilho e se está na
-// metade da frente (na frente do tênis) ou de trás (atrás dele).
-function pose(th, w, h) {
+// metade da frente (na frente do tênis) ou de trás (atrás dele). `rx` é o
+// raio de lado: sai de build(), medido para o nome mais largo caber na tela.
+function pose(th, w, h, rx) {
   const narrow = w < 700
   const depth = Math.sin(th) // 1 = frente
   const near = (depth + 1) / 2
   return {
-    x: w / 2 + w * (narrow ? 0.44 : 0.41) * Math.cos(th),
+    x: w / 2 + rx * Math.cos(th),
     y: h * 0.5 + h * (narrow ? 0.34 : 0.33) * depth,
     scale: 0.55 + 0.45 * near,
     alpha: 0.16 + 0.84 * near * near,
@@ -33,6 +34,8 @@ function pose(th, w, h) {
 // Órbita de marcas: os nomes andam numa elipse em volta do tênis da marca
 // escolhida. A da frente é grande e acende em cromo; as de trás ficam menores,
 // apagadas e atrás do tênis. Clicar traz a marca para a frente e filtra a vitrine.
+// Um nome quase apagado (lá no fundo) não responde ao toque: sem isso, tocar
+// no tênis escolhia uma marca que ninguém estava vendo.
 //
 // Quem move os nomes é a placa de vídeo (Web Animations só de transform e
 // opacidade): a órbita não engasga quando a página está ocupada e o texto não
@@ -58,6 +61,10 @@ export default function BrandOrbit({ brands, active, onPick, shoeFor, onSeeAll, 
       const w = stage.clientWidth
       const h = stage.clientHeight
       if (!w || !h) return
+      // nas laterais o nome anda em ~78% do tamanho: o raio encolhe até o
+      // nome mais comprido caber inteiro, sem cortar na borda da tela
+      const widest = Math.max(0, ...foreRefs.current.map((el) => el?.offsetWidth || 0))
+      const rx = Math.max(w * 0.26, Math.min(w * (w < 700 ? 0.44 : 0.41), w / 2 - (widest * 0.78) / 2 - 6))
       // mantém a posição de cada nome ao refazer (tela mudou de tamanho)
       const at = anims.current.map((list) => list[0]?.currentTime)
       anims.current.forEach((list) => list.forEach((a) => a.cancel()))
@@ -66,7 +73,7 @@ export default function BrandOrbit({ brands, active, onPick, shoeFor, onSeeAll, 
       const base = []
       const chrome = []
       for (let s = 0; s <= SAMPLES; s += 1) {
-        const p = pose(FRONT + (s / SAMPLES) * TAU, w, h)
+        const p = pose(FRONT + (s / SAMPLES) * TAU, w, h, rx)
         const transform = `translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px) translate(-50%, -50%) scale(${p.scale.toFixed(3)})`
         fore.push({ transform, opacity: +(p.alpha * p.fore).toFixed(3) })
         back.push({ transform, opacity: +(p.alpha * (1 - p.fore)).toFixed(3) })
@@ -97,6 +104,9 @@ export default function BrandOrbit({ brands, active, onPick, shoeFor, onSeeAll, 
     build()
     const ro = new ResizeObserver(build)
     ro.observe(stage)
+    // a largura dos nomes muda quando a fonte do título termina de carregar
+    let fontsAlive = true
+    document.fonts?.ready.then(() => fontsAlive && build())
     // fora da tela a órbita para (não gasta nada)
     const io = new IntersectionObserver(([e]) => {
       h0.visible = e.isIntersecting
@@ -105,6 +115,7 @@ export default function BrandOrbit({ brands, active, onPick, shoeFor, onSeeAll, 
     })
     io.observe(stage)
     return () => {
+      fontsAlive = false
       ro.disconnect()
       io.disconnect()
       clearTimeout(h0.timer)
@@ -192,11 +203,17 @@ export default function BrandOrbit({ brands, active, onPick, shoeFor, onSeeAll, 
               type="button"
               className={`${styles.brand} ${styles.fore} ${active?.name === b.name ? styles.on : ''}`}
               aria-pressed={active?.name === b.name}
-              onClick={() => {
+              onClick={(e) => {
+                // toque (detail > 0) num nome quase invisível não conta; teclado sempre conta
+                if (e.detail > 0) {
+                  const seen = Number(getComputedStyle(e.currentTarget).opacity) + Number(getComputedStyle(backRefs.current[k]).opacity)
+                  if (seen < 0.3) return
+                }
                 bringFront(k)
                 onPick(active?.name === b.name ? null : b)
               }}
-              onFocus={() => bringFront(k)}
+              // só o foco de teclado puxa a marca (o toque já passa pelo clique)
+              onFocus={(e) => e.currentTarget.matches(':focus-visible') && bringFront(k)}
             >
               <span className={styles.base} data-base>
                 {b.name}

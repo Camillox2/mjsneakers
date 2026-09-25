@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { FrameClock, Settle, SpinCanvas, acquireSequence, curveIndex, frameDelta, idleFps, loadManifest, pickSize, turnsAt } from '../../lib/frames'
+import { FrameClock, Settle, SpinCanvas, acquireSequence, curveIndex, frameDelta, idleFps, loadManifest, netProfile, pickSize, turnsAt } from '../../lib/frames'
 import { prefersReducedMotion } from '../../lib/motion'
 import styles from './SpinViewer.module.css'
 
@@ -12,10 +12,13 @@ const MAX_SPIN = 1.2 // voltas por segundo no embalo depois de soltar
 // embalo e freia sozinho. Desligado (órbita), é só vitrine, sem arrastar.
 // `delay`: espera antes de começar a baixar/desenhar (ex.: enquanto um modal
 // termina de abrir, para a entrada não disputar com o carregamento).
+// Rede fraca (economia de dados, 2g): fica o pôster; o giro só baixa se a
+// pessoa tocar nele. Na vitrine sem toque (órbita), fica só o pôster.
 export default function SpinViewer({ id, alt = '', className = '', delay = 0, hint = true, interactive = true }) {
   const canvasRef = useRef(null)
   const [loaded, setLoaded] = useState(false)
   const [touched, setTouched] = useState(false)
+  const [lean] = useState(() => netProfile().lean)
 
   useEffect(() => {
     let alive = true
@@ -28,6 +31,7 @@ export default function SpinViewer({ id, alt = '', className = '', delay = 0, hi
     let angle = 0 // arrastando: em voltas
     let velocity = 0 // embalo ao soltar, em voltas por segundo
     let dragging = false
+    let startX = 0
     let lastX = 0
     let lastT = 0
     let lastNow = 0
@@ -71,17 +75,25 @@ export default function SpinViewer({ id, alt = '', className = '', delay = 0, hi
       painter.blend(v.a, v.b, settle.weight(v.pair, v.t, speed, dtMs))
     }
 
+    // Só vira arrasto depois de alguns px na horizontal: um dedo que só quer
+    // rolar a página por cima do tênis não para o giro sozinho.
     const down = (e) => {
       dragging = true
-      interacted = true
+      startX = e.clientX
       velocity = 0
       lastX = e.clientX
       lastT = performance.now()
-      canvas.setPointerCapture?.(e.pointerId)
-      setTouched(true)
+      if (!seq) boot() // rede fraca: o primeiro toque é que baixa o giro
     }
     const move = (e) => {
       if (!dragging) return
+      if (!interacted) {
+        if (Math.abs(e.clientX - startX) < 6) return
+        interacted = true
+        lastX = e.clientX
+        canvas.setPointerCapture?.(e.pointerId)
+        setTouched(true)
+      }
       const now = performance.now()
       const dx = e.clientX - lastX
       const turns = -dx / Math.max(canvas.clientWidth, 1) * 0.9
@@ -99,6 +111,7 @@ export default function SpinViewer({ id, alt = '', className = '', delay = 0, hi
       if (e.key === 'ArrowLeft') angle += 1 / 24
       else if (e.key === 'ArrowRight') angle -= 1 / 24
       else return
+      if (!seq) boot()
       interacted = true
       setTouched(true)
       e.preventDefault()
@@ -112,7 +125,11 @@ export default function SpinViewer({ id, alt = '', className = '', delay = 0, hi
       canvas.addEventListener('keydown', keys)
     }
 
-    const boot = () => loadManifest(id)
+    let booting = false
+    const boot = () => {
+      if (booting) return undefined
+      booting = true
+      return loadManifest(id)
       .then((m) => {
         if (!alive) return
         // o mesmo giro em outro lugar da página já baixou os quadros: aproveita
@@ -128,11 +145,15 @@ export default function SpinViewer({ id, alt = '', className = '', delay = 0, hi
             }
           })
         }
-        seq.start(4)
+        seq.start(lean ? 2 : 4)
         raf = requestAnimationFrame(loop)
       })
-      .catch(() => {})
-    // só baixa quando estiver chegando perto da tela (não disputa com a abertura)
+      .catch(() => {
+        booting = false
+      })
+    }
+    // só baixa quando estiver chegando perto da tela (não disputa com a
+    // abertura); em rede fraca, só quando a pessoa toca
     let bootTimer = 0
     const near = new IntersectionObserver(
       ([entry]) => {
@@ -142,7 +163,7 @@ export default function SpinViewer({ id, alt = '', className = '', delay = 0, hi
       },
       { rootMargin: '300px 0px' },
     )
-    near.observe(canvas)
+    if (!lean) near.observe(canvas)
 
     const ro = new ResizeObserver(() => painter?.resize())
     ro.observe(canvas)
@@ -163,14 +184,14 @@ export default function SpinViewer({ id, alt = '', className = '', delay = 0, hi
         canvas.removeEventListener('keydown', keys)
       }
     }
-  }, [id, delay, interactive])
+  }, [id, delay, interactive, lean])
 
   return (
     <div className={`${styles.viewer} ${interactive ? '' : styles.still} ${className}`}>
       <img className={`${styles.poster} ${loaded ? styles.hidden : ''}`} src={`/giros/${id}/poster.webp`} alt={alt} draggable={false} />
       <canvas
         ref={canvasRef}
-        className={`${styles.canvas} ${loaded ? '' : styles.hidden}`}
+        className={`${styles.canvas} ${loaded ? '' : styles.waiting}`}
         tabIndex={interactive ? 0 : undefined}
         role="img"
         aria-label={interactive ? `${alt}. Arraste ou use as setas para girar o tênis.` : alt}
@@ -183,7 +204,7 @@ export default function SpinViewer({ id, alt = '', className = '', delay = 0, hi
             <path d="M31 8l4 4.5-5 1.8" />
             <path d="M9 18l-4-4.5 5-1.8" />
           </svg>
-          Arraste para girar
+          {lean && !loaded ? 'Toque para girar' : 'Arraste para girar'}
         </span>
       )}
     </div>

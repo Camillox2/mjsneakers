@@ -1,9 +1,11 @@
-/* Aviso: pílula de vidro escuro com um ponto de status. */
+/* Aviso: pílula de vidro escuro com um ponto de status. Fica sempre logo
+   abaixo do header: embaixo ele cobria os botões flutuantes, a barra de
+   compra e o teclado. */
 
 .toastContainer {
   position: fixed;
-  top: calc(var(--pz-header-h, 70px) + 12px);
-  right: 20px;
+  top: calc(var(--pz-header-total, 70px) + 12px);
+  right: max(20px, env(safe-area-inset-right, 0px));
   z-index: var(--z-toast, 1200);
   display: flex;
   flex-direction: column;
@@ -69,21 +71,22 @@
   transition: color 0.2s, background 0.2s;
 }
 
-.toastClose:hover {
-  color: var(--pz-text, #f2f3f5);
-  background: rgba(255, 255, 255, 0.06);
+@media (hover: hover) {
+  .toastClose:hover {
+    color: var(--pz-text, #f2f3f5);
+    background: rgba(255, 255, 255, 0.06);
+  }
 }
 
 @media (pointer: coarse) {
   .toastClose { width: 44px; height: 44px; }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 767.98px) {
   .toastContainer {
-    top: auto;
-    bottom: calc(90px + env(safe-area-inset-bottom));
-    right: 16px;
-    left: 16px;
+    top: calc(var(--pz-header-total, 58px) + 8px);
+    right: max(12px, env(safe-area-inset-right, 0px));
+    left: max(12px, env(safe-area-inset-left, 0px));
     align-items: stretch;
   }
 

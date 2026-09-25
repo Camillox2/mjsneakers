@@ -1,20 +1,50 @@
-import { useState, useEffect, useCallback } from 'react'
-import { motion, AnimatePresence, MotionConfig } from 'framer-motion'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { motion, AnimatePresence, MotionConfig, animate, useMotionValue } from 'framer-motion'
 import { FiX, FiChevronLeft, FiChevronRight, FiZoomIn, FiZoomOut } from 'react-icons/fi'
 import { lockScroll } from '../../lib/motion'
+import { useBackToClose } from '../../lib/layers'
+import { MQ, matches } from '../../lib/breakpoints'
+import { useSwipe } from '../../lib/useSwipe'
 import styles from './Lightbox.module.css'
 
 const EASE = [0.22, 1, 0.36, 1]
 
+// a foto que chega entra pelo lado de onde o dedo puxou
+const slide = {
+  enter: (dir) => ({ opacity: 0, x: dir * 60 }),
+  center: { opacity: 1, x: 0 },
+  exit: (dir) => ({ opacity: 0, x: dir * -60 }),
+}
+
 export default function Lightbox({ images, startIndex = 0, isOpen, onClose, alt = '' }) {
   const [current, setCurrent] = useState(startIndex)
+  const [dir, setDir] = useState(1)
   const [zoomed, setZoomed] = useState(false)
+  const [bounds, setBounds] = useState(null) // até onde a foto ampliada anda
   const count = images?.length || 0
+  const wrapRef = useRef(null)
+  const imgRef = useRef(null)
+  // posição da foto ampliada (arrastada com o dedo ou o mouse)
+  const panX = useMotionValue(0)
+  const panY = useMotionValue(0)
+  const panned = useRef(0)
+
+  useBackToClose(isOpen, onClose)
 
   useEffect(() => { setCurrent(startIndex); setZoomed(false) }, [startIndex, isOpen])
 
-  const prev = useCallback(() => { setCurrent(c => (c - 1 + count) % count); setZoomed(false) }, [count])
-  const next = useCallback(() => { setCurrent(c => (c + 1) % count); setZoomed(false) }, [count])
+  const prev = useCallback(() => {
+    if (count < 2) return
+    setDir(-1)
+    setCurrent(c => (c - 1 + count) % count)
+    setZoomed(false)
+  }, [count])
+  const next = useCallback(() => {
+    if (count < 2) return
+    setDir(1)
+    setCurrent(c => (c + 1) % count)
+    setZoomed(false)
+  }, [count])
 
   useEffect(() => {
     if (!isOpen) return
@@ -34,9 +64,34 @@ export default function Lightbox({ images, startIndex = 0, isOpen, onClose, alt 
     return () => lockScroll(false)
   }, [isOpen])
 
+  // Ampliada, a foto cresce por escala; o arrasto fica preso para a borda da
+  // foto nunca descolar da borda da tela. Voltando ao tamanho normal, ela
+  // desliza de volta ao centro.
+  const scale = matches(MQ.phone) ? 2.2 : 2
+  useEffect(() => {
+    if (!zoomed) {
+      setBounds(null)
+      animate(panX, 0, { duration: 0.3, ease: EASE })
+      animate(panY, 0, { duration: 0.3, ease: EASE })
+      return
+    }
+    const img = imgRef.current
+    const wrap = wrapRef.current
+    if (!img || !wrap) return
+    const w = img.offsetWidth * scale
+    const h = img.offsetHeight * scale
+    const dx = Math.max(0, (w - wrap.clientWidth) / 2)
+    const dy = Math.max(0, (h - wrap.clientHeight) / 2)
+    setBounds({ left: -dx, right: dx, top: -dy, bottom: dy })
+  }, [zoomed, current, scale, panX, panY])
+
+  // sem zoom, deslizar troca de foto
+  const swipe = useSwipe({ enabled: !zoomed && count > 1, onNext: next, onPrev: prev })
+
   if (!images || count === 0) return null
 
   const label = (i) => (alt ? `${alt}, foto ${i + 1} de ${count}` : `Foto ${i + 1} de ${count}`)
+  const toggleZoom = () => setZoomed(z => !z)
 
   return (
     <MotionConfig reducedMotion="user">
@@ -66,7 +121,7 @@ export default function Lightbox({ images, startIndex = 0, isOpen, onClose, alt 
                 <button
                   type="button"
                   className={styles.iconBtn}
-                  onClick={() => setZoomed(z => !z)}
+                  onClick={toggleZoom}
                   aria-label={zoomed ? 'Diminuir zoom' : 'Aumentar zoom'}
                   aria-pressed={zoomed}
                 >
@@ -88,20 +143,42 @@ export default function Lightbox({ images, startIndex = 0, isOpen, onClose, alt 
                 </>
               )}
 
-              <div className={styles.imgWrap}>
-                <AnimatePresence mode="wait" initial={false}>
-                  <motion.img
+              {/* moldura desliza entre as fotos; a foto dentro dela amplia e
+                  é arrastada quando ampliada */}
+              <div className={styles.imgWrap} ref={wrapRef}>
+                <AnimatePresence initial={false} custom={dir}>
+                  <motion.div
                     key={current}
-                    src={images[current]}
-                    alt={label(current)}
-                    className={`${styles.img} ${zoomed ? styles.zoomed : ''}`}
-                    initial={{ opacity: 0, x: 16 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -16 }}
-                    transition={{ duration: 0.22, ease: EASE }}
-                    onClick={() => setZoomed(z => !z)}
-                    draggable={false}
-                  />
+                    className={styles.frame}
+                    custom={dir}
+                    variants={slide}
+                    initial="enter"
+                    animate="center"
+                    exit="exit"
+                    transition={{ duration: 0.26, ease: EASE }}
+                    {...swipe.bind}
+                  >
+                    <motion.img
+                      ref={imgRef}
+                      src={images[current]}
+                      alt={label(current)}
+                      className={`${styles.img} ${zoomed ? styles.zoomed : ''}`}
+                      style={{ x: panX, y: panY }}
+                      animate={{ scale: zoomed ? scale : 1 }}
+                      transition={{ duration: 0.35, ease: EASE }}
+                      drag={zoomed && bounds ? true : false}
+                      dragConstraints={bounds || undefined}
+                      dragElastic={0.08}
+                      onDragStart={() => { panned.current = performance.now() }}
+                      onDragEnd={() => { panned.current = performance.now() }}
+                      onClick={() => {
+                        // soltar o dedo depois de arrastar não conta como toque
+                        if (swipe.justDragged() || performance.now() - panned.current < 250) return
+                        toggleZoom()
+                      }}
+                      draggable={false}
+                    />
+                  </motion.div>
                 </AnimatePresence>
               </div>
 
@@ -113,7 +190,7 @@ export default function Lightbox({ images, startIndex = 0, isOpen, onClose, alt 
                         key={i}
                         type="button"
                         className={`${styles.dot} ${i === current ? styles.dotActive : ''}`}
-                        onClick={() => { setCurrent(i); setZoomed(false) }}
+                        onClick={() => { setDir(i > current ? 1 : -1); setCurrent(i); setZoomed(false) }}
                         aria-label={label(i)}
                         aria-current={i === current ? 'true' : undefined}
                       />

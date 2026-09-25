@@ -77,7 +77,9 @@
   transition: transform 0.8s var(--pz-ease);
 }
 
-.shotBtn:hover img { transform: scale(1.04); }
+@media (hover: hover) {
+  .shotBtn:hover img { transform: scale(1.04); }
+}
 
 .shot figcaption {
   margin-top: 10px;
@@ -87,7 +89,7 @@
   color: var(--pz-text-2);
 }
 
-@media (max-width: 760px) {
+@media (max-width: 767.98px) {
   .cols { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .col:nth-child(3) { display: none; }
   .col:nth-child(2) { margin-top: 48px; }

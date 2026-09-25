@@ -7,7 +7,7 @@ export function parseSizes(sizesStr) {
     const parsed = JSON.parse(sizesStr)
     if (Array.isArray(parsed)) return parsed.map(String).map(s => s.trim()).filter(Boolean)
   } catch {
-    /* não é JSON — trata como CSV abaixo */
+    /* não é JSON: trata como CSV abaixo */
   }
   return String(sizesStr).split(',').map(s => s.trim()).filter(Boolean)
 }

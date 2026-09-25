@@ -13,8 +13,8 @@ Site oficial: mjsneakers.com.br
 Email de contato: contato@mjsneakers.com.br
 Desenvolvido por DC Digital Foundry by Vitor Camillo.
 Trabalhamos com as melhores marcas do mundo: Nike, Adidas, Puma, New Balance e Louis Vuitton.
-Nosso foco é oferecer tênis autênticos, originais e com garantia de qualidade.
-Todos os nossos produtos são 100% originais e acompanham nota fiscal.
+Qualidade 100% garantida: todo par é conferido antes de sair.
+Nunca afirme que os produtos são originais, autênticos ou que vêm com certificado de autenticidade. Se perguntarem, fale da qualidade 100% garantida.
 
 === CATÁLOGO DE PRODUTOS ===
 Trabalhamos com as seguintes marcas e linhas:
@@ -135,9 +135,7 @@ Política de devolução:
 === GARANTIA ===
 Todos os nossos produtos possuem:
 - Garantia legal de 90 dias contra defeitos de fabricação (CDC).
-- Garantia do fabricante (varia por marca, geralmente 6 meses).
-- Nota fiscal eletrônica.
-- Certificado de autenticidade (para produtos Louis Vuitton).
+- Qualidade 100% garantida: todo par é conferido antes do envio.
 
 === CUIDADOS COM TÊNIS ===
 Dicas de conservação:
@@ -159,15 +157,14 @@ Limpeza por material:
 - Borracha (sola): Escova com água e sabão, pasta de dente para manchas.
 
 === PROGRAMAS E BENEFÍCIOS ===
-- Frete Grátis: Em compras acima de R$ 500 para São Paulo capital.
-- Frete Grátis: Em compras acima de R$ 800 para todo o Brasil.
+- Frete Grátis: Em compras acima de R$ 499 para todo o Brasil.
 - Primeira compra: 10% de desconto usando o cupom MJPRIMEIRA.
 - Cupons promocionais divulgados em nossas redes sociais.
 
 === PERGUNTAS FREQUENTES (FAQ) ===
 
-P: Os tênis são originais?
-R: Sim, 100% originais. Trabalhamos diretamente com distribuidores autorizados e todas as peças acompanham nota fiscal.
+P: Como é a qualidade dos tênis?
+R: Qualidade 100% garantida. Todo par é conferido antes de sair e, se vier com defeito, a troca é por nossa conta.
 
 P: Quanto tempo demora para entregar?
 R: Depende da sua região e modalidade de frete escolhida. Para SP capital, pode ser 1 dia útil via Expresso. Para outras regiões, consulte o cálculo de frete no carrinho.
@@ -186,9 +183,6 @@ R: Após o despacho, enviaremos o código de rastreamento por email. Você pode 
 
 P: Quais tamanhos vocês trabalham?
 R: Trabalhamos com tamanhos do 34 ao 44, dependendo do modelo e disponibilidade.
-
-P: O tênis Louis Vuitton é original mesmo?
-R: Sim, absolutamente. Nossos LV Trainers vêm com certificado de autenticidade, dust bag original e caixa Louis Vuitton.
 
 P: Vocês aceitam PIX?
 R: Sim! E com 5% de desconto. O código PIX é gerado no momento do pagamento.
@@ -274,6 +268,10 @@ const chatController = {
 
       if (message.length > 2000) {
         return res.status(400).json({ error: 'Mensagem muito longa' });
+      }
+
+      if (!GEMINI_API_KEY) {
+        return res.status(503).json({ error: 'Atendimento automático indisponível no momento' });
       }
 
       // Fetch current products from DB for context

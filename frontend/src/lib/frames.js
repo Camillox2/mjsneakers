@@ -15,6 +15,8 @@
 // 2 e 1. Com poucos quadros o giro já responde à rolagem inteiro, só com passo
 // maior, e vai ficando liso enquanto o resto chega.
 
+import { MQ, matches } from './breakpoints'
+
 const manifests = new Map()
 
 export function loadManifest(id) {
@@ -30,13 +32,22 @@ export function loadManifest(id) {
   return manifests.get(id)
 }
 
-// Celular, tablet (toque) e economia de dados usam os quadros menores.
+// Como está a rede: `lean` (economia de dados ligada ou 2g) não baixa quadro
+// nenhum sozinho, só o pôster; `slow` (3g) baixa sob demanda e devagar. Sem a
+// API de conexão (Safari), conta como rede boa.
+export function netProfile() {
+  const c = typeof navigator !== 'undefined' ? navigator.connection : null
+  const type = String(c?.effectiveType || '')
+  const lean = Boolean(c?.saveData) || type.includes('2g')
+  return { lean, slow: lean || type === '3g' }
+}
+
+// Celular, tablet (toque) e rede fraca usam os quadros menores.
 export function pickSize() {
   if (typeof window === 'undefined') return 'd'
   const narrow = Math.min(window.screen.width, window.screen.height) < 700
-  const touch = window.matchMedia('(pointer: coarse)').matches
-  const saveData = navigator.connection?.saveData
-  return narrow || touch || saveData ? 'm' : 'd'
+  const touch = matches(MQ.touch)
+  return narrow || touch || netProfile().slow ? 'm' : 'd'
 }
 
 // Quantos quadros decodificados cada giro mantém (d ~60 MB, m ~40 MB).

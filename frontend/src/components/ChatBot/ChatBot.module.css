@@ -1,9 +1,9 @@
 /* ---------- botão flutuante: vidro preto com aro de cromo ---------- */
 .fab {
   position: fixed;
-  right: 24px;
-  bottom: calc(24px + env(safe-area-inset-bottom));
-  z-index: 390;
+  right: max(24px, env(safe-area-inset-right, 0px));
+  bottom: calc(24px + var(--pz-fab-lift) + var(--pz-safe-bottom));
+  z-index: calc(var(--z-fab) + 10);
   display: grid;
   place-items: center;
   width: 52px;
@@ -17,7 +17,7 @@
   -webkit-backdrop-filter: blur(14px);
   box-shadow: 0 14px 36px -12px rgba(0, 0, 0, 0.85);
   isolation: isolate;
-  transition: background 0.25s var(--pz-ease);
+  transition: background 0.25s var(--pz-ease), bottom 0.35s var(--pz-ease);
 }
 
 /* aro cromado de 1px, com o miolo transparente */
@@ -34,16 +34,14 @@
   pointer-events: none;
 }
 
-.fab:hover { background: rgba(31, 34, 39, 0.75); }
-
 .fab svg { position: relative; }
 
 /* ---------- janela: vidro escuro ---------- */
 .chatWindow {
   position: fixed;
-  right: 24px;
-  bottom: calc(24px + env(safe-area-inset-bottom));
-  z-index: 400;
+  right: max(24px, env(safe-area-inset-right, 0px));
+  bottom: calc(24px + var(--pz-safe-bottom));
+  z-index: calc(var(--z-fab) + 20);
   display: flex;
   flex-direction: column;
   width: 390px;
@@ -132,11 +130,6 @@
   background: transparent;
   border: 1px solid var(--pz-line);
   transition: color 0.2s var(--pz-ease), border-color 0.2s var(--pz-ease);
-}
-
-.chatClose:hover {
-  color: var(--pz-text);
-  border-color: var(--pz-line-strong);
 }
 
 /* ---------- mensagens ---------- */
@@ -238,12 +231,6 @@
   transition: color 0.2s var(--pz-ease), border-color 0.2s var(--pz-ease), background 0.2s var(--pz-ease);
 }
 
-.quickBtn:hover {
-  color: var(--pz-text);
-  border-color: var(--pz-line-strong);
-  background: rgba(255, 255, 255, 0.06);
-}
-
 .quickBtn svg {
   display: block;
   flex-shrink: 0;
@@ -295,23 +282,37 @@
   transition: transform 0.2s var(--pz-ease), opacity 0.2s var(--pz-ease);
 }
 
-.sendBtn:hover:not(:disabled) { transform: translateY(-1px); }
-
 .sendBtn:disabled {
   opacity: 0.35;
   cursor: not-allowed;
 }
 
-/* ===== Mobile: tela cheia ===== */
-@media (max-width: 768px) {
+@media (hover: hover) {
+  .fab:hover { background: rgba(31, 34, 39, 0.75); }
+  .chatClose:hover {
+    color: var(--pz-text);
+    border-color: var(--pz-line-strong);
+  }
+  .quickBtn:hover {
+    color: var(--pz-text);
+    border-color: var(--pz-line-strong);
+    background: rgba(255, 255, 255, 0.06);
+  }
+  .sendBtn:hover:not(:disabled) { transform: translateY(-1px); }
+}
+
+/* ===== Celular (em pé ou deitado): tela cheia ===== */
+@media (max-width: 767.98px) {
   .fab {
-    right: 16px;
-    bottom: calc(16px + env(safe-area-inset-bottom));
+    right: max(16px, env(safe-area-inset-right, 0px));
+    bottom: calc(16px + var(--pz-fab-lift) + var(--pz-safe-bottom));
     width: 48px;
     height: 48px;
     font-size: 20px;
   }
+}
 
+@media (max-width: 767.98px), (max-height: 500px) and (orientation: landscape) {
   .chatWindow {
     inset: 0;
     width: 100%;
@@ -325,17 +326,115 @@
 
   .chatHeader {
     padding-top: max(12px, env(safe-area-inset-top));
+    padding-left: max(18px, env(safe-area-inset-left, 0px));
+    padding-right: max(12px, env(safe-area-inset-right, 0px));
   }
 
-  .chatMessages { padding: 14px 12px; }
+  .chatMessages { padding: 14px max(12px, env(safe-area-inset-right, 0px)) 14px max(12px, env(safe-area-inset-left, 0px)); }
 
   .message { max-width: 90%; }
 
   .chatInput {
     padding-bottom: max(12px, env(safe-area-inset-bottom));
+    padding-left: max(14px, env(safe-area-inset-left, 0px));
+    padding-right: max(12px, env(safe-area-inset-right, 0px));
   }
+}
+
+/* deitado sobra pouca altura: os atalhos rolam de lado numa linha só */
+@media (max-height: 500px) and (orientation: landscape) {
+  .quickInner { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .quickBtn { flex: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .typing span { animation: none; opacity: 0.7; }
+}
+
+/* ================= Conversa com a equipe ================= */
+
+.headerActions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+
+.modeBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: var(--pz-radius-pill);
+  font-family: var(--pz-sans);
+  font-size: var(--pz-fs-s);
+  font-weight: 600;
+  color: var(--pz-text);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--pz-line);
+  white-space: nowrap;
+  transition: border-color 0.2s var(--pz-ease), background 0.2s var(--pz-ease);
+}
+
+@media (hover: hover) {
+  .modeBtn:hover { border-color: var(--pz-line-strong); background: rgba(255, 255, 255, 0.09); }
+}
+
+.statusDotOff { background: var(--pz-warn); }
+
+.fabBadge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: #000;
+  background: var(--pz-ok);
+  box-shadow: 0 0 0 2px #000;
+}
+
+.note {
+  align-self: center;
+  max-width: 88%;
+  text-align: center;
+  font-size: var(--pz-fs-xs);
+  line-height: 1.5;
+  color: var(--pz-text-2);
+  padding: 6px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.liveForm { display: grid; gap: 12px; padding: 4px 2px 8px; }
+.liveTitle { margin: 0; font-size: var(--pz-fs-l); font-weight: 700; }
+.liveText { margin: 0; color: var(--pz-text-2); font-size: var(--pz-fs-s); line-height: 1.5; }
+.liveLabel { display: grid; gap: 6px; font-size: var(--pz-fs-s); color: var(--pz-text-2); }
+.liveLabel .input { width: 100%; }
+
+.liveStart {
+  min-height: 48px;
+  border-radius: var(--pz-radius-pill);
+  font-family: var(--pz-sans);
+  font-size: var(--pz-fs-m);
+  font-weight: 700;
+  color: #000;
+  background: var(--pz-chrome-flat);
+  border: 0;
+}
+
+.liveStart:disabled { opacity: 0.5; }
+
+.linkBtn {
+  justify-self: center;
+  min-height: 40px;
+  padding: 0 10px;
+  font-family: var(--pz-sans);
+  font-size: var(--pz-fs-xs);
+  color: var(--pz-text-2);
+  background: none;
+  border: 0;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }

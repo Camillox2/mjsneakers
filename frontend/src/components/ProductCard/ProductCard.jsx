@@ -7,10 +7,11 @@ import { getImageUrl } from '../../utils/imageHelper'
 import { parseSizes } from '../../utils/sizes'
 import { curveIndex, loadManifest } from '../../lib/frames'
 import { useToast } from '../Toast/Toast'
+import { MQ, matches } from '../../lib/breakpoints'
 import styles from './ProductCard.module.css'
 
 const brl = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
-const canHover = () => typeof window !== 'undefined' && window.matchMedia('(hover: hover) and (pointer: fine)').matches
+const canHover = () => matches(MQ.hover)
 
 // Giro no card: com o mouse em cima, a posição horizontal do cursor escolhe o
 // ângulo do tênis. Carrega 24 quadros leves só quando alguém passa o mouse.
@@ -80,7 +81,7 @@ function useHoverSpin(spinId) {
 // Card da loja: uma vitrine na cor do próprio tênis (como os mundos do giro).
 // Sem efeito 3D: inclinar um card com cantos arredondados serrilha a borda.
 export default function ProductCard({ product, onClick, index = 0, feature = false }) {
-  const { addToCart, setCartOpen } = useContext(CartContext)
+  const { addToCart, revealCart } = useContext(CartContext)
   const { wishlist, toggleWishlist } = useContext(WishlistContext)
   const addToast = useToast()
   const cardRef = useRef(null)
@@ -91,6 +92,7 @@ export default function ProductCard({ product, onClick, index = 0, feature = fal
   const stock = Number(product.stock || 0)
   const sizes = parseSizes(product.sizes)
   const contain = product.fit === 'contain'
+  const sample = Boolean(product.sample)
 
   const discount = Math.min(Math.max(Number(product.discount_percentage || 0), 0), 90)
   const discountActive = discount > 0
@@ -125,7 +127,7 @@ export default function ProductCard({ product, onClick, index = 0, feature = fal
       return
     }
     addToast(`${product.name}, tamanho ${size}, foi para a sacola.`, 'success')
-    setCartOpen?.(true)
+    revealCart?.()
   }
 
   return (
@@ -185,7 +187,7 @@ export default function ProductCard({ product, onClick, index = 0, feature = fal
             </span>
           )}
 
-          {stock > 0 && sizes.length > 0 && (
+          {stock > 0 && sizes.length > 0 && !sample && (
             <div className={styles.quick} onClick={(e) => e.stopPropagation()}>
               {sizes.slice(0, 8).map((s) => (
                 <button key={s} type="button" onClick={(e) => quickAdd(e, s)} aria-label={`Colocar tamanho ${s} na sacola`}>

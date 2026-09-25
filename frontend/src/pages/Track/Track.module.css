@@ -316,7 +316,9 @@
   transition: border-color 0.2s var(--pz-ease);
 }
 
-.copyBtn:hover { border-color: rgba(233, 236, 241, 0.55); }
+@media (hover: hover) {
+  .copyBtn:hover { border-color: rgba(233, 236, 241, 0.55); }
+}
 .copyBtn svg { width: 15px; height: 15px; }
 
 /* itens e entrega */
@@ -396,7 +398,7 @@
 }
 
 /* ===== Responsivo ===== */
-@media (max-width: 600px) {
+@media (max-width: 767.98px) {
   .fields { grid-template-columns: 1fr; }
   .btn { justify-self: stretch; width: 100%; }
   .result { gap: 24px; }
