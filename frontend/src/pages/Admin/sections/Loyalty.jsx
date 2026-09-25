@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react'
 import { FiPlus } from 'react-icons/fi'
 import api, { asPage } from '../lib/api'
 import { useDebounced, useResource } from '../lib/hooks'
-import { number, ago } from '../lib/format'
-import { PageHeader, Panel, Button, SearchField, DataTable, Pagination, ErrorNote, Skeleton, EmptyState, Dialog, TextField, useToast } from '../ui'
+import { number, ago, money } from '../lib/format'
+import { PageHeader, Panel, Button, SearchField, DataTable, Pagination, ErrorNote, Skeleton, EmptyState, Dialog, TextField, Switch, useToast } from '../ui'
 import { Stars } from '../art/Art'
 import s from './sections.module.css'
 
@@ -35,10 +35,11 @@ export default function Loyalty() {
     <div>
       <PageHeader
         title="Fidelidade"
-        description="A cada R$ 1 em pedido entregue, o cliente ganha 10 pontos. 100 pontos valem R$ 1 de desconto."
+        description="O cliente ganha pontos em pedido entregue e usa como desconto no checkout, logado na conta."
         actions={<Button variant="primary" icon={<FiPlus />} onClick={() => setBonus({ email: '', points: '100', description: '' })}>Dar pontos</Button>}
       />
-      <div style={{ marginBottom: 14 }}><SearchField value={search} onChange={setSearch} placeholder="Nome ou e-mail" /></div>
+      <Rules />
+      <div style={{ margin: '16px 0 14px' }}><SearchField value={search} onChange={setSearch} placeholder="Nome ou e-mail" /></div>
       <ErrorNote error={list.error} onRetry={list.reload} />
       <Panel flush>
         {list.loading && !list.data ? <div style={{ padding: 18 }}><Skeleton lines={5} height={32} /></div> : (
@@ -76,5 +77,62 @@ export default function Loyalty() {
         )}
       </Dialog>
     </div>
+  )
+}
+
+const RULE_KEYS = ['loyalty_enabled', 'loyalty_points_per_real', 'loyalty_points_per_real_discount', 'loyalty_max_redeem_percent', 'loyalty_min_redeem']
+const DEFAULTS = { loyalty_enabled: 'true', loyalty_points_per_real: '10', loyalty_points_per_real_discount: '100', loyalty_max_redeem_percent: '30', loyalty_min_redeem: '500' }
+
+// Regras do programa: quanto se ganha, quanto vale e até onde pode descontar.
+function Rules() {
+  const toast = useToast()
+  const [form, setForm] = useState(null)
+  const [saving, setSaving] = useState(false)
+  const remote = useResource(() => api.get('/settings/admin').then(r => r.data || {}), [])
+  useEffect(() => {
+    if (remote.data) setForm(Object.fromEntries(RULE_KEYS.map(k => [k, String(remote.data[k] ?? DEFAULTS[k])])))
+  }, [remote.data])
+  if (!form) return <Panel><Skeleton lines={3} height={26} /></Panel>
+
+  const n = (k) => Number(String(form[k]).replace(',', '.')) || 0
+  const earn = n('loyalty_points_per_real')
+  const worth = n('loyalty_points_per_real_discount')
+  const maxPct = n('loyalty_max_redeem_percent')
+  const min = n('loyalty_min_redeem')
+  const set = (k) => (e) => setForm(f => ({ ...f, [k]: e?.target ? e.target.value : e }))
+  const example = 500
+  const pointsFrom500 = Math.floor(example * earn)
+  const valueOf = (pts) => (worth > 0 ? pts / worth : 0)
+
+  const save = async () => {
+    if (!(earn >= 0 && earn <= 100)) { toast.error('Pontos por real: de 0 a 100.'); return }
+    if (!(worth >= 1 && worth <= 100000)) { toast.error('Pontos por R$ 1 de desconto: de 1 a 100.000.'); return }
+    if (!(maxPct >= 0 && maxPct <= 100)) { toast.error('O teto vai de 0 a 100% do valor dos produtos.'); return }
+    setSaving(true)
+    try {
+      await api.put('/settings', { settings: Object.fromEntries(RULE_KEYS.map(k => [k, k === 'loyalty_enabled' ? form[k] : String(n(k))])) })
+      toast.good('Regras dos pontos salvas.')
+      remote.reload()
+    } catch (err) { toast.error(err.message) } finally { setSaving(false) }
+  }
+
+  return (
+    <Panel title="Regras dos pontos">
+      <div style={{ display: 'grid', gap: 14 }}>
+        <Switch checked={form.loyalty_enabled === 'true'} onChange={v => setForm(f => ({ ...f, loyalty_enabled: v ? 'true' : 'false' }))} label="Programa ligado" description="Desligado, ninguém ganha nem usa pontos; os saldos ficam guardados." />
+        <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
+          <TextField label="Pontos por R$ 1 gasto" inputMode="decimal" value={form.loyalty_points_per_real} onChange={set('loyalty_points_per_real')} hint="Contados quando o pedido é entregue." />
+          <TextField label="Pontos para R$ 1 de desconto" inputMode="numeric" value={form.loyalty_points_per_real_discount} onChange={set('loyalty_points_per_real_discount')} />
+          <TextField label="Desconto máximo com pontos" suffix="%" inputMode="numeric" value={form.loyalty_max_redeem_percent} onChange={set('loyalty_max_redeem_percent')} hint="Do valor dos produtos, sem frete." />
+          <TextField label="Mínimo de pontos para usar" inputMode="numeric" value={form.loyalty_min_redeem} onChange={set('loyalty_min_redeem')} />
+        </div>
+        <p style={{ margin: 0, padding: '10px 12px', borderRadius: 10, background: 'var(--a-sunken)', border: '1px solid var(--a-line)', fontSize: 14 }}>
+          Exemplo: um pedido de {money(example)} entregue dá {number(pointsFrom500)} pontos, que valem {money(valueOf(pointsFrom500))} de desconto na próxima compra.
+          {' '}O cliente precisa juntar {number(min)} pontos ({money(valueOf(min))}) para usar, e o desconto com pontos vai até {number(maxPct)}% dos produtos.
+          {' '}Na prática, a loja devolve {((earn / (worth || 1)) * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}% do que o cliente gasta.
+        </p>
+        <div><Button variant="primary" onClick={save} loading={saving}>Salvar regras</Button></div>
+      </div>
+    </Panel>
   )
 }

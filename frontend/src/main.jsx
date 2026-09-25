@@ -3,7 +3,12 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import App from './App.jsx'
 import ErrorBoundary from './components/ErrorBoundary/ErrorBoundary'
+import { AccountProvider } from './lib/AccountContext'
+import { startErrorReporter } from './lib/errorReporter'
 import './styles/global.css'
+
+// erros do navegador vão para o servidor (sem dado pessoal, ver lib/errorReporter)
+startErrorReporter()
 
 // A abertura começa sempre do topo; restaurar a rolagem no meio do giro
 // deixaria a página num estado sem sentido depois de um recarregamento.
@@ -13,7 +18,9 @@ createRoot(document.getElementById('root')).render(
   <StrictMode>
     <ErrorBoundary>
       <BrowserRouter>
-        <App />
+        <AccountProvider>
+          <App />
+        </AccountProvider>
       </BrowserRouter>
     </ErrorBoundary>
   </StrictMode>,

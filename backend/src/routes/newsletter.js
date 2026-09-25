@@ -5,6 +5,7 @@ const router = express.Router();
 const newsletterController = require('../controllers/newsletterController');
 const { requireAdmin } = require('../middleware/auth');
 const { validateRequest } = require('../utils/validate');
+const { verifyTurnstile } = require('../middleware/turnstile');
 
 // Rate limit: inscrição e descadastro públicos.
 const publicLimiter = rateLimit({
@@ -15,7 +16,7 @@ const publicLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-router.post('/subscribe', publicLimiter, newsletterController.subscribe);
+router.post('/subscribe', publicLimiter, verifyTurnstile, newsletterController.subscribe);
 router.post('/unsubscribe', publicLimiter, newsletterController.unsubscribe);
 router.get('/', ...requireAdmin, newsletterController.getAll);
 router.delete(

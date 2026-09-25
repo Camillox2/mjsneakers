@@ -1,6 +1,14 @@
 // Pizantt Drop SW: HTML sempre da rede (deploy aparece na hora), assets do
 // build (com hash) em cache-first, quadros dos giros num cache próprio.
-const CACHE_NAME = 'pizantt-v2';
+// v4: apaga o cache velho. Com o login por cookie, a API só entra no cache
+// numa lista de rotas públicas (ver PUBLIC_API abaixo).
+const CACHE_NAME = 'pizantt-v4';
+
+// Rotas da API que podem ir para o cache (dado público, igual para todos).
+// Todo o resto (conta, pedido, pagamento, login, segurança) é só rede: com
+// o cookie de sessão, a resposta pode ser de uma pessoa e não pode ficar
+// guardada no aparelho.
+const PUBLIC_API = ['/products', '/brands', '/categories', '/banners', '/tickers', '/settings', '/legal', '/appearance', '/reviews/product'];
 const GIROS_CACHE = 'pizantt-giros-v1';
 
 self.addEventListener('install', () => {
@@ -65,6 +73,21 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(request.url);
 
+  // Mercado Pago (SDK e Brick do cartão) e ViaCEP: o navegador fala direto
+  // com eles, sem passar pelo cache. Um SDK velho em cache quebraria o
+  // pagamento.
+  if (/(^|\.)(mercadopago\.com|mercadopago\.com\.br|mercadolibre\.com|mercadolivre\.com|mercadolivre\.com\.br|mlstatic\.com|viacep\.com\.br|challenges\.cloudflare\.com)$/.test(url.hostname)) {
+    return;
+  }
+
+  // Pagamento e pedido (rastreio, situação do Pix): sempre rede e nunca em
+  // cache. A URL pode levar o access_token do pedido, e a resposta tem dado
+  // pessoal.
+  if (url.pathname.includes('/api/payments') || url.pathname.includes('/api/orders') || url.searchParams.has('access_token')) {
+    event.respondWith(fetch(request));
+    return;
+  }
+
   // Estoque e frete: sempre rede. Disponibilidade e preço de envio precisam estar frescos.
   if (url.pathname.startsWith('/api/stock') || url.pathname.startsWith('/api/shipping')) {
     event.respondWith(fetch(request));
@@ -103,8 +126,11 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // API pública (produtos, marcas, banners): rede primeiro, cache se estiver offline.
+  // API pública (produtos, marcas, banners): rede primeiro, cache se estiver
+  // offline. O que não está na lista pública nem passa pelo service worker.
   if (url.pathname.includes('/api/')) {
+    const route = url.pathname.slice(url.pathname.indexOf('/api/') + 4);
+    if (!PUBLIC_API.some((p) => route === p || route.startsWith(`${p}/`) || route.startsWith(`${p}?`))) return;
     event.respondWith(networkFirst(request, CACHE_NAME));
     return;
   }

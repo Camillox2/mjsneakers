@@ -82,6 +82,45 @@
   cursor: default;
 }
 
+/* cupons da conta: fichas que aplicam com um toque */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: var(--pz-radius-pill);
+  font-family: ui-monospace, 'SF Mono', Consolas, monospace;
+  font-size: var(--pz-fs-s);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--pz-text);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px dashed var(--pz-line-strong);
+  cursor: pointer;
+}
+
+.chip svg { flex: none; color: var(--pz-text-2); }
+
+.chip:disabled { opacity: 0.45; cursor: default; }
+
+.chipNote {
+  font-family: var(--pz-sans);
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--pz-text-3);
+}
+
+@media (hover: hover) {
+  .chip:hover:not(:disabled) { border-color: rgba(233, 236, 241, 0.6); background: rgba(255, 255, 255, 0.06); }
+}
+
 .error {
   padding-left: 4px;
   font-size: var(--pz-fs-s);

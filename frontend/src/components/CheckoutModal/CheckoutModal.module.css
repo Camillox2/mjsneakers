@@ -440,6 +440,194 @@
   color: var(--pz-ok);
 }
 
+/* ---------- pontos da conta ---------- */
+.points { gap: 12px; }
+
+.pointsSwitch {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 48px;
+  cursor: pointer;
+}
+
+.switchInput {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+
+.switch {
+  flex: none;
+  position: relative;
+  width: 48px;
+  height: 28px;
+  border-radius: 14px;
+  background: var(--pz-surface-3);
+  border: 1px solid var(--pz-line-strong);
+  transition: background 0.25s var(--pz-ease);
+}
+
+.switch::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--pz-text-2);
+  transition: transform 0.25s var(--pz-ease), background 0.25s var(--pz-ease);
+}
+
+.switchInput:checked + .switch { background: var(--pz-chrome-flat); border-color: transparent; }
+.switchInput:checked + .switch::after { transform: translateX(20px); background: #0a0a0b; }
+.switchInput:disabled + .switch { opacity: 0.45; }
+.switchInput:focus-visible + .switch { outline: 2px solid var(--pz-chrome-1); outline-offset: 3px; }
+
+.pointsText {
+  display: grid;
+  gap: 2px;
+}
+
+.pointsTitle {
+  font-size: var(--pz-fs-m);
+  font-weight: 650;
+  color: var(--pz-text);
+}
+
+.pointsSub,
+.pointsHint {
+  font-size: var(--pz-fs-s);
+  color: var(--pz-text-2);
+}
+
+.pointsControl {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  align-items: center;
+  gap: 10px;
+}
+
+.stepBtn {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  color: var(--pz-text);
+  background: var(--pz-surface-1);
+  border: 1px solid var(--pz-line-strong);
+}
+
+.stepBtn:disabled { opacity: 0.35; }
+
+/* régua de pontos: trilho fino, alça cromada com área de toque grande */
+.range {
+  width: 100%;
+  height: 44px;
+  background: transparent;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+}
+
+.range::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--pz-surface-3);
+}
+
+.range::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--pz-surface-3);
+}
+
+.range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 26px;
+  height: 26px;
+  margin-top: -11px;
+  border-radius: 50%;
+  background: var(--pz-chrome-flat);
+  box-shadow: 0 4px 12px -4px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.range::-moz-range-thumb {
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--pz-chrome-flat);
+}
+
+.pointsValue {
+  grid-column: 1 / -1;
+  font-size: var(--pz-fs-s);
+  color: var(--pz-text-2);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.pointsValue strong { color: var(--pz-text); }
+
+.pixPreview {
+  font-size: var(--pz-fs-s);
+  font-weight: 600;
+  color: var(--pz-ok);
+  text-align: right;
+}
+
+.quoteMsg {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: var(--pz-fs-s);
+  line-height: 1.45;
+  color: var(--pz-text-2);
+}
+
+.quoteMsg svg { flex: none; margin-top: 3px; }
+
+.consent {
+  font-size: var(--pz-fs-xs);
+  line-height: 1.5;
+  text-align: center;
+  color: var(--pz-text-3);
+}
+
+.consent a {
+  color: var(--pz-text-2);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--pz-line-strong);
+}
+
+/* pedido cancelado, estornado ou pagamento fora do ar */
+.payNote {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  padding: 24px 8px;
+  text-align: center;
+}
+
+.payNote > svg { width: 28px; height: 28px; color: var(--pz-text-2); }
+
+.payNote p {
+  max-width: 40ch;
+  font-size: var(--pz-fs-m);
+  line-height: 1.55;
+  color: var(--pz-text-2);
+}
+
+/* cinco etapas (com o pagamento): rótulos um pouco menores */
+.stepperFive { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.stepperFive .stepLabel { font-size: 0.6875rem; }
+
 .totalNote {
   margin-top: 2px;
   font-size: var(--pz-fs-xs);
@@ -510,6 +698,19 @@
     padding: 12px 20px;
     padding-bottom: calc(12px + env(safe-area-inset-bottom));
   }
+}
+
+/* etapa de pagamento no celular: tela inteira, com a área segura */
+@media (max-width: 767.98px) {
+  .modalPay {
+    height: 100vh;
+    height: 100dvh;
+    max-height: 100dvh;
+    border-radius: 0;
+    border: 0;
+  }
+  .modalPay .header { padding-top: calc(12px + var(--pz-safe-top)); }
+  .modalPay .body { padding-bottom: calc(24px + var(--pz-safe-bottom)); }
 }
 
 @media (max-width: 479.98px) {

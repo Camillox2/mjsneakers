@@ -139,6 +139,19 @@
   background: var(--pz-chrome-flat);
 }
 
+/* conta aberta: um ponto cromado no ícone de pessoa */
+.signedIn::after {
+  content: '';
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--pz-chrome-flat);
+  box-shadow: 0 0 0 2px var(--pz-black);
+}
+
 .bump { animation: bump 0.65s var(--pz-ease); }
 
 @keyframes bump {

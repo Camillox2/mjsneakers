@@ -8,6 +8,9 @@ import Home from './pages/Home/Home'
 const Admin = lazy(() => import('./pages/Admin/Admin'))
 const Product = lazy(() => import('./pages/Product/Product'))
 const Track = lazy(() => import('./pages/Track/Track'))
+const Account = lazy(() => import('./pages/Account/Account'))
+const MyData = lazy(() => import('./pages/MyData/MyData'))
+const LegalPage = lazy(() => import('./pages/Legal/LegalPage'))
 import CartDrawer from './components/Cart/CartDrawer'
 import WishlistDrawer from './components/WishlistDrawer/WishlistDrawer'
 import BackToTop from './components/BackToTop/BackToTop'
@@ -20,6 +23,9 @@ import { parseSizes } from './utils/sizes'
 import { isSample } from './data/drops'
 import { startSmoothScroll, stopSmoothScroll, scrollToY } from './lib/motion'
 import { cachedGet, clearCache, TTL } from './services/cache'
+import api from './services/api'
+import { loadSecurityConfig } from './services/security'
+import { useAccount } from './lib/AccountContext'
 import { cometFlying, cometToCart } from './lib/comets'
 
 export const CartContext = createContext()
@@ -34,6 +40,23 @@ const isSampleItem = (p) => isSample(p) || String(p?.id ?? '').startsWith('amost
 const isOn = (v) => v === true || v === 1 || v === 'true' || v === '1'
 // quanto a loja espera as configurações antes de aparecer (manutenção)
 const BOOT_WAIT = 1500
+
+// id que vai para o servidor (os produtos reais têm id numérico)
+const serverId = (v) => (/^\d+$/.test(String(v)) ? Number(v) : v)
+const idsFrom = (data) => {
+  const list = Array.isArray(data) ? data : data?.product_ids || data?.items || []
+  return list.map((x) => (x && typeof x === 'object' ? x.product_id ?? x.id : x)).filter((x) => x != null && x !== '')
+}
+
+// admin logado, só como dica de tela (a sessão é o cookie httpOnly pz_adm)
+const readAdminHint = () => {
+  try {
+    const raw = localStorage.getItem('mj_user')
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
 
 const readList = (key) => {
   try {
@@ -50,7 +73,8 @@ function App() {
   const isAdminRoute = location.pathname === '/admin' || location.pathname.startsWith('/admin/')
   const [cart, setCart] = useState([])
   const [cartOpen, setCartOpen] = useState(false)
-  const [user, setUser] = useState(null)
+  const [user, setUser] = useState(readAdminHint)
+  const { loggedIn: customerIn, customer } = useAccount()
   const [wishlist, setWishlist] = useState([])
   const [wishlistOpen, setWishlistOpen] = useState(false)
   // configurações que decidem se a loja abre ou mostra a manutenção
@@ -117,10 +141,26 @@ function App() {
     // sacola velha com amostra (de antes de a amostra sair de venda) volta sem ela
     setCart(readList('mj_cart').filter((item) => !isSampleItem(item)))
     setWishlist(readList('mj_wishlist'))
-    const token = localStorage.getItem('mj_token')
-    const savedUser = localStorage.getItem('mj_user')
-    if (token && savedUser) {
-      try { setUser(JSON.parse(savedUser)) } catch {}
+    // token antigo de antes do login por cookie: sai do aparelho
+    try { localStorage.removeItem('mj_token') } catch { /* nada */ }
+    // o token CSRF de reserva e a chave do captcha já ficam prontos
+    loadSecurityConfig()
+    // havia admin logado: o cookie ainda vale?
+    if (readAdminHint()) {
+      api.get('/auth/me')
+        .then(({ data }) => {
+          const me = data?.user || data
+          if (me && typeof me === 'object') {
+            setUser(me)
+            try { localStorage.setItem('mj_user', JSON.stringify(me)) } catch { /* só dica */ }
+          }
+        })
+        .catch((err) => {
+          if (err?.response?.status === 401) {
+            setUser(null)
+            try { localStorage.removeItem('mj_user') } catch { /* nada */ }
+          }
+        })
     }
   }, [])
 
@@ -131,6 +171,50 @@ function App() {
   useEffect(() => {
     localStorage.setItem('mj_wishlist', JSON.stringify(wishlist))
   }, [wishlist])
+
+  // Favoritos com a conta: ao entrar, junta os do aparelho com os do
+  // servidor (os que só existem lá são buscados para aparecer aqui) e manda
+  // a união de volta. Logado, toda mudança sincroniza (com uma pausa curta).
+  const wishlistRef = useRef(wishlist)
+  wishlistRef.current = wishlist
+  const wishSynced = useRef(false)
+  useEffect(() => {
+    if (!customerIn) {
+      wishSynced.current = false
+      return undefined
+    }
+    let alive = true
+    ;(async () => {
+      try {
+        const { data } = await api.get('/account/wishlist')
+        const serverIds = idsFrom(data).map(String)
+        const localIds = wishlistRef.current.filter((p) => !isSampleItem(p)).map((p) => String(p.id))
+        const onlyServer = serverIds.filter((id) => !localIds.includes(id)).slice(0, 40)
+        const found = await Promise.allSettled(onlyServer.map((id) => cachedGet(`/products/${id}`, { ttl: TTL.item })))
+        if (!alive) return
+        const products = found.filter((r) => r.status === 'fulfilled' && r.value?.id).map((r) => r.value)
+        if (products.length) setWishlist((prev) => [...prev, ...products.filter((p) => !prev.some((q) => String(q.id) === String(p.id)))])
+        const union = [...new Set([...localIds, ...serverIds])]
+        if (union.length !== serverIds.length) await api.put('/account/wishlist', union.map(serverId))
+      } catch {
+        /* sem rede: sincroniza na próxima mudança */
+      } finally {
+        if (alive) wishSynced.current = true
+      }
+    })()
+    return () => {
+      alive = false
+    }
+  }, [customerIn, customer?.email])
+
+  useEffect(() => {
+    if (!customerIn || !wishSynced.current) return undefined
+    const ids = wishlist.filter((p) => !isSampleItem(p)).map((p) => serverId(p.id))
+    const t = setTimeout(() => {
+      api.put('/account/wishlist', ids).catch(() => { /* tenta de novo na próxima mudança */ })
+    }, 600)
+    return () => clearTimeout(t)
+  }, [wishlist, customerIn])
 
   const addToCart = async (product, size) => {
     // amostra não está à venda; e sem tamanho não há par para reservar
@@ -227,16 +311,19 @@ function App() {
 
   const [searchProduct, setSearchProduct] = useState(null)
 
-  const login = (userData, token) => {
+  // Admin: a sessão é o cookie httpOnly pz_adm, gravado pelo servidor no
+  // login. Aqui fica só o usuário para a tela (mj_user, que não é segredo).
+  const login = (userData) => {
     setUser(userData)
-    localStorage.setItem('mj_token', token)
-    localStorage.setItem('mj_user', JSON.stringify(userData))
+    try { localStorage.setItem('mj_user', JSON.stringify(userData)) } catch { /* só dica */ }
   }
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await api.post('/auth/logout')
+    } catch { /* sai da tela mesmo se a rede falhar */ }
     setUser(null)
-    localStorage.removeItem('mj_token')
-    localStorage.removeItem('mj_user')
+    try { localStorage.removeItem('mj_user') } catch { /* nada */ }
   }
 
   const pageFallback = <div style={{ minHeight: '100svh' }} aria-busy="true" />
@@ -264,6 +351,11 @@ function App() {
             <Route path="/" element={<Home />} />
             <Route path="/produto/:id" element={<Product wishlist={wishlist} onToggleWishlist={toggleWishlist} />} />
             <Route path="/rastrear" element={<Track />} />
+            <Route path="/conta" element={<Account />} />
+            <Route path="/meus-dados" element={<MyData />} />
+            <Route path="/termos" element={<LegalPage kind="terms" />} />
+            <Route path="/trocas-e-devolucoes" element={<LegalPage kind="returns" />} />
+            <Route path="/privacidade" element={<LegalPage kind="privacy" />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>

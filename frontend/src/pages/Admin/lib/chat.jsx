@@ -20,8 +20,9 @@ export function ChatProvider({ children }) {
     let socket = null
     import('socket.io-client').then(({ io }) => {
       if (!alive) return
+      // a sessão vai no cookie httpOnly do painel, junto com o aperto de mão
       socket = io(API_ORIGIN, {
-        auth: (cb) => cb({ token: localStorage.getItem('mj_token') }),
+        withCredentials: true,
         transports: ['websocket', 'polling'],
       })
       socketRef.current = socket

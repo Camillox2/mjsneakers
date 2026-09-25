@@ -1,4 +1,5 @@
 import { Component } from 'react'
+import { reportError } from '../../lib/errorReporter'
 
 // Se algo quebrar ao desenhar a página, mostra um aviso com saída em vez de
 // deixar a tela preta (sem isso o React desmonta tudo e sobra só o fundo).
@@ -13,7 +14,10 @@ export default class ErrorBoundary extends Component {
   }
 
   componentDidCatch(error, info) {
-    console.error('Falha ao desenhar a página', error, info?.componentStack)
+    // vai para o servidor já limpo (sem e-mail, token nem querystring)
+    const err = error instanceof Error ? error : new Error(String(error))
+    if (info?.componentStack) err.stack = `${err.stack || err.message}\n--- componentes ---${info.componentStack}`
+    reportError(err, 'render')
   }
 
   render() {

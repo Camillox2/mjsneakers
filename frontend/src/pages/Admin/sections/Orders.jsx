@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Link, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { FiDownload, FiPrinter, FiSave, FiMail, FiPhone, FiCopy, FiXCircle, FiPlus, FiRefreshCw } from 'react-icons/fi'
+import { FiDownload, FiPrinter, FiSave, FiMail, FiPhone, FiCopy, FiXCircle, FiPlus, FiRefreshCw, FiRotateCcw, FiCreditCard } from 'react-icons/fi'
 import { FaWhatsapp } from 'react-icons/fa'
 import api, { asPage, downloadFile } from '../lib/api'
 import { useDebounced, useResource } from '../lib/hooks'
 import { useAdmin } from '../lib/context'
 import { money, dateTime, date, ago, number } from '../lib/format'
-import { ORDER_STATUS, ORDER_FLOW, OrderBadge, nextStatus, NEXT_ACTION } from '../lib/status'
+import { ORDER_STATUS, ORDER_FLOW, OrderBadge, nextStatus, NEXT_ACTION, PaymentBadge, PAYMENT_STATUS, methodText } from '../lib/status'
 import { labelHTML, pickingHTML, printHTML } from '../lib/print'
 import { getImageUrl } from '../../../utils/imageHelper'
 import {
@@ -15,6 +15,7 @@ import {
   EmptyState, Dialog, TextField, useConfirm, useToast,
 } from '../ui'
 import { Receipt } from '../art/Art'
+import OrderInvoice from './OrderInvoice'
 import s from './sections.module.css'
 import o from './orders.module.css'
 
@@ -33,7 +34,7 @@ function OrderList() {
   const [params, setParams] = useSearchParams()
   const navigate = useNavigate()
   const toast = useToast()
-  const { refreshCounts } = useAdmin()
+  const { refreshCounts, payments } = useAdmin()
   const [search, setSearch] = useState(params.get('busca') || '')
   const q = useDebounced(search.trim(), 350)
   const status = params.get('status') || ''
@@ -131,11 +132,21 @@ function OrderList() {
     },
     { key: 'items', header: 'Pares', align: 'right', render: r => number(r.items_count ?? r.items?.reduce((n, i) => n + Number(i.quantity || 0), 0) ?? 0) },
     { key: 'total', header: 'Total', align: 'right', render: r => <strong>{money(r.total)}</strong> },
+    {
+      key: 'pay', header: 'Pagamento',
+      render: r => (r.payment_status ? (
+        <div style={{ display: 'grid', gap: 2, justifyItems: 'start' }}>
+          <PaymentBadge status={r.payment_status} />
+          {r.payment_method && <span className={o.orderDate}>{methodText(r.payment_method, r.payment_installments)}</span>}
+        </div>
+      ) : null),
+    },
     { key: 'status', header: 'Status', render: r => <OrderBadge status={r.status} /> },
     {
       key: 'act', header: '', hideOnCard: false,
       render: r => {
         const next = nextStatus(r.status)
+        if (next === 'confirmed' && payments?.enabled && r.payment_status !== 'approved') return <span className={o.orderDate}>Esperando o pagamento</span>
         return next ? (
           <Button size="small" onClick={() => advance(r)} loading={busyId === r.id}>{NEXT_ACTION[next]}</Button>
         ) : null
@@ -253,7 +264,7 @@ function OrderDetail() {
   const location = useLocation()
   const toast = useToast()
   const confirm = useConfirm()
-  const { refreshCounts } = useAdmin()
+  const { refreshCounts, payments, user } = useAdmin()
   const order = useResource(() => api.get(`/orders/${id}`).then(r => r.data), [id])
   const [tracking, setTracking] = useState('')
   const [note, setNote] = useState('')
@@ -267,11 +278,14 @@ function OrderDetail() {
 
   const changeStatus = async (next) => {
     const cancel = next === 'cancelled'
+    const unpaid = next === 'confirmed' && payments?.enabled && d?.payment_status !== 'approved'
     const ok = await confirm({
       title: cancel ? `Cancelar o pedido #${id}?` : `Marcar o pedido #${id} como ${ORDER_STATUS[next].label.toLowerCase()}?`,
       message: cancel
         ? 'Os pares voltam para a grade, os pontos de fidelidade do pedido são estornados e o cliente recebe um e-mail avisando. Depois de cancelado, o pedido não muda mais de status.'
-        : 'O cliente recebe um e-mail com o novo status.',
+        : unpaid
+          ? 'O Mercado Pago ainda não confirmou o pagamento deste pedido. Só confirme se você recebeu por fora (Pix direto, dinheiro). O cliente recebe um e-mail com o novo status.'
+          : 'O cliente recebe um e-mail com o novo status.',
       confirmLabel: cancel ? 'Cancelar pedido' : 'Confirmar',
       cancelLabel: 'Voltar',
       tone: cancel ? 'danger' : undefined,
@@ -281,9 +295,12 @@ function OrderDetail() {
     try {
       const { data: res } = await api.put(`/orders/${id}/status`, { status: next })
       const points = Number(res?.loyalty_points_reversed) || 0
+      const refunded = Number(res?.points_refunded) || 0
       toast.good(cancel
-        ? `Pedido #${id} cancelado. Estoque devolvido${points ? ` e ${points.toLocaleString('pt-BR')} pontos estornados do cliente` : ''}.`
+        ? `Pedido #${id} cancelado. Estoque devolvido${points ? `, ${points.toLocaleString('pt-BR')} pontos ganhos estornados` : ''}${refunded ? `, ${refunded.toLocaleString('pt-BR')} pontos usados devolvidos ao cliente` : ''}.`
         : `Pedido #${id}: ${ORDER_STATUS[next].label.toLowerCase()}.`)
+      // cancelou um pedido que já estava pago: o dinheiro não volta sozinho
+      if (res?.payment_refund_needed) toast.info('Este pedido estava pago. Faça o estorno no bloco Pagamento para o dinheiro voltar ao cliente.')
       order.reload(); refreshCounts()
     } catch (err) {
       toast.error(err.message)
@@ -310,7 +327,7 @@ function OrderDetail() {
     setBusy('label')
     try {
       const { data } = await api.post(`/shipping/label/${id}/generate`)
-      await printHTML(labelHTML(data))
+      await printHTML(await labelHTML(data))
     } catch (err) {
       toast.error(err.message)
     } finally {
@@ -330,6 +347,31 @@ function OrderDetail() {
     } finally {
       setBusy('')
     }
+  }
+
+  const syncPayment = async () => {
+    setBusy('sync')
+    try {
+      const { data: res } = await api.post(`/payments/order/${id}/sync`)
+      toast.good(`Conferido no Mercado Pago: ${(PAYMENT_STATUS[res?.payment_status]?.label || 'sem mudança').toLowerCase()}.`)
+      order.reload(); refreshCounts()
+    } catch (err) { toast.error(err.message) } finally { setBusy('') }
+  }
+
+  const refund = async (pay) => {
+    const ok = await confirm({
+      title: `Estornar ${money(pay.amount)}?`,
+      message: 'O valor volta para o cliente pelo Mercado Pago. Se o pedido ainda não saiu, ele é cancelado e os pares voltam para o estoque.',
+      confirmLabel: 'Estornar pagamento',
+      tone: 'danger',
+    })
+    if (!ok) return
+    setBusy(`refund-${pay.id}`)
+    try {
+      await api.post(`/payments/${pay.id}/refund`)
+      toast.good('Estorno pedido ao Mercado Pago.')
+      order.reload(); refreshCounts()
+    } catch (err) { toast.error(err.message) } finally { setBusy('') }
   }
 
   const copy = async (text, what) => {
@@ -383,12 +425,48 @@ function OrderDetail() {
             <dl className={o.totals}>
               <dt>Subtotal</dt><dd>{money(subtotal)}</dd>
               {Number(d.discount_amount) > 0 && <><dt>Desconto{d.coupon_code ? ` (${d.coupon_code})` : ''}</dt><dd>- {money(d.discount_amount)}</dd></>}
+              {Number(d.points_discount) > 0 && <><dt>Pontos de fidelidade ({number(d.points_used)})</dt><dd>- {money(d.points_discount)}</dd></>}
               <dt>Frete{d.shipping_type ? ` (${d.shipping_type})` : ''}</dt><dd>{Number(d.shipping_price) > 0 ? money(d.shipping_price) : 'Grátis'}</dd>
               {d.gift_wrap ? <><dt>Embrulho de presente</dt><dd>Sim</dd></> : null}
               <dt className={o.totalFinal}>Total</dt><dd className={o.totalFinal}>{money(d.total)}</dd>
             </dl>
             {d.gift_message && <p className={s.muted} style={{ marginTop: 10 }}>Mensagem do presente: “{d.gift_message}”</p>}
           </div>
+
+          {(d.payment_status || d.payments?.length > 0) && (
+            <div className={o.block}>
+              <h3 className={o.blockTitle}><FiCreditCard aria-hidden="true" /> Pagamento <PaymentBadge status={d.payment_status} /></h3>
+              <dl className={s.kv}>
+                {d.payment_method && <><dt>Forma</dt><dd>{methodText(d.payment_method, d.payment_installments)}</dd></>}
+                {d.paid_at && <><dt>Pago em</dt><dd>{dateTime(d.paid_at)}</dd></>}
+                {Number(d.pix_discount_amount) > 0 && <><dt>Desconto do Pix</dt><dd>- {money(d.pix_discount_amount)}</dd></>}
+                {!d.payments?.length && <><dt>Tentativas</dt><dd>O cliente ainda não tentou pagar.</dd></>}
+              </dl>
+              {d.payments?.length > 0 && (
+                <div className={s.list} style={{ marginTop: 10 }}>
+                  {d.payments.map(pay => (
+                    <div key={pay.id} className={s.listItem}>
+                      <div className={s.listMain}>
+                        <div className={s.listTitle}>{methodText(pay.method, pay.installments) || 'Pagamento'} de {money(pay.amount)}</div>
+                        <div className={s.listSub}>{dateTime(pay.created_at)}{pay.provider_payment_id ? `, Mercado Pago ${pay.provider_payment_id}` : ''}{pay.status_detail ? `, ${pay.status_detail}` : ''}</div>
+                      </div>
+                      <PaymentBadge status={pay.status === 'in_process' ? 'pending' : pay.status === 'cancelled' ? 'expired' : pay.status} />
+                      {pay.status === 'approved' && user?.role === 'super_admin' && (
+                        <Button size="small" variant="danger" icon={<FiRotateCcw />} loading={busy === `refund-${pay.id}`} onClick={() => refund(pay)}>Estornar</Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {payments?.enabled && (
+                <div className={o.contactLinks}>
+                  <Button size="small" icon={<FiRefreshCw />} loading={busy === 'sync'} onClick={syncPayment}>Conferir no Mercado Pago</Button>
+                </div>
+              )}
+            </div>
+          )}
+
+          <OrderInvoice orderId={id} orderStatus={d.status} paymentStatus={d.payment_status} />
 
           <div className={o.twoCol}>
             <div className={o.block}>

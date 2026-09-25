@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { FiEye, FiEyeOff, FiAlertCircle } from 'react-icons/fi'
+import { FiEye, FiEyeOff, FiAlertCircle, FiShield } from 'react-icons/fi'
 import api from './lib/api'
 import { Button, TextField } from './ui'
 import { SneakerSketch } from './art/Art'
+import Turnstile, { useTurnstile } from '../../components/Turnstile/Turnstile'
 import { BRAND } from '../../config/brand'
 import s from './login.module.css'
 
@@ -14,22 +15,63 @@ const STARS = Array.from({ length: 46 }, (_, i) => {
 })
 
 export default function Login({ onLogin, notice }) {
+  const [step, setStep] = useState('password') // password | code
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [show, setShow] = useState(false)
+  const [mfaToken, setMfaToken] = useState('')
+  const [code, setCode] = useState('')
+  const [recovery, setRecovery] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const captcha = useTurnstile()
 
-  const submit = async (e) => {
+  const fail = (err) => {
+    const left = err.data?.attempts_left
+    setError(err.status === 401 && step === 'password'
+      ? 'Usuário ou senha não conferem.'
+      : err.data?.code === 'mfa_locked' ? 'Código errado vezes demais. Entre com a senha de novo.'
+        : Number.isInteger(left) ? `Código não confere. Restam ${left} ${left === 1 ? 'tentativa' : 'tentativas'}.` : err.message)
+    setLoading(false)
+    if (err.data?.code === 'captcha') captcha.reset?.()
+  }
+
+  const submitPassword = async (e) => {
     e.preventDefault()
     setError('')
     setLoading(true)
     try {
-      const { data } = await api.post('/auth/login', { username: username.trim(), password })
-      onLogin(data.user, data.token)
+      const token = await captcha.getToken().catch(() => '')
+      const { data } = await api.post('/auth/login', { username: username.trim(), password }, { headers: token ? { 'X-Turnstile-Token': token } : {} })
+      if (data?.mfa_required) {
+        // a senha confere; falta o código do app autenticador
+        setMfaToken(data.mfa_token)
+        setPassword('')
+        setStep('code')
+        setLoading(false)
+        return
+      }
+      onLogin(data.user)
     } catch (err) {
-      setError(err.status === 401 ? 'Usuário ou senha não conferem.' : err.message)
-      setLoading(false)
+      fail(err)
+    }
+  }
+
+  const submitCode = async (e) => {
+    e.preventDefault()
+    setError('')
+    setLoading(true)
+    try {
+      const body = recovery ? { mfa_token: mfaToken, recovery_code: code.trim() } : { mfa_token: mfaToken, code: code.replace(/\D/g, '') }
+      const { data } = await api.post('/auth/login/mfa', body)
+      onLogin(data.user)
+    } catch (err) {
+      // 5 erros travam o código, e ele vence em 5 min: aí volta para a senha
+      if (err.data?.code === 'mfa_locked' || (err.status === 401 && /expir|venc/i.test(err.message))) {
+        setStep('password')
+        setCode('')
+      }
+      fail(err)
     }
   }
 
@@ -55,48 +97,84 @@ export default function Login({ onLogin, notice }) {
 
       <motion.form
         className={s.card}
-        onSubmit={submit}
+        onSubmit={step === 'password' ? submitPassword : submitCode}
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.5, ease: [0.22, 1, 0.36, 1] }}
       >
         <img src={BRAND.logo} alt={BRAND.name} className={s.logo} />
-        <h1 className={s.title}>Painel da loja</h1>
-        <p className={s.sub}>Entre com o usuário e a senha da equipe.</p>
+        <h1 className={s.title}>{step === 'password' ? 'Painel da loja' : 'Confirme que é você'}</h1>
+        <p className={s.sub}>
+          {step === 'password'
+            ? 'Entre com o usuário e a senha da equipe.'
+            : recovery ? 'Digite um dos códigos de recuperação que você guardou.' : 'Abra o app autenticador e digite o código de 6 dígitos.'}
+        </p>
 
         {(error || notice) && (
           <p className={s.alert} role="alert"><FiAlertCircle aria-hidden="true" />{error || notice}</p>
         )}
 
-        <div className={s.fields}>
-          <TextField
-            label="Usuário"
-            value={username}
-            onChange={e => setUsername(e.target.value)}
-            autoComplete="username"
-            autoCapitalize="none"
-            spellCheck={false}
-            required
-          />
-          <div className={s.pass}>
+        {step === 'password' ? (
+          <div className={s.fields}>
             <TextField
-              label="Senha"
-              type={show ? 'text' : 'password'}
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              autoComplete="current-password"
+              label="Usuário"
+              value={username}
+              onChange={e => setUsername(e.target.value)}
+              autoComplete="username"
+              autoCapitalize="none"
+              spellCheck={false}
               required
             />
-            <button type="button" className={s.eye} onClick={() => setShow(v => !v)} aria-label={show ? 'Esconder senha' : 'Mostrar senha'}>
-              {show ? <FiEyeOff /> : <FiEye />}
+            <div className={s.pass}>
+              <TextField
+                label="Senha"
+                type={show ? 'text' : 'password'}
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                autoComplete="current-password"
+                required
+              />
+              <button type="button" className={s.eye} onClick={() => setShow(v => !v)} aria-label={show ? 'Esconder senha' : 'Mostrar senha'}>
+                {show ? <FiEyeOff /> : <FiEye />}
+              </button>
+            </div>
+            <Turnstile captcha={captcha} />
+          </div>
+        ) : (
+          <div className={s.fields}>
+            <TextField
+              key={recovery ? 'rec' : 'otp'}
+              label={recovery ? 'Código de recuperação' : 'Código do app'}
+              value={code}
+              onChange={e => setCode(recovery ? e.target.value : e.target.value.replace(/\D/g, '').slice(0, 6))}
+              inputMode={recovery ? 'text' : 'numeric'}
+              autoComplete="one-time-code"
+              autoCapitalize="none"
+              spellCheck={false}
+              autoFocus
+              required
+            />
+            <button type="button" className={s.back} style={{ justifySelf: 'start', alignSelf: 'flex-start' }} onClick={() => { setRecovery(r => !r); setCode(''); setError('') }}>
+              {recovery ? 'Usar o código do app' : 'Perdi o celular: usar um código de recuperação'}
             </button>
           </div>
-        </div>
+        )}
 
-        <Button type="submit" variant="primary" block loading={loading} disabled={!username || !password}>
-          Entrar
+        <Button
+          type="submit"
+          variant="primary"
+          block
+          loading={loading}
+          icon={step === 'code' ? <FiShield /> : undefined}
+          disabled={step === 'password' ? !username || !password : recovery ? code.trim().length < 6 : code.length !== 6}
+        >
+          {step === 'password' ? 'Entrar' : 'Confirmar'}
         </Button>
-        <a className={s.back} href="/">Voltar para a loja</a>
+        {step === 'code' ? (
+          <button type="button" className={s.back} onClick={() => { setStep('password'); setCode(''); setMfaToken(''); setError('') }}>Voltar para a senha</button>
+        ) : (
+          <a className={s.back} href="/">Voltar para a loja</a>
+        )}
       </motion.form>
     </div>
   )

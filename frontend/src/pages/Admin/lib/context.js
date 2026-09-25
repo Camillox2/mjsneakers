@@ -7,6 +7,9 @@ export const AdminContext = createContext({
   dark: true,
   counts: { pendingOrders: 0, pendingReviews: 0 },
   refreshCounts: () => {},
+  // configuração do Mercado Pago vista pelo admin (sem segredos) ou null
+  payments: null,
+  refreshPayments: () => {},
 })
 
 export const useAdmin = () => useContext(AdminContext)

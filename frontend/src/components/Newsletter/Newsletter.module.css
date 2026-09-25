@@ -76,6 +76,24 @@
 .msgError { color: var(--pz-danger); }
 .msgNeutral { color: var(--pz-text-2); }
 
+.consent {
+  font-size: var(--pz-fs-xs);
+  line-height: 1.5;
+  color: var(--pz-text-3);
+}
+
+.consentLink {
+  display: inline;
+  min-height: 0;
+  padding: 0;
+  font: inherit;
+  color: var(--pz-text-2);
+  background: none;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--pz-line-strong);
+}
+
 /* ---------- janela (variante popup) ---------- */
 .overlay {
   position: fixed;

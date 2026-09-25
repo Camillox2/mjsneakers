@@ -2,9 +2,11 @@ const { pool } = require('../config/db');
 const { auditReq } = require('./auditController');
 const { pagination, likeTerm } = require('../utils/validate');
 
-// 10 points per R$1 spent, 100 points = R$1 discount
-const POINTS_PER_REAL = 10;
-const POINTS_PER_DISCOUNT = 100;
+const { loyaltyConfig } = require('../utils/loyaltySettings');
+
+// As regras (pontos por real, pontos por R$ 1 de desconto) vêm das settings
+// loyalty_*; o resgate manual do admin tem o mínimo de 100 pontos.
+const MIN_ADMIN_REDEEM = 100;
 const MAX_BONUS = 100000;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -58,7 +60,9 @@ const loyaltyController = {
   // A marca orders.loyalty_awarded (conferida por quem chama) evita crédito duplo.
   async earnPoints(conn, { orderId, customerEmail, customerName, amount }) {
     const email = normalizeEmail(customerEmail);
-    const points = Math.floor(Number(amount) * POINTS_PER_REAL);
+    const config = await loyaltyConfig();
+    if (!config.enabled) return 0;
+    const points = Math.floor(Number(amount) * config.points_per_real);
     if (!email || points <= 0) return 0;
     await conn.query(`
       INSERT INTO loyalty_points (customer_email, customer_name, points, total_earned)
@@ -111,8 +115,8 @@ const loyaltyController = {
   async redeem(req, res) {
     const email = normalizeEmail(req.body.email);
     const points = Number(req.body.points);
-    if (!EMAIL_RE.test(email) || !Number.isInteger(points) || points < POINTS_PER_DISCOUNT || points > MAX_BONUS) {
-      return res.status(400).json({ error: `Informe o e-mail e no mínimo ${POINTS_PER_DISCOUNT} pontos` });
+    if (!EMAIL_RE.test(email) || !Number.isInteger(points) || points < MIN_ADMIN_REDEEM || points > MAX_BONUS) {
+      return res.status(400).json({ error: `Informe o e-mail e no mínimo ${MIN_ADMIN_REDEEM} pontos` });
     }
     const conn = await pool.getConnection();
     try {
@@ -126,7 +130,7 @@ const loyaltyController = {
         await conn.rollback();
         return res.status(400).json({ error: 'Pontos insuficientes' });
       }
-      const discount = points / POINTS_PER_DISCOUNT;
+      const discount = points / (await loyaltyConfig()).points_per_real_discount;
       await conn.query(
         'INSERT INTO loyalty_transactions (customer_email, type, points, description) VALUES (?, ?, ?, ?)',
         [email, 'redeem', -points, `Resgate de ${points} pontos = R$ ${discount.toFixed(2)} de desconto`]

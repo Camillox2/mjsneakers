@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { motion, AnimatePresence, MotionConfig } from 'framer-motion'
 import { FiMail, FiX, FiCheck } from 'react-icons/fi'
-import axios from 'axios'
+import api, { captchaHeaders, isCaptchaError } from '../../services/api'
 import { cometShower } from '../../lib/comets'
+import Turnstile, { useTurnstile } from '../Turnstile/Turnstile'
+import PrivacyModal from '../PrivacyModal/PrivacyModal'
 import styles from './Newsletter.module.css'
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:3305/api'
 const EASE = [0.22, 1, 0.36, 1]
 
 // O backend responde a inscrição de três jeitos:
@@ -22,15 +23,22 @@ export default function Newsletter({ variant = 'footer' }) {
   const [email, setEmail] = useState('')
   const [status, setStatus] = useState('idle') // idle | loading | success | already | error
   const [msg, setMsg] = useState('')
+  const [privacyOpen, setPrivacyOpen] = useState(false)
+  // captcha só entra em cena quando a pessoa vai digitar (o script da
+  // Cloudflare não baixa para quem só passa pela seção)
+  const captcha = useTurnstile()
+  const [armed, setArmed] = useState(false)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!email.trim() || status === 'loading') return
     // a chuva de cometas cai dentro da seção (ou da janela) da inscrição
     const zone = e.currentTarget.closest('section, [role="dialog"]')
+    setArmed(true)
     setStatus('loading')
     try {
-      const res = await axios.post(`${API}/newsletter/subscribe`, { email: email.trim() })
+      const token = await captcha.getToken()
+      const res = await api.post('/newsletter/subscribe', { email: email.trim() }, captchaHeaders(token))
       const kind = res.data?.status === 'returning' ? 'returning' : 'subscribed'
       const box = zone?.getBoundingClientRect()
       cometShower(box && box.width ? box : null, { count: 18, duration: 1500 })
@@ -44,8 +52,9 @@ export default function Newsletter({ variant = 'footer' }) {
         setMsg(MESSAGES.already)
         return
       }
+      if (isCaptchaError(err)) captcha.reset()
       setStatus('error')
-      setMsg(err.response?.data?.error || err.response?.data?.message || 'Não deu para inscrever agora. Tente de novo.')
+      setMsg(err.response?.data?.error || err.response?.data?.message || err.message || 'Não deu para inscrever agora. Tente de novo.')
     }
   }
 
@@ -60,8 +69,21 @@ export default function Newsletter({ variant = 'footer' }) {
 
   const msgClass = status === 'error' ? styles.msgError : status === 'already' ? styles.msgNeutral : styles.msgSuccess
 
+  const consent = (
+    <p className={styles.consent}>
+      Ao se inscrever, você concorda com a{' '}
+      <button type="button" className={styles.consentLink} onClick={() => setPrivacyOpen(true)}>Política de privacidade</button>.
+      <PrivacyModal isOpen={privacyOpen} onClose={() => setPrivacyOpen(false)} />
+    </p>
+  )
+
   if (variant === 'popup') {
-    return <NewsletterPopup onSubmit={handleSubmit} email={email} setEmail={typeEmail} status={status} msg={msg} msgClass={msgClass} />
+    return (
+      <NewsletterPopup onSubmit={handleSubmit} email={email} setEmail={typeEmail} status={status} msg={msg} msgClass={msgClass} onArm={() => setArmed(true)}>
+        {armed && <Turnstile captcha={captcha} />}
+        {consent}
+      </NewsletterPopup>
+    )
   }
 
   const busy = status === 'loading' || status === 'success'
@@ -86,6 +108,7 @@ export default function Newsletter({ variant = 'footer' }) {
               placeholder="voce@email.com"
               value={email}
               onChange={e => typeEmail(e.target.value)}
+              onFocus={() => setArmed(true)}
               className={styles.input}
               disabled={busy}
             />
@@ -93,6 +116,8 @@ export default function Newsletter({ variant = 'footer' }) {
               {status === 'loading' ? 'Enviando...' : status === 'success' ? <><FiCheck aria-hidden="true" /> Inscrito</> : 'Inscrever'}
             </button>
           </form>
+          {armed && <Turnstile captcha={captcha} />}
+          {consent}
           <div aria-live="polite">
             <AnimatePresence>
               {msg && (
@@ -115,7 +140,7 @@ export default function Newsletter({ variant = 'footer' }) {
   )
 }
 
-function NewsletterPopup({ onSubmit, email, setEmail, status, msg, msgClass }) {
+function NewsletterPopup({ onSubmit, email, setEmail, status, msg, msgClass, onArm, children }) {
   const [closed, setClosed] = useState(false)
 
   if (closed) return null
@@ -159,6 +184,7 @@ function NewsletterPopup({ onSubmit, email, setEmail, status, msg, msgClass }) {
                 placeholder="voce@email.com"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
+                onFocus={onArm}
                 className={styles.input}
                 disabled={busy}
               />
@@ -166,6 +192,7 @@ function NewsletterPopup({ onSubmit, email, setEmail, status, msg, msgClass }) {
                 {status === 'loading' ? 'Enviando...' : status === 'success' ? <><FiCheck aria-hidden="true" /> Inscrito</> : 'Quero o cupom'}
               </button>
             </form>
+            {children}
             {msg && (
               <p className={`${styles.msg} ${msgClass}`} aria-live="polite">{msg}</p>
             )}

@@ -26,6 +26,10 @@ const path = require('path');
 const { initDatabase, pool } = require('./config/db');
 const { stockRoutes, supplierRoutes } = require('./routes/stock');
 const { setupChatSocket } = require('./socket/chatSocket');
+const { sweepUnpaidOrders } = require('./services/paymentService');
+const { captureBackendError, installProcessHandlers } = require('./utils/errorLog');
+const { scheduleBackups } = require('./utils/backup');
+const { syncPendingInvoices } = require('./services/invoiceService');
 
 const app = express();
 const server = http.createServer(app);
@@ -48,9 +52,15 @@ const allowedOrigins = process.env.CORS_ORIGINS
   : ['http://localhost:5173', 'http://localhost:4173', 'http://localhost:3305'];
 
 // Socket.io (chat ao vivo): autenticação e regras em socket/chatSocket.js
+// allowRequest: o handshake (inclusive o WebSocket, que não passa pelo CORS)
+// só é aceito de origem da lista; sem Origin (script, app) segue.
 const io = new Server(server, {
   cors: { origin: allowedOrigins, methods: ['GET', 'POST'], credentials: true },
   maxHttpBufferSize: 16 * 1024,
+  allowRequest: (req, callback) => {
+    const origin = req.headers.origin;
+    callback(null, !origin || allowedOrigins.includes(origin));
+  },
 });
 setupChatSocket(io);
 
@@ -64,6 +74,8 @@ app.use(cors({
   },
   credentials: true,
 }));
+// Monitor de "site no ar": fora do limite global (consulta a cada minuto).
+app.use('/api/health', require('./routes/health'));
 app.use(rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 2000,
@@ -106,8 +118,16 @@ app.use('/api/stock', stockRoutes);
 app.use('/api/suppliers', supplierRoutes);
 app.use('/api/appearance', require('./routes/appearance'));
 app.use('/api/checkout', require('./routes/checkout'));
-
-app.get('/api/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
+app.use('/api/payments', require('./routes/payments'));
+app.use('/api/security', require('./routes/security'));
+app.use('/api/account', require('./routes/account'));
+app.use('/api/privacy', require('./routes/privacy'));
+app.use('/api/legal', require('./routes/legal'));
+app.use('/api/invoices', require('./routes/invoices'));
+app.use('/api/client-errors', require('./routes/clientErrors'));
+app.use('/api/backups', require('./routes/backups'));
+app.use('/api/admin', require('./routes/adminHealth'));
+app.use('/api/admin', require('./routes/emailHealth'));
 
 app.use('/api', (req, res) => res.status(404).json({ error: 'Rota não encontrada' }));
 
@@ -115,7 +135,10 @@ app.use('/api', (req, res) => res.status(404).json({ error: 'Rota não encontrad
 // mensagem; erro inesperado não expõe detalhe interno.
 app.use((err, req, res, _next) => {
   const status = err.status || err.statusCode || 500;
-  if (status >= 500) console.error('Error:', err);
+  if (status >= 500) {
+    console.error('Error:', err);
+    captureBackendError(err, req);
+  }
   if (err.type === 'entity.parse.failed') return res.status(400).json({ error: 'JSON inválido' });
   if (err.type === 'entity.too.large') return res.status(413).json({ error: 'Corpo da requisição muito grande' });
   res.status(status).json({ error: status >= 500 ? 'Erro interno' : (err.message || 'Requisição inválida') });
@@ -124,6 +147,8 @@ app.use((err, req, res, _next) => {
 async function startServer() {
   try {
     await initDatabase();
+    installProcessHandlers();
+    scheduleBackups();
     server.listen(PORT, () => console.log(`MJ Sneakers API running on port ${PORT}`));
     setInterval(async () => {
       try {
@@ -132,6 +157,15 @@ async function startServer() {
         console.error('Cleanup error:', e.message);
       }
     }, 5 * 60 * 1000);
+
+    // Pedidos não pagos: varre ao subir e a cada 5 min (só com pagamento ligado).
+    const runSweep = () => {
+      sweepUnpaidOrders().catch((error) => console.error('Sweep error:', error.message));
+      // Notas fiscais em processamento: consulta o provedor.
+      syncPendingInvoices().catch((error) => console.error('Invoice sync error:', error.message));
+    };
+    runSweep();
+    setInterval(runSweep, 5 * 60 * 1000);
   } catch (error) {
     console.error('Failed to start server:', error);
     process.exit(1);

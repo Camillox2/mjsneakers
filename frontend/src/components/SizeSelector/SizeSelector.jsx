@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo, useId } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { FiAlertCircle, FiAlertTriangle, FiCheck } from 'react-icons/fi'
-import api from '../../services/api'
+import api, { captchaHeaders, isCaptchaError } from '../../services/api'
 import SizeGuide from '../SizeGuide/SizeGuide'
+import Turnstile, { useTurnstile } from '../Turnstile/Turnstile'
 import styles from './SizeSelector.module.css'
 
 const EASE = [0.22, 1, 0.36, 1]
@@ -26,6 +27,8 @@ export default function SizeSelector({ productId, fallbackSizes, selected, onSel
   const [email, setEmail] = useState('')
   const [notified, setNotified] = useState({})       // { [size]: true }
   const [sending, setSending] = useState(false)
+  const [notifyError, setNotifyError] = useState('')
+  const captcha = useTurnstile()
   const [guideOpen, setGuideOpen] = useState(false)
   const labelId = useId()
   const emailId = useId()
@@ -82,14 +85,18 @@ export default function SizeSelector({ productId, fallbackSizes, selected, onSel
     if (sample) return
     if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return
     setSending(true)
+    setNotifyError('')
     try {
+      const token = await captcha.getToken()
       // com o tamanho, o aviso sai quando aquele número volta (não qualquer um)
-      await api.post('/stock-alerts/subscribe', { product_id: productId, size: String(size), email: email.trim().toLowerCase() })
+      await api.post('/stock-alerts/subscribe', { product_id: productId, size: String(size), email: email.trim().toLowerCase() }, captchaHeaders(token))
       setNotified(prev => ({ ...prev, [size]: true }))
       setNotifyFor(null)
       setEmail('')
-    } catch {
-      /* mantém o form aberto para nova tentativa */
+    } catch (err) {
+      // mantém o form aberto para nova tentativa
+      if (isCaptchaError(err)) captcha.reset()
+      setNotifyError(err.response?.data?.error || err.message || 'Não deu para cadastrar o aviso agora. Tente de novo.')
     } finally {
       setSending(false)
     }
@@ -202,6 +209,8 @@ export default function SizeSelector({ productId, fallbackSizes, selected, onSel
                       {sending ? 'Enviando…' : 'Me avise'}
                     </button>
                   </div>
+                  <Turnstile captcha={captcha} />
+                  {notifyError && <p className={styles.error} role="alert"><FiAlertCircle aria-hidden /> {notifyError}</p>}
                 </>
               )}
             </div>

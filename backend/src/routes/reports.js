@@ -6,6 +6,8 @@ const { requireAdmin } = require('../middleware/auth');
 router.use(...requireAdmin);
 
 const num = (value) => Number(value) || 0;
+// Receita conta só pedido pago ou em andamento ('pending' = aguardando pagamento).
+const PAID = "('confirmed','processing','shipped','delivered')";
 
 // Receita por marca: soma dos itens (preço x quantidade), sem frete e sem
 // pedidos cancelados.
@@ -17,7 +19,7 @@ router.get('/revenue-by-brand', async (req, res) => {
         COALESCE(SUM(oi.quantity), 0) as quantity,
         COUNT(DISTINCT o.id) as orders
       FROM order_items oi
-      JOIN orders o ON o.id = oi.order_id AND o.status <> 'cancelled'
+      JOIN orders o ON o.id = oi.order_id AND o.status IN ${PAID}
       LEFT JOIN products p ON p.id = oi.product_id
       LEFT JOIN brands b ON b.id = p.brand_id
       GROUP BY COALESCE(b.name, 'Sem marca') ORDER BY revenue DESC
@@ -30,7 +32,7 @@ router.get('/hourly-heatmap', async (req, res) => {
   try {
     const [rows] = await pool.query(`
       SELECT DAYOFWEEK(created_at)-1 as day, HOUR(created_at) as hour, COUNT(*) as orders
-      FROM orders WHERE created_at >= DATE_SUB(NOW(), INTERVAL 90 DAY) AND status <> 'cancelled'
+      FROM orders WHERE created_at >= DATE_SUB(NOW(), INTERVAL 90 DAY) AND status IN ${PAID}
       GROUP BY day, hour ORDER BY day, hour
     `);
     res.json(rows.map((row) => ({ day: num(row.day), hour: num(row.hour), orders: num(row.orders) })));
@@ -41,7 +43,7 @@ router.get('/monthly-revenue', async (req, res) => {
   try {
     const [rows] = await pool.query(`
       SELECT DATE_FORMAT(created_at,'%Y-%m') as month,
-        SUM(CASE WHEN status!='cancelled' THEN total ELSE 0 END) as revenue,
+        SUM(CASE WHEN status IN ${PAID} THEN total ELSE 0 END) as revenue,
         COUNT(*) as orders,
         SUM(CASE WHEN status='cancelled' THEN 1 ELSE 0 END) as cancelled
       FROM orders WHERE created_at >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
@@ -59,7 +61,7 @@ router.get('/top-products', async (req, res) => {
         SUM(oi.quantity) as sales,
         SUM(oi.quantity * oi.price) as revenue
       FROM order_items oi
-      JOIN orders o ON o.id = oi.order_id AND o.status != 'cancelled'
+      JOIN orders o ON o.id = oi.order_id AND o.status IN ${PAID}
       LEFT JOIN products p ON p.id = oi.product_id
       LEFT JOIN brands b ON b.id = p.brand_id
       GROUP BY oi.product_id, p.name, b.name ORDER BY revenue DESC LIMIT 10

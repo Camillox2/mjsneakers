@@ -1,6 +1,6 @@
 import { useContext, useEffect, useRef, useState, useId } from 'react'
 import { AnimatePresence, MotionConfig, motion } from 'framer-motion'
-import { FiX, FiMinus, FiPlus, FiTrash2, FiTruck, FiShoppingBag, FiInfo } from 'react-icons/fi'
+import { FiX, FiMinus, FiPlus, FiTrash2, FiTruck, FiShoppingBag, FiInfo, FiClock, FiChevronRight } from 'react-icons/fi'
 import { CartContext } from '../../App'
 import { getImageUrl } from '../../utils/imageHelper'
 import { isSample } from '../../data/drops'
@@ -11,6 +11,8 @@ import api from '../../services/api'
 import styles from './CartDrawer.module.css'
 import { useScrollLock } from '../../lib/useScrollLock'
 import { useBackToClose } from '../../lib/layers'
+import { PENDING_PAYMENT_EVENT, readPendingPayment } from '../../lib/payments'
+import { useAccount } from '../../lib/AccountContext'
 
 const EASE = [0.22, 1, 0.36, 1]
 
@@ -35,6 +37,9 @@ const unitPrice = (item) => {
 export default function CartDrawer() {
   const { cart, cartOpen, setCartOpen, removeFromCart, updateQuantity, cartTotal, clearCart } = useContext(CartContext)
   useScrollLock(cartOpen)
+  // cupons da conta viram fichas no campo de cupom
+  const { customer } = useAccount()
+  const accountCoupons = Array.isArray(customer?.coupons) ? customer.coupons : []
   useBackToClose(cartOpen, () => setCartOpen(false))
   const [coupon, setCoupon] = useState(null)
   // digitando CEP ou cupom no celular: o rodapé preso some para o teclado
@@ -113,13 +118,63 @@ export default function CartDrawer() {
     setCoupon(null)
     setShipInfo(null)
     clearCart()
-    addToast(`Pedido #${order.orderId || order.id} registrado.`, 'success')
+    const id = order.orderId || order.id
+    addToast(order.payment?.status === 'review' ? `Pedido #${id} registrado. O pagamento está em análise.` : `Pedido #${id} registrado.`, 'success')
   }
+
+  // Com pagamento online, o pedido nasce antes de pagar: a sacola esvazia
+  // na hora (os pares agora são do pedido) e o pedido fica esperando aqui.
+  const handleOrderCreated = () => {
+    setCoupon(null)
+    setShipInfo(null)
+    clearCart()
+  }
+
+  // Pedido esperando pagamento nesta aba (sessionStorage).
+  const [pending, setPending] = useState(() => readPendingPayment())
+  const [resume, setResume] = useState(null)
+  useEffect(() => {
+    const sync = () => setPending(readPendingPayment())
+    window.addEventListener(PENDING_PAYMENT_EVENT, sync)
+    // recarregou no meio do pagamento: a etapa de pagamento volta sozinha
+    const first = readPendingPayment()
+    if (first?.open) {
+      setResume(first)
+      setCheckoutOpen(true)
+    }
+    return () => window.removeEventListener(PENDING_PAYMENT_EVENT, sync)
+  }, [])
 
   const openCheckout = () => {
     if (hasSample || !cart.length) return
+    setResume(null)
     setCheckoutOpen(true)
   }
+
+  const payPending = () => {
+    const current = readPendingPayment()
+    if (!current) return
+    setResume(current)
+    setCheckoutOpen(true)
+  }
+
+  const closeCheckout = () => {
+    setCheckoutOpen(false)
+    setResume(null)
+  }
+
+  const pendingCard = pending && !checkoutOpen && (
+    <div className={styles.pending} role="status">
+      <span className={styles.pendingIcon} aria-hidden><FiClock /></span>
+      <span className={styles.pendingText}>
+        <span className={styles.pendingTitle}>Pedido #{pending.id} esperando pagamento</span>
+        <span className={styles.pendingSub}>{formatPrice(pending.total)} · Pix ou cartão</span>
+      </span>
+      <button type="button" className={`pz-btn ${styles.pendingBtn}`} onClick={payPending}>
+        Pagar <FiChevronRight aria-hidden />
+      </button>
+    </div>
+  )
 
   // Cupom e frete valem para o subtotal em que foram calculados. Se a sacola
   // muda, somem (cupom pode ter mínimo, frete grátis depende do valor) e a
@@ -181,6 +236,7 @@ export default function CartDrawer() {
                 onFocus={(e) => e.target.tagName === 'INPUT' && setTyping(true)}
                 onBlur={(e) => e.target.tagName === 'INPUT' && setTyping(false)}
               >
+                {pendingCard}
                 {cart.length === 0 ? (
                   <div className={styles.empty}>
                     <span className={styles.emptyIcon} aria-hidden><FiShoppingBag /></span>
@@ -301,6 +357,7 @@ export default function CartDrawer() {
                       <CouponInput
                         subtotal={cartTotal}
                         appliedCoupon={coupon}
+                        suggestions={accountCoupons}
                         onApply={(c) => setCoupon({ ...c, subtotal: cartTotal })}
                         onRemove={() => setCoupon(null)}
                       />
@@ -363,10 +420,12 @@ export default function CartDrawer() {
 
     <CheckoutModal
       isOpen={checkoutOpen}
-      onClose={() => setCheckoutOpen(false)}
+      onClose={closeCheckout}
       cartItems={cart}
       coupon={coupon}
       onSuccess={handleCheckoutSuccess}
+      onOrderCreated={handleOrderCreated}
+      resume={resume}
     />
     </>
   )

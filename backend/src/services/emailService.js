@@ -9,9 +9,24 @@ function esc(value) {
   }[c]));
 }
 
+// Assinatura DKIM: liga com DKIM_DOMAIN, DKIM_SELECTOR e DKIM_PRIVATE_KEY
+// (PEM; aceita \n escapado de uma linha só).
+function dkimOptions() {
+  const { DKIM_SELECTOR, DKIM_PRIVATE_KEY } = process.env;
+  // Sem DKIM_DOMAIN, vale o domínio do EMAIL_FROM (o mesmo que a saúde do e-mail confere).
+  const fromDomain = (String(process.env.EMAIL_FROM || '').match(/@([A-Za-z0-9.-]+\.[A-Za-z]{2,})/) || [])[1];
+  const domain = process.env.DKIM_DOMAIN || (fromDomain && fromDomain.toLowerCase());
+  if (!domain || !DKIM_SELECTOR || !DKIM_PRIVATE_KEY) return undefined;
+  return {
+    domainName: domain,
+    keySelector: DKIM_SELECTOR,
+    privateKey: DKIM_PRIVATE_KEY.replace(/\\n/g, '\n'),
+  };
+}
+
 function createTransporter() {
   if (process.env.EMAIL_HOST) {
-    return nodemailer.createTransport({
+    const options = {
       host: process.env.EMAIL_HOST,
       port: parseInt(process.env.EMAIL_PORT) || 587,
       secure: process.env.EMAIL_SECURE === 'true',
@@ -19,10 +34,22 @@ function createTransporter() {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
       },
-    });
+    };
+    const dkim = dkimOptions();
+    if (dkim) options.dkim = dkim;
+    return nodemailer.createTransport(options);
   }
   // Fallback: Ethereal fake SMTP para desenvolvimento
   return null;
+}
+
+// Remetente: EMAIL_FROM como veio ("Loja <x@y>" ou só o e-mail, que ganha o
+// nome da loja); sem ele, o usuário do SMTP.
+function senderAddress() {
+  const from = String(process.env.EMAIL_FROM || '').trim();
+  if (from.includes('<')) return from;
+  const address = from || process.env.EMAIL_USER || '';
+  return `"Pizantt Drop" <${address}>`;
 }
 
 const baseStyle = `
@@ -113,6 +140,16 @@ function orderConfirmationEmail(order, items) {
         <tr>
           <td style="padding:8px 0; color:#10b981;">Desconto (${esc(order.coupon_code)})</td>
           <td style="text-align:right; color:#10b981;">-${formatPrice(order.discount_amount)}</td>
+        </tr>` : ''}
+        ${Number(order.points_discount) > 0 ? `
+        <tr>
+          <td style="padding:8px 0; color:#10b981;">Pontos usados (${esc(order.points_used)})</td>
+          <td style="text-align:right; color:#10b981;">-${formatPrice(order.points_discount)}</td>
+        </tr>` : ''}
+        ${Number(order.pix_discount_amount) > 0 ? `
+        <tr>
+          <td style="padding:8px 0; color:#10b981;">Desconto do Pix</td>
+          <td style="text-align:right; color:#10b981;">-${formatPrice(order.pix_discount_amount)}</td>
         </tr>` : ''}
         <tr>
           <td style="padding:8px 0; color:#666;">Frete (${esc(order.shipping_type || 'Standard')})</td>
@@ -319,6 +356,74 @@ function stockAlertEmail(email, product) {
   return { subject: `🔔 ${product.name} voltou ao estoque! – MJ Sneakers`, html: wrapEmail('Produto Disponível', body) };
 }
 
+// Código de 6 dígitos (entrar na conta, apagar a conta, confirmar pedido LGPD).
+function verificationCodeEmail({ code, purpose }) {
+  const titles = {
+    login: 'Seu código para entrar',
+    delete: 'Confirme a exclusão da sua conta',
+    privacy: 'Confirme seu pedido sobre dados pessoais',
+  };
+  const title = titles[purpose] || titles.login;
+  const body = `
+    <h2 style="margin:0 0 8px;">${esc(title)}</h2>
+    <p style="color:#555; margin:0 0 20px;">Use o código abaixo. Ele vale por pouco tempo e só pode ser usado uma vez.</p>
+    <div style="background:#000; border-radius:12px; padding:24px; margin:24px 0; text-align:center;">
+      <p style="color:#fff; margin:0; font-size:32px; font-weight:bold; letter-spacing:8px;">${esc(code)}</p>
+    </div>
+    <p style="color:#888; font-size:13px;">Se não foi você que pediu, ignore este e-mail.</p>
+  `;
+  return { subject: `${title}: ${code}`, html: wrapEmail(title, body) };
+}
+
+// Nota fiscal autorizada: link do DANFE para o cliente.
+function invoiceEmail(order, invoice) {
+  const body = `
+    <h2 style="margin:0 0 8px;">Sua nota fiscal está pronta</h2>
+    <p style="color:#555; margin:0 0 20px;">Olá, <strong>${esc(order.customer_name)}</strong>! A nota fiscal do pedido <strong>#${esc(order.id)}</strong> foi autorizada.</p>
+    <p style="color:#555; margin:0 0 20px;">Número ${esc(invoice.number || '')}, série ${esc(invoice.series || '')}.</p>
+    ${invoice.danfe_url ? `
+    <div style="text-align:center;">
+      <a href="${esc(invoice.danfe_url)}"
+         style="background:#000; color:#fff; padding:12px 28px; border-radius:8px; text-decoration:none; font-weight:bold; display:inline-block;">
+        Ver a nota (DANFE)
+      </a>
+    </div>` : ''}
+  `;
+  return { subject: `Nota fiscal do pedido #${order.id}`, html: wrapEmail('Nota fiscal', body) };
+}
+
+// Aviso para a equipe sobre pagamento que pede ação (pagamento aprovado em
+// pedido já cancelado, pagamento em dobro).
+function paymentAlertEmail({ orderId, title, text }) {
+  const body = `
+    <h2 style="margin:0 0 8px;">${esc(title)}</h2>
+    <p style="color:#555; margin:0 0 20px;">Pedido <strong>#${esc(orderId)}</strong>. ${esc(text)}</p>
+    <div style="text-align:center;">
+      <a href="${esc(storeUrl('/admin'))}"
+         style="background:#000; color:#fff; padding:12px 28px; border-radius:8px; text-decoration:none; font-weight:bold; display:inline-block;">
+        Abrir o painel
+      </a>
+    </div>
+  `;
+  return { subject: `[Pagamento] ${title}: pedido #${orderId}`, html: wrapEmail(title, body) };
+}
+
+// Aviso para a equipe: pedido de titular (LGPD) confirmado pelo e-mail.
+// Sem o e-mail do titular no aviso: os dados ficam no painel.
+function privacyRequestEmail({ id, typeLabel }) {
+  const body = `
+    <h2 style="margin:0 0 8px;">Novo pedido sobre dados pessoais</h2>
+    <p style="color:#555; margin:0 0 20px;">O pedido <strong>#${esc(id)}</strong> (${esc(typeLabel)}) foi confirmado pelo titular. A LGPD pede resposta em até 15 dias.</p>
+    <div style="text-align:center;">
+      <a href="${esc(storeUrl('/admin'))}"
+         style="background:#000; color:#fff; padding:12px 28px; border-radius:8px; text-decoration:none; font-weight:bold; display:inline-block;">
+        Abrir o painel
+      </a>
+    </div>
+  `;
+  return { subject: `[LGPD] Pedido #${id}: ${typeLabel}`, html: wrapEmail('Pedido sobre dados pessoais', body) };
+}
+
 // Aviso para a equipe: cliente escreveu no chat e não havia ninguém online.
 function chatWaitingEmail({ customerName, customerEmail, excerpt }) {
   const body = `
@@ -342,15 +447,20 @@ function chatWaitingEmail({ customerName, customerEmail, excerpt }) {
 }
 
 // ── Send helper ──
+// Código de verificação vai no assunto; no log, não.
+function logSubject(subject) {
+  return String(subject || '').replace(/\b\d{6}\b/g, '******');
+}
+
 async function sendEmail(to, { subject, html }) {
   const transporter = createTransporter();
   if (!transporter) {
-    console.log('[Email] Nenhum transporte configurado. Email que seria enviado:', { to, subject });
+    console.log('[Email] Nenhum transporte configurado. Email que seria enviado:', { to, subject: logSubject(subject) });
     return { skipped: true };
   }
   try {
     const info = await transporter.sendMail({
-      from: `"MJ Sneakers" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
+      from: senderAddress(),
       to,
       subject,
       html,
@@ -358,7 +468,7 @@ async function sendEmail(to, { subject, html }) {
     console.log('[Email] Enviado:', info.messageId);
     return info;
   } catch (err) {
-    console.error('[Email] Erro ao enviar:', subject, '|', err.message);
+    console.error('[Email] Erro ao enviar:', logSubject(subject), '|', err.message);
     return null;
   }
 }
@@ -371,4 +481,10 @@ module.exports = {
   newsletterWelcomeEmail,
   stockAlertEmail,
   chatWaitingEmail,
+  paymentAlertEmail,
+  privacyRequestEmail,
+  verificationCodeEmail,
+  invoiceEmail,
+  dkimOptions,
+  senderAddress,
 };

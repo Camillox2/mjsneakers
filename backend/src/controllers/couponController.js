@@ -43,7 +43,17 @@ function readCoupon(body, { partial }) {
       return { error: 'Validade inválida' };
     }
   }
-  for (const flag of ['active', 'once_per_email']) {
+  if (body.description !== undefined) {
+    const text = body.description === null ? '' : String(body.description).trim();
+    if (text.length > 160) return { error: 'Descrição deve ter no máximo 160 caracteres' };
+    fields.description = text || null;
+  }
+  if (body.customer_email !== undefined) {
+    const email = body.customer_email === null ? '' : String(body.customer_email).toLowerCase().trim();
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: 'customer_email inválido' };
+    fields.customer_email = email || null;
+  }
+  for (const flag of ['active', 'once_per_email', 'visible_in_account']) {
     if (body[flag] === undefined) continue;
     const value = toBool(body[flag]);
     if (value === undefined) return { error: `${flag} deve ser booleano` };
@@ -53,7 +63,9 @@ function readCoupon(body, { partial }) {
 }
 
 function formatCoupon(row) {
-  return { ...row, active: Boolean(row.active), once_per_email: Boolean(row.once_per_email) };
+  return {
+    ...row, active: Boolean(row.active), once_per_email: Boolean(row.once_per_email), visible_in_account: Boolean(row.visible_in_account),
+  };
 }
 
 const couponController = {
@@ -134,6 +146,10 @@ const couponController = {
       const [rows] = await pool.query('SELECT * FROM coupons WHERE code = ?', [String(code).toUpperCase().trim()]);
       const coupon = rows[0];
       if (!coupon || !coupon.active) return res.status(404).json({ error: 'Cupom inválido ou expirado' });
+      // Cupom exclusivo de um e-mail: sem o e-mail certo, é como se não existisse.
+      if (coupon.customer_email && coupon.customer_email !== email) {
+        return res.status(404).json({ error: 'Cupom inválido ou expirado' });
+      }
 
       let redeemed = false;
       if (coupon.once_per_email && email) {

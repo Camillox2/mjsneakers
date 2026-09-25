@@ -1,22 +1,26 @@
 import { useState } from 'react'
 import api from '../../services/api'
 import styles from './CouponInput.module.css'
-import { FiTag, FiX } from 'react-icons/fi'
+import { FiGift, FiTag, FiX } from 'react-icons/fi'
 
 const fmt = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(v) || 0)
 
-export default function CouponInput({ subtotal, onApply, onRemove, appliedCoupon }) {
+// suggestions: cupons da conta do cliente (GET /account/me); viram fichas
+// que aplicam o código com um toque. O campo continua para os outros.
+export default function CouponInput({ subtotal, onApply, onRemove, appliedCoupon, suggestions = [] }) {
   const [code, setCode] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const handleApply = async () => {
-    if (!code.trim()) return
+  const handleApply = async (picked) => {
+    const value = String(typeof picked === 'string' ? picked : code).trim().toUpperCase()
+    if (!value) return
+    if (typeof picked === 'string') setCode(value)
     setLoading(true)
     setError('')
     try {
       const { data } = await api.post('/coupons/validate', {
-        code: code.trim().toUpperCase(),
+        code: value,
         orderTotal: subtotal
       })
       onApply && onApply({
@@ -75,10 +79,30 @@ export default function CouponInput({ subtotal, onApply, onRemove, appliedCoupon
             maxLength={30}
           />
         </div>
-        <button type="button" className={styles.btn} onClick={handleApply} disabled={loading || !code.trim()}>
+        <button type="button" className={styles.btn} onClick={() => handleApply()} disabled={loading || !code.trim()}>
           {loading ? 'Aplicando…' : 'Aplicar'}
         </button>
       </div>
+      {suggestions.length > 0 && (
+        <div className={styles.chips} role="group" aria-label="Seus cupons">
+          {suggestions.slice(0, 6).map((s) => {
+            const tooSmall = Number(s.min_order) > 0 && Number(subtotal) < Number(s.min_order)
+            return (
+              <button
+                key={s.code}
+                type="button"
+                className={styles.chip}
+                onClick={() => handleApply(s.code)}
+                disabled={loading || tooSmall}
+                title={tooSmall ? `Pedido a partir de ${fmt(s.min_order)}` : s.description || undefined}
+              >
+                <FiGift aria-hidden /> {s.code}
+                {tooSmall && <span className={styles.chipNote}> · a partir de {fmt(s.min_order)}</span>}
+              </button>
+            )
+          })}
+        </div>
+      )}
       {error && <p className={styles.error} role="alert">{error}</p>}
     </div>
   )

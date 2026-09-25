@@ -88,6 +88,12 @@ async function initDatabase() {
   await ensureColumn(connection, 'users', 'role', "ENUM('super_admin','admin','editor','atendimento') DEFAULT 'admin'");
   // Sobe a cada troca de senha: tokens emitidos antes deixam de valer.
   await ensureColumn(connection, 'users', 'token_version', 'INT NOT NULL DEFAULT 0');
+  // Verificação em duas etapas (TOTP): segredo cifrado (AES-256-GCM), último
+  // passo usado (não aceita o mesmo código duas vezes) e hashes dos códigos de recuperação.
+  await ensureColumn(connection, 'users', 'totp_secret', 'TEXT DEFAULT NULL');
+  await ensureColumn(connection, 'users', 'totp_enabled', 'BOOLEAN NOT NULL DEFAULT FALSE');
+  await ensureColumn(connection, 'users', 'totp_last_step', 'BIGINT DEFAULT NULL');
+  await ensureColumn(connection, 'users', 'totp_recovery', 'TEXT DEFAULT NULL');
 
   await connection.query(`CREATE TABLE IF NOT EXISTS brands (
     id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(100) NOT NULL UNIQUE,
@@ -250,13 +256,15 @@ async function initDatabase() {
     points INT NOT NULL, description VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   )`);
-  // Estorno de pontos de pedido cancelado depois de entregue.
+  // 'reversal': estorno de pontos de pedido cancelado depois de entregue.
+  // 'refund_redeem': devolução dos pontos usados num pedido cancelado.
   const [loyaltyType] = await connection.query("SHOW COLUMNS FROM loyalty_transactions LIKE 'type'");
-  if (loyaltyType.length && !String(loyaltyType[0].Type).includes("'reversal'")) {
+  if (loyaltyType.length && !String(loyaltyType[0].Type).includes("'refund_redeem'")) {
     await connection.query(
-      "ALTER TABLE loyalty_transactions MODIFY COLUMN type ENUM('earn','redeem','expire','bonus','reversal') NOT NULL"
+      "ALTER TABLE loyalty_transactions MODIFY COLUMN type ENUM('earn','redeem','expire','bonus','reversal','refund_redeem') NOT NULL"
     );
   }
+  await ensureIndex(connection, 'loyalty_transactions', 'idx_loyalty_tx_email', 'customer_email(191), created_at');
 
   // ── Live Chat ──
   await connection.query(`CREATE TABLE IF NOT EXISTS chat_sessions (
@@ -394,6 +402,40 @@ async function initDatabase() {
   await ensureColumn(connection, 'orders', 'loyalty_awarded', 'BOOLEAN DEFAULT FALSE');
   await ensureColumn(connection, 'orders', 'loyalty_reversed', 'BOOLEAN DEFAULT FALSE');
 
+  // ── Pagamento online (Mercado Pago) ──
+  await ensureColumn(connection, 'orders', 'payment_status',
+    "ENUM('unpaid','pending','approved','rejected','refunded','charged_back','expired') DEFAULT 'unpaid'");
+  await ensureColumn(connection, 'orders', 'payment_method', 'VARCHAR(20) DEFAULT NULL');
+  await ensureColumn(connection, 'orders', 'payment_installments', 'INT DEFAULT NULL');
+  await ensureColumn(connection, 'orders', 'paid_at', 'DATETIME DEFAULT NULL');
+  // sha256 do token que a loja recebe ao criar o pedido (o token não fica no banco).
+  await ensureColumn(connection, 'orders', 'access_token_hash', 'CHAR(64) DEFAULT NULL');
+  await ensureColumn(connection, 'orders', 'pix_discount_amount', 'DECIMAL(10,2) DEFAULT 0');
+  await connection.query(`CREATE TABLE IF NOT EXISTS payments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id INT NOT NULL,
+    provider VARCHAR(20) NOT NULL DEFAULT 'mercadopago',
+    provider_payment_id VARCHAR(40) DEFAULT NULL,
+    method VARCHAR(20),
+    status VARCHAR(30) NOT NULL DEFAULT 'pending',
+    status_detail VARCHAR(80),
+    amount DECIMAL(10,2) NOT NULL,
+    installments INT DEFAULT NULL,
+    qr_code TEXT,
+    qr_code_base64 MEDIUMTEXT,
+    ticket_url VARCHAR(500),
+    expires_at DATETIME DEFAULT NULL,
+    idempotency_key VARCHAR(64) NOT NULL,
+    superseded BOOLEAN NOT NULL DEFAULT FALSE,
+    raw JSON,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_provider_payment (provider_payment_id),
+    KEY idx_payments_order (order_id, id),
+    KEY idx_payments_status_expires (status, expires_at),
+    FOREIGN KEY (order_id) REFERENCES orders(id)
+  )`);
+
   // Cupom de uso único por e-mail (ex.: BEMVINDO10 da newsletter).
   const addedOncePerEmail = await ensureColumn(connection, 'coupons', 'once_per_email', 'BOOLEAN DEFAULT FALSE');
   if (addedOncePerEmail) {
@@ -407,6 +449,91 @@ async function initDatabase() {
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY unique_coupon_email (coupon_id, customer_email),
     FOREIGN KEY (coupon_id) REFERENCES coupons(id) ON DELETE CASCADE
+  )`);
+  // Cupons na conta do cliente: visível na conta, exclusivo de um e-mail
+  // (NULL = todos) e descrição curta.
+  await ensureColumn(connection, 'coupons', 'visible_in_account', 'BOOLEAN NOT NULL DEFAULT FALSE');
+  await ensureColumn(connection, 'coupons', 'customer_email', 'VARCHAR(255) DEFAULT NULL');
+  await ensureColumn(connection, 'coupons', 'description', 'VARCHAR(160) DEFAULT NULL');
+
+  // ── Conta do cliente (login por código, sem senha) ──
+  await connection.query(`CREATE TABLE IF NOT EXISTS customers (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    name VARCHAR(255),
+    phone VARCHAR(50),
+    marketing_opt_in BOOLEAN NOT NULL DEFAULT FALSE,
+    token_version INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_login_at DATETIME DEFAULT NULL,
+    deleted_at DATETIME DEFAULT NULL
+  )`);
+  await connection.query(`CREATE TABLE IF NOT EXISTS customer_login_codes (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    email VARCHAR(255) NOT NULL,
+    purpose VARCHAR(20) NOT NULL DEFAULT 'login',
+    code_hash CHAR(64) NOT NULL,
+    attempts INT NOT NULL DEFAULT 0,
+    expires_at DATETIME NOT NULL,
+    used_at DATETIME DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    KEY idx_login_codes_email (email(191), purpose, created_at)
+  )`);
+  await connection.query(`CREATE TABLE IF NOT EXISTS customer_wishlist (
+    customer_id INT NOT NULL,
+    product_id INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (customer_id, product_id),
+    FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+  )`);
+  // Pontos usados como desconto no pedido (e se já voltaram no cancelamento).
+  await ensureColumn(connection, 'orders', 'points_used', 'INT NOT NULL DEFAULT 0');
+  await ensureColumn(connection, 'orders', 'points_discount', 'DECIMAL(10,2) NOT NULL DEFAULT 0');
+  await ensureColumn(connection, 'orders', 'points_refunded', 'BOOLEAN NOT NULL DEFAULT FALSE');
+
+  // ── LGPD: pedidos de titular e anonimização ──
+  await connection.query(`CREATE TABLE IF NOT EXISTS privacy_requests (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    type ENUM('access','correction','deletion','revoke_marketing') NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    message TEXT,
+    status ENUM('pending_verification','open','done','rejected') NOT NULL DEFAULT 'pending_verification',
+    code_hash CHAR(64) DEFAULT NULL,
+    code_expires_at DATETIME DEFAULT NULL,
+    attempts INT NOT NULL DEFAULT 0,
+    verified_at DATETIME DEFAULT NULL,
+    admin_note TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    KEY idx_privacy_status (status, created_at),
+    KEY idx_privacy_email (email(191))
+  )`);
+  await ensureColumn(connection, 'orders', 'anonymized_at', 'DATETIME DEFAULT NULL');
+  await ensureColumn(connection, 'orders', 'privacy_note', 'VARCHAR(120) DEFAULT NULL');
+
+  // ── Nota fiscal (NF-e) ──
+  await ensureColumn(connection, 'products', 'ncm', 'VARCHAR(8) DEFAULT NULL');
+  await ensureColumn(connection, 'products', 'origin', 'VARCHAR(1) DEFAULT NULL');
+  await ensureColumn(connection, 'products', 'gtin', 'VARCHAR(14) DEFAULT NULL');
+  await connection.query(`CREATE TABLE IF NOT EXISTS invoices (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id INT NOT NULL,
+    provider VARCHAR(20) NOT NULL DEFAULT 'focusnfe',
+    ref VARCHAR(60) NOT NULL UNIQUE,
+    status ENUM('processing','authorized','cancelled','error') NOT NULL DEFAULT 'processing',
+    number VARCHAR(20) DEFAULT NULL,
+    series VARCHAR(5) DEFAULT NULL,
+    access_key VARCHAR(44) DEFAULT NULL,
+    danfe_url VARCHAR(500) DEFAULT NULL,
+    xml_url VARCHAR(500) DEFAULT NULL,
+    error_message VARCHAR(1000) DEFAULT NULL,
+    emailed_at DATETIME DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    KEY idx_invoices_order (order_id, id),
+    KEY idx_invoices_status (status),
+    FOREIGN KEY (order_id) REFERENCES orders(id)
   )`);
 
   // ── Visual site editor ──
@@ -470,6 +597,13 @@ async function initDatabase() {
     ],
     footer_texts: { email: '', phone: '', instagram: '', address: '', credits: '' },
     active_theme_id: '',
+    // Programa de pontos: 10 pontos por real; 100 pontos = R$ 1; até 30% do
+    // subtotal; mínimo de 500 pontos para usar.
+    loyalty_enabled: 'true',
+    loyalty_points_per_real: '10',
+    loyalty_points_per_real_discount: '100',
+    loyalty_max_redeem_percent: '30',
+    loyalty_min_redeem: '500',
   };
   for (const [key, value] of Object.entries(visualSettingDefaults)) {
     const serialized = typeof value === 'object' ? JSON.stringify(value) : String(value);
@@ -503,6 +637,7 @@ async function initDatabase() {
   await ensureIndex(connection, 'chat_messages', 'idx_chat_messages_session', 'session_id, id');
   await ensureIndex(connection, 'chat_sessions', 'idx_chat_sessions_status_updated', 'status, updated_at');
   await ensureIndex(connection, 'audit_logs', 'idx_audit_logs_entity_action', 'entity, action');
+  await ensureIndex(connection, 'orders', 'idx_orders_status_payment', 'status, payment_status, created_at');
 
   // ── Seed admin (first run only) ──
   // Sem ADMIN_DEFAULT_PASSWORD, gera uma senha aleatória e mostra uma única

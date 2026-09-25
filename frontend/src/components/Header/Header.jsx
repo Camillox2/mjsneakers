@@ -1,8 +1,9 @@
 import { useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
-import { FiHeart, FiLogOut, FiMenu, FiSearch, FiShoppingBag, FiUser, FiX } from 'react-icons/fi'
-import { AuthContext, CartContext, SearchContext, WishlistContext } from '../../App'
+import { FiHeart, FiMenu, FiSearch, FiShoppingBag, FiUser, FiX } from 'react-icons/fi'
+import { CartContext, SearchContext, WishlistContext } from '../../App'
+import { useAccount } from '../../lib/AccountContext'
 import { getImageUrl } from '../../utils/imageHelper'
 import { SAMPLE_PRODUCTS } from '../../data/drops'
 import { BRAND } from '../../config/brand'
@@ -19,7 +20,8 @@ const EASE = [0.22, 1, 0.36, 1]
 
 export default function Header() {
   const { cartCount, setCartOpen } = useContext(CartContext)
-  const { user, logout } = useContext(AuthContext)
+  // conta do cliente: o ícone de pessoa leva para /conta (logado, com um ponto)
+  const { loggedIn: customerIn } = useAccount()
   const { setSearchProduct } = useContext(SearchContext)
   const { wishlist, setWishlistOpen } = useContext(WishlistContext)
   const navigate = useNavigate()
@@ -216,6 +218,15 @@ export default function Header() {
               {wishlist.length > 0 && <span className={styles.badge}>{wishlist.length}</span>}
             </button>
 
+            <Link
+              to="/conta"
+              className={`${styles.iconBtn} ${customerIn ? styles.signedIn : ''}`}
+              aria-label={customerIn ? 'Minha conta' : 'Entrar na minha conta'}
+              onClick={() => setMenuOpen(false)}
+            >
+              <FiUser />
+            </Link>
+
             <button
               type="button"
               data-pz-cart
@@ -229,16 +240,6 @@ export default function Header() {
               <FiShoppingBag />
               {cartCount > 0 && <span className={styles.badge}>{cartCount}</span>}
             </button>
-
-            {user ? (
-              <button type="button" className={`${styles.iconBtn} ${styles.hideSm}`} onClick={logout} aria-label="Sair">
-                <FiLogOut />
-              </button>
-            ) : (
-              <button type="button" className={`${styles.iconBtn} ${styles.hideSm}`} onClick={() => navigate('/admin')} aria-label="Painel da loja">
-                <FiUser />
-              </button>
-            )}
 
             <button
               type="button"
@@ -272,6 +273,7 @@ export default function Header() {
                 Loja
               </a>
               <Link to="/rastrear">Rastrear pedido</Link>
+              <Link to="/conta">{customerIn ? 'Minha conta' : 'Entrar'}</Link>
               <button
                 type="button"
                 onClick={() => {

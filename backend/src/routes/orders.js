@@ -6,12 +6,26 @@ const orderController = require('../controllers/orderController');
 const { requireAdmin } = require('../middleware/auth');
 const { validateRequest } = require('../utils/validate');
 const { VALID_UFS } = require('../controllers/shippingController');
+const { verifyTurnstile } = require('../middleware/turnstile');
+const { optionalCustomer } = require('../middleware/customerAuth');
 
-// Rate limit: max 5 orders per 15 min per IP
+// Rate limit: no máximo 6 pedidos por IP por hora (pedido não pago segura
+// estoque; o limite por e-mail fica em orderController.create). Só conta o
+// pedido criado: quem erra o preenchimento do checkout não fica travado.
 const checkoutLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 5,
-  message: { error: 'Muitas tentativas. Tente novamente em alguns minutos.' },
+  windowMs: 60 * 60 * 1000,
+  max: 6,
+  skipFailedRequests: true,
+  message: { error: 'Muitos pedidos feitos desta conexão na última hora. Tente novamente mais tarde.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Simulação do total (consulta o CEP): 60 por 10 min por IP.
+const quoteLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 60,
+  message: { error: 'Muitas simulações seguidas. Aguarde um instante.' },
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -35,6 +49,8 @@ const text = (field, max, label) => body(field).isString().withMessage(`${label}
 router.post(
   '/',
   checkoutLimiter,
+  verifyTurnstile,
+  optionalCustomer,
   text('customer_name', 255, 'customer_name'),
   body('customer_email').isString().trim().isEmail().withMessage('customer_email inválido')
     .isLength({ max: 255 }).withMessage('customer_email muito longo'),
@@ -45,6 +61,8 @@ router.post(
   body('items.*.size').isString().trim().notEmpty().withMessage('size é obrigatório').isLength({ max: 10 }),
   body('items.*.quantity').isInt({ min: 1, max: 50 }).withMessage('quantity deve ficar entre 1 e 50').toInt(),
   body('coupon_code').optional({ nullable: true, checkFalsy: true }).isString().trim().isLength({ max: 50 }),
+  body('use_points').optional({ nullable: true, checkFalsy: true }).isInt({ min: 1, max: 100000000 })
+    .withMessage('use_points deve ser um inteiro positivo').toInt(),
   body('shipping_rule_id').optional({ nullable: true, checkFalsy: true }).isInt({ min: 1 })
     .withMessage('shipping_rule_id deve ser um inteiro positivo').toInt(),
   body('shipping_type').optional({ nullable: true }).isString().trim().isLength({ max: 50 }),
@@ -64,6 +82,28 @@ router.post(
   orderController.create
 );
 router.get('/track', trackLimiter, orderController.track);
+
+// Simulação do pedido (sem criar nada): mesmo corpo do POST /orders.
+router.post(
+  '/quote',
+  quoteLimiter,
+  optionalCustomer,
+  body('items').isArray({ min: 1, max: 50 }).withMessage('items deve ser um array com 1 a 50 itens'),
+  body('items.*.product_id').isInt({ min: 1 }).withMessage('product_id deve ser um inteiro positivo').toInt(),
+  body('items.*.size').isString().trim().notEmpty().withMessage('size é obrigatório').isLength({ max: 10 }),
+  body('items.*.quantity').isInt({ min: 1, max: 50 }).withMessage('quantity deve ficar entre 1 e 50').toInt(),
+  body('customer_email').optional({ nullable: true, checkFalsy: true }).isEmail().withMessage('customer_email inválido'),
+  body('coupon_code').optional({ nullable: true, checkFalsy: true }).isString().trim().isLength({ max: 50 }),
+  body('use_points').optional({ nullable: true, checkFalsy: true }).isInt({ min: 1, max: 100000000 }).toInt(),
+  body('address_cep').optional({ nullable: true, checkFalsy: true })
+    .customSanitizer((value) => String(value ?? '').replace(/\D/g, '')).matches(/^\d{8}$/).withMessage('CEP deve ter 8 dígitos'),
+  body('address_state').optional({ nullable: true, checkFalsy: true }).isString().trim().toUpperCase(),
+  body('shipping_rule_id').optional({ nullable: true, checkFalsy: true }).isInt({ min: 1 }).toInt(),
+  body('shipping_type').optional({ nullable: true }).isString().trim().isLength({ max: 50 }),
+  body('gift_wrap').optional().isBoolean().toBoolean(),
+  validateRequest,
+  orderController.quote
+);
 
 // Admin
 router.get('/export/csv', ...requireAdmin, orderController.exportCsv);

@@ -72,6 +72,15 @@
   -webkit-overflow-scrolling: touch;
 }
 
+/* texto do admin (Markdown): títulos menores dentro da janela */
+.md { margin-top: 14px; max-width: none; }
+.md h2 { font-size: var(--pz-fs-l); margin-top: 26px; }
+
+.more {
+  margin-top: 22px;
+  font-size: var(--pz-fs-s);
+}
+
 .updated {
   font-size: var(--pz-fs-s);
   color: var(--pz-text-3);

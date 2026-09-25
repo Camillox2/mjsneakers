@@ -7,7 +7,7 @@ import { PageHeader, Panel, Button, DataTable, ErrorNote, Skeleton, EmptyState, 
 import { Tag } from '../art/Art'
 import s from './sections.module.css'
 
-const EMPTY = { code: '', type: 'percent', value: '10', min_order: '0', max_uses: '0', valid_until: '', active: true, once_per_email: false }
+const EMPTY = { code: '', type: 'percent', value: '10', min_order: '0', max_uses: '0', valid_until: '', active: true, once_per_email: false, visible_in_account: false, customer_email: '', description: '' }
 
 function stateOf(c) {
   if (!c.active) return { label: 'Pausado', tone: 'neutral' }
@@ -26,7 +26,7 @@ export default function Coupons() {
 
   const open = (c) => {
     setErrors({})
-    setEdit(c ? { ...EMPTY, ...c, value: String(Number(c.value)), min_order: String(Number(c.min_order || 0)), max_uses: String(Number(c.max_uses || 0)), valid_until: toLocalInput(c.valid_until), active: !!c.active, once_per_email: !!c.once_per_email } : { ...EMPTY })
+    setEdit(c ? { ...EMPTY, ...c, value: String(Number(c.value)), min_order: String(Number(c.min_order || 0)), max_uses: String(Number(c.max_uses || 0)), valid_until: toLocalInput(c.valid_until), active: !!c.active, once_per_email: !!c.once_per_email, visible_in_account: !!c.visible_in_account, customer_email: c.customer_email || '', description: c.description || '' } : { ...EMPTY })
   }
   const set = (k) => (e) => setEdit(x => ({ ...x, [k]: e?.target ? e.target.value : e }))
 
@@ -36,6 +36,7 @@ export default function Coupons() {
     if (!/^[A-Z0-9_-]{3,30}$/.test(edit.code.trim().toUpperCase())) e.code = 'Use de 3 a 30 letras, números, - ou _.'
     if (!(value > 0)) e.value = 'Informe um valor maior que zero.'
     else if (edit.type === 'percent' && value > 90) e.value = 'Até 90%.'
+    if (edit.customer_email.trim() && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(edit.customer_email.trim())) e.customer_email = 'E-mail inválido.'
     setErrors(e)
     if (Object.keys(e).length) return
     setSaving(true)
@@ -48,6 +49,9 @@ export default function Coupons() {
       valid_until: edit.valid_until || null,
       active: !!edit.active,
       once_per_email: !!edit.once_per_email,
+      visible_in_account: !!edit.visible_in_account,
+      customer_email: edit.customer_email.trim().toLowerCase() || null,
+      description: edit.description.trim() || null,
     }
     try {
       if (edit.id) await api.put(`/coupons/${edit.id}`, payload)
@@ -94,7 +98,7 @@ export default function Coupons() {
               { key: 'min', header: 'Pedido mínimo', align: 'right', render: c => (Number(c.min_order) > 0 ? money(c.min_order) : 'Sem mínimo') },
               { key: 'uses', header: 'Usos', align: 'right', render: c => `${number(c.used_count || 0)}${Number(c.max_uses) > 0 ? ` de ${number(c.max_uses)}` : ''}${c.once_per_email ? ', 1 por cliente' : ''}` },
               { key: 'until', header: 'Validade', render: c => (c.valid_until ? date(c.valid_until) : 'Sem prazo') },
-              { key: 'st', header: 'Situação', render: c => { const st = stateOf(c); return <Badge tone={st.tone}>{st.label}</Badge> } },
+              { key: 'st', header: 'Situação', render: c => { const st = stateOf(c); return <span style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap' }}><Badge tone={st.tone}>{st.label}</Badge>{c.visible_in_account ? <Badge tone="info">Na conta</Badge> : null}{c.customer_email ? <Badge>Pessoal</Badge> : null}</span> } },
               { key: 'act', header: '', render: c => <Button size="small" variant="ghost" icon={<FiTrash2 />} aria-label={`Excluir ${c.code}`} onClick={() => remove(c)} /> },
             ]}
             empty={<EmptyState art={<Tag />} title="Nenhum cupom" action={<Button variant="primary" icon={<FiPlus />} onClick={() => open(null)}>Criar cupom</Button>}>Crie um código para campanhas, influenciadores ou para quem assina a newsletter.</EmptyState>}
@@ -123,6 +127,9 @@ export default function Coupons() {
               <TextField label="Limite de usos" inputMode="numeric" value={edit.max_uses} onChange={set('max_uses')} hint="0 para sem limite" />
               <TextField label="Vale até" type="datetime-local" value={edit.valid_until} onChange={set('valid_until')} hint="Vazio para sem prazo" />
             </div>
+            <TextField label="Descrição para o cliente" value={edit.description} onChange={set('description')} placeholder="Ex.: 10% no primeiro par" maxLength={160} hint="Aparece na conta do cliente, junto do código." />
+            <Switch checked={edit.visible_in_account} onChange={set('visible_in_account')} label="Mostrar na conta do cliente" description="Aparece em Minha conta, em Pontos e cupons, pronto para usar no checkout." />
+            <TextField label="Só para este cliente (opcional)" type="email" value={edit.customer_email} onChange={set('customer_email')} error={errors.customer_email} placeholder="Vazio: vale para todo mundo" hint="Cupom pessoal: só esse e-mail consegue usar e ver." />
             <Switch checked={edit.once_per_email} onChange={set('once_per_email')} label="Uma vez por cliente" description="Cada e-mail usa este cupom uma vez só." />
             <Switch checked={edit.active} onChange={set('active')} label="Cupom ativo" description="Pausado, ninguém consegue usar." />
           </div>

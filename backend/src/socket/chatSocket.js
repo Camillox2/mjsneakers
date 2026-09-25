@@ -1,10 +1,12 @@
 const { pool } = require('../config/db');
 const { resolveToken, isAdmin } = require('../middleware/auth');
+const { ADMIN_COOKIE, parseCookies } = require('../utils/cookies');
 const { chatWaitingEmail } = require('../services/emailService');
 const { notifyAdmins } = require('../utils/notify');
 
 // Chat ao vivo por Socket.io.
-// - O socket vira admin só com JWT válido de admin em handshake.auth.token.
+// - O socket vira admin só com JWT válido de admin (handshake.auth.token ou
+//   cookie pz_adm). A origem do handshake é conferida no server.js.
 // - Eventos admin:* e session:close exigem admin.
 // - customer:message só vale para a sessão que o próprio socket abriu/entrou.
 // - Cada mensagem é emitida uma única vez para a união das salas envolvidas.
@@ -87,7 +89,9 @@ function setupChatSocket(io) {
   io.use(async (socket, next) => {
     socket.data.isAdmin = false;
     socket.data.sessions = new Set();
-    const token = socket.handshake.auth && socket.handshake.auth.token;
+    // Admin pelo token do handshake ou pelo cookie de sessão pz_adm.
+    const token = (socket.handshake.auth && socket.handshake.auth.token)
+      || parseCookies(socket.handshake.headers.cookie)[ADMIN_COOKIE];
     if (typeof token === 'string' && token) {
       try {
         const user = await resolveToken(token);

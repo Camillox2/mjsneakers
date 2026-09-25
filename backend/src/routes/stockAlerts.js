@@ -3,6 +3,7 @@ const rateLimit = require('express-rate-limit');
 const router = express.Router();
 const stockAlertController = require('../controllers/stockAlertController');
 const { requireAdmin } = require('../middleware/auth');
+const { verifyTurnstile } = require('../middleware/turnstile');
 
 // Rate limit: max 10 avisos por 15 min por IP
 const subscribeLimiter = rateLimit({
@@ -13,7 +14,7 @@ const subscribeLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-router.post('/subscribe', subscribeLimiter, stockAlertController.subscribe);
+router.post('/subscribe', subscribeLimiter, verifyTurnstile, stockAlertController.subscribe);
 router.get('/', ...requireAdmin, stockAlertController.getAll);
 
 module.exports = router;

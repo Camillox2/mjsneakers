@@ -1,14 +1,17 @@
+import QRCode from 'qrcode'
+
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
 
-// Etiqueta de envio 10 cm. O QR leva só ao rastreio público do pedido
-// (nenhum dado pessoal vai para o serviço que desenha o QR).
-export function labelHTML(data) {
+// Etiqueta de envio 10 cm. O QR leva ao rastreio público do pedido e é
+// desenhado aqui mesmo (a política de segurança da loja não deixa carregar
+// imagem de outro site, e nada do pedido sai do navegador).
+export async function labelHTML(data) {
   const a = data.address || {}
   const store = data.store || {}
   const tracking = data.tracking_code || 'SEM RASTREIO'
   const when = new Date(data.generated_at || Date.now()).toLocaleString('pt-BR')
   const trackUrl = data.tracking_url || `${window.location.origin}/rastrear?pedido=${encodeURIComponent(data.order_id)}`
-  const qr = `https://api.qrserver.com/v1/create-qr-code/?size=90x90&margin=0&data=${encodeURIComponent(trackUrl)}`
+  const qr = await QRCode.toDataURL(trackUrl, { margin: 0, width: 180, errorCorrectionLevel: 'M' })
   const rows = (data.items || [])
     .map(it => `<tr><td>${esc(it.name || it.product_name)}</td><td class="c">${esc(it.size)}</td><td class="c">${esc(it.quantity)}</td></tr>`)
     .join('')

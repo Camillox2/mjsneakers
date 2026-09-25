@@ -12,6 +12,7 @@ import {
   Dialog, TextField, SelectField, Switch, Badge, SizeRun, SizeRunEditor, RunLegend, useConfirm, useToast,
 } from '../ui'
 import { ShoeBox } from '../art/Art'
+import { ORIGINS, formatNcm } from './SettingsFiscal'
 import s from './sections.module.css'
 import p from './products.module.css'
 
@@ -315,6 +316,7 @@ const EMPTY = {
   name: '', description: '', price: '', discount_percentage: '0', brand_id: '', category_id: '',
   active: true, featured: false, feature_order: '0', meta_title: '', meta_description: '', tags: '',
   promo_start: '', promo_end: '', weight_g: '', height_cm: '', width_cm: '', length_cm: '',
+  ncm: '', origin: '', gtin: '',
 }
 
 let photoSeq = 0
@@ -356,6 +358,7 @@ function ProductEditor() {
       feature_order: String(d.feature_order ?? 0), meta_title: d.meta_title || '', meta_description: d.meta_description || '',
       tags: d.tags || '', promo_start: toLocalInput(d.promo_start), promo_end: toLocalInput(d.promo_end),
       weight_g: d.weight_g ?? '', height_cm: d.height_cm ?? '', width_cm: d.width_cm ?? '', length_cm: d.length_cm ?? '',
+      ncm: d.ncm ? formatNcm(d.ncm) : '', origin: d.origin != null ? String(d.origin) : '', gtin: d.gtin || '',
     })
     const imgs = d.images || [d.image_url, d.image_url_2, d.image_url_3, d.image_url_4].filter(Boolean)
     setPhotos(imgs.map(photoOf))
@@ -401,6 +404,8 @@ function ProductEditor() {
     const th = parseInt(alert.threshold, 10)
     if (!isNew && (!(th >= 1) || th > 9999)) e.threshold = 'Use um número de 1 a 9999.'
     if (alert.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(alert.email)) e.email = 'E-mail inválido.'
+    if (form.ncm && form.ncm.replace(/\D/g, '').length !== 8) e.ncm = 'O NCM tem 8 números.'
+    if (form.gtin && ![8, 12, 13, 14].includes(form.gtin.replace(/\D/g, '').length)) e.gtin = 'O código de barras tem 8, 12, 13 ou 14 números.'
     setErrors(e)
     return !Object.keys(e).length
   }
@@ -438,6 +443,9 @@ function ProductEditor() {
         height_cm: num(form.height_cm),
         width_cm: num(form.width_cm),
         length_cm: num(form.length_cm),
+        ncm: form.ncm ? form.ncm.replace(/\D/g, '') : null,
+        origin: form.origin === '' ? null : form.origin,
+        gtin: form.gtin ? form.gtin.replace(/\D/g, '') : null,
         image_url: urls[0] || null,
         image_url_2: urls[1] || null,
         image_url_3: urls[2] || null,
@@ -592,6 +600,18 @@ function ProductEditor() {
               <TextField label="Título na busca" value={form.meta_title} onChange={set('meta_title')} maxLength={255} hint={`${form.meta_title.length}/60 recomendados`} />
               <TextField label="Descrição na busca" multiline value={form.meta_description} onChange={set('meta_description')} hint={`${form.meta_description.length}/155 recomendados`} />
               <TextField label="Palavras-chave" value={form.tags} onChange={set('tags')} placeholder="jordan, retrô, vermelho" hint="Separe por vírgula. A busca da loja também usa." />
+            </div>
+          </details>
+
+          <details className={p.more} open={!!(errors.ncm || errors.gtin) || undefined}>
+            <summary>Dados fiscais (nota fiscal)</summary>
+            <div className={p.moreBody}>
+              <div className={s.formRow}>
+                <TextField label="NCM" inputMode="numeric" value={form.ncm} onChange={e => { setForm(f => ({ ...f, ncm: formatNcm(e.target.value) })); setDirty(true) }} placeholder="Vazio: usa o padrão" error={errors.ncm} />
+                <SelectField label="Origem" placeholder="Usar o padrão" value={form.origin} onChange={set('origin')} options={ORIGINS} />
+                <TextField label="Código de barras (GTIN)" inputMode="numeric" value={form.gtin} onChange={e => { setForm(f => ({ ...f, gtin: e.target.value.replace(/\D/g, '').slice(0, 14) })); setDirty(true) }} placeholder="Opcional" error={errors.gtin} />
+              </div>
+              <p className={s.muted} style={{ margin: 0, fontSize: 13.5 }}>Sem NCM próprio, a nota usa o NCM padrão das Configurações. Confirme o NCM do tênis com o contador.</p>
             </div>
           </details>
 

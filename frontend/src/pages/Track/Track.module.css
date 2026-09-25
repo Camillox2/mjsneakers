@@ -280,6 +280,35 @@
   color: var(--pz-text);
 }
 
+.payRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+}
+
+.payBadge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 12px;
+  border-radius: var(--pz-radius-pill);
+  font-size: var(--pz-fs-s);
+  font-weight: 650;
+  border: 1px solid var(--pz-line-strong);
+}
+
+.pay_ok { color: var(--pz-ok); border-color: color-mix(in srgb, var(--pz-ok) 40%, transparent); }
+.pay_warn { color: var(--pz-warn); border-color: color-mix(in srgb, var(--pz-warn) 40%, transparent); }
+.pay_danger { color: var(--pz-danger); border-color: color-mix(in srgb, var(--pz-danger) 40%, transparent); }
+.pay_neutral { color: var(--pz-text-2); }
+
+.payMethod {
+  font-size: var(--pz-fs-s);
+  font-weight: 500;
+  color: var(--pz-text-2);
+}
+
 .num {
   font-stretch: 110%;
   font-variant-numeric: tabular-nums;

@@ -1,11 +1,12 @@
-import { useContext, useState } from 'react'
-import { FiPlus, FiLock } from 'react-icons/fi'
-import { AuthContext } from '../../../App'
+import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
+import { FiPlus, FiLock, FiShield } from 'react-icons/fi'
 import api, { asList } from '../lib/api'
 import { useResource } from '../lib/hooks'
 import { useAdmin } from '../lib/context'
 import { ago } from '../lib/format'
 import { PageHeader, Panel, Button, ErrorNote, Skeleton, Dialog, TextField, SelectField, Badge, Switch, useConfirm, useToast } from '../ui'
+import TwoFactorPanel from './TwoFactor'
 import s from './sections.module.css'
 
 const ROLES = { super_admin: 'Dono', admin: 'Administrador', editor: 'Editor', atendimento: 'Atendimento' }
@@ -24,8 +25,10 @@ export default function Team() {
   const toast = useToast()
   const confirm = useConfirm()
   const { user } = useAdmin()
-  const { login } = useContext(AuthContext)
+  const [params] = useSearchParams()
   const admins = useResource(() => api.get('/auth/admins').then(r => asList(r.data)), [])
+  const policy = useResource(() => api.get('/settings/admin').then(r => r.data?.admin_require_2fa === 'true').catch(() => false), [])
+  const owner = user?.role === 'super_admin'
   const [create, setCreate] = useState(null)
   const [pw, setPw] = useState({ current: '', next: '', confirm: '' })
   const [busy, setBusy] = useState('')
@@ -58,15 +61,25 @@ export default function Team() {
     if (pw.next !== pw.confirm) { toast.error('A confirmação não bate com a nova senha.'); return }
     setBusy('pw')
     try {
-      const { data } = await api.put('/auth/change-password', { current_password: pw.current, new_password: pw.next })
-      // a troca invalida os tokens antigos: segue logado com o novo
-      if (data?.token) login(user, data.token)
+      // a troca derruba as outras sessões; esta recebe um cookie novo do servidor
+      await api.put('/auth/change-password', { current_password: pw.current, new_password: pw.next })
       setPw({ current: '', next: '', confirm: '' })
       toast.good('Senha trocada. Outros aparelhos vão pedir para entrar de novo.')
     } catch (err) { toast.error(err.status === 401 || err.status === 400 ? (err.message || 'A senha atual não confere.') : err.message) } finally { setBusy('') }
   }
 
   const st = pw.next ? strength(pw.next) : null
+
+  const setPolicy = async (on) => {
+    if (on && !user?.totp_enabled) { toast.error('Ligue a verificação na sua conta antes de exigir da equipe.'); return }
+    if (on && !(await confirm({ title: 'Exigir duas etapas de toda a equipe?', message: 'Quem ainda não ligou só consegue abrir a tela de ligar, até terminar.', confirmLabel: 'Exigir' }))) return
+    setBusy('policy')
+    try {
+      await api.put('/settings', { settings: { admin_require_2fa: on ? 'true' : 'false' } })
+      policy.mutate(on)
+      toast.good(on ? 'Agora a equipe inteira entra com duas etapas.' : 'As duas etapas ficaram opcionais.')
+    } catch (err) { toast.error(err.message) } finally { setBusy('') }
+  }
 
   return (
     <div className={s.grid}>
@@ -75,6 +88,20 @@ export default function Team() {
         description="Quem pode entrar no painel. Cada pessoa com o próprio usuário: assim o registro de atividade mostra quem fez o quê."
         actions={<Button variant="primary" icon={<FiPlus />} onClick={() => setCreate({ username: '', password: '', role: 'admin' })}>Adicionar pessoa</Button>}
       />
+      <TwoFactorPanel required={params.get('duas-etapas') === '1' || policy.data === true} />
+
+      {owner && (
+        <Panel title="Regra da equipe">
+          <Switch
+            checked={!!policy.data}
+            disabled={busy === 'policy' || policy.loading}
+            onChange={setPolicy}
+            label="Exigir verificação em duas etapas de todo mundo"
+            description="Recomendado: o painel mexe com dinheiro (estorno) e com dados de clientes."
+          />
+        </Panel>
+      )}
+
       <div className={s.cols2}>
         <Panel title="Pessoas com acesso">
           <ErrorNote error={admins.error} onRetry={admins.reload} />
@@ -89,6 +116,7 @@ export default function Team() {
                       <div className={s.listTitle}>{a.username}{me ? ' (você)' : ''}</div>
                       <div className={s.listSub}>{ROLES[a.role] || a.role}{a.last_login ? `, entrou ${ago(a.last_login)}` : ', nunca entrou'}</div>
                     </div>
+                    {a.totp_enabled ? <Badge tone="good" icon={<FiShield />}>2 etapas</Badge> : <Badge tone="warning">Sem 2 etapas</Badge>}
                     {!a.active && <Badge>Desativado</Badge>}
                     <Switch checked={!!a.active} disabled={me || busy === `t${a.id}`} onChange={() => toggle(a)} label={`${a.active ? 'Desativar' : 'Reativar'} ${a.username}`} hideLabel />
                   </div>

@@ -3,6 +3,9 @@ const { roundMoney } = require('../utils/pricing');
 
 const ALLOWED_DAYS = [7, 30, 90, 365];
 const STATUSES = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'];
+// Receita e vendas contam só pedido pago ou em andamento. 'pending' é
+// "aguardando pagamento" e não entra.
+const PAID = "('confirmed','processing','shipped','delivered')";
 
 // Soma dias a 'YYYY-MM-DD' sem depender do fuso do Node.
 function addDays(date, amount) {
@@ -18,8 +21,8 @@ function range(from, to) {
 
 async function kpisFor([start, end]) {
   const [[orders]] = await pool.query(
-    `SELECT COALESCE(SUM(CASE WHEN status <> 'cancelled' THEN total END), 0) AS revenue,
-       COALESCE(SUM(status <> 'cancelled'), 0) AS orders,
+    `SELECT COALESCE(SUM(CASE WHEN status IN ${PAID} THEN total END), 0) AS revenue,
+       COALESCE(SUM(status IN ${PAID}), 0) AS orders,
        COALESCE(SUM(status = 'cancelled'), 0) AS cancelled
      FROM orders WHERE created_at >= ? AND created_at < ?`,
     [start, end]
@@ -27,7 +30,7 @@ async function kpisFor([start, end]) {
   const [[items]] = await pool.query(
     `SELECT COALESCE(SUM(oi.quantity), 0) AS itemsSold
      FROM order_items oi JOIN orders o ON o.id = oi.order_id
-     WHERE o.status <> 'cancelled' AND o.created_at >= ? AND o.created_at < ?`,
+     WHERE o.status IN ${PAID} AND o.created_at >= ? AND o.created_at < ?`,
     [start, end]
   );
   // Cliente novo = primeiro pedido dele caiu no período.
@@ -56,7 +59,7 @@ async function seriesFor(from, to) {
   const [rows] = await pool.query(
     `SELECT DATE_FORMAT(created_at, '%Y-%m-%d') AS day, COALESCE(SUM(total), 0) AS revenue, COUNT(*) AS orders
      FROM orders
-     WHERE status <> 'cancelled' AND created_at >= ? AND created_at < ?
+     WHERE status IN ${PAID} AND created_at >= ? AND created_at < ?
      GROUP BY day`,
     range(from, to)
   );
@@ -104,7 +107,7 @@ const dashboardController = {
         `SELECT oi.product_id AS id, p.name, b.name AS brand, p.image_url,
            SUM(oi.quantity) AS quantity, SUM(oi.price * oi.quantity) AS revenue
          FROM order_items oi
-         JOIN orders o ON o.id = oi.order_id AND o.status <> 'cancelled' AND o.created_at >= ? AND o.created_at < ?
+         JOIN orders o ON o.id = oi.order_id AND o.status IN ${PAID} AND o.created_at >= ? AND o.created_at < ?
          LEFT JOIN products p ON p.id = oi.product_id
          LEFT JOIN brands b ON b.id = p.brand_id
          GROUP BY oi.product_id, p.name, b.name, p.image_url
@@ -117,7 +120,7 @@ const dashboardController = {
         `SELECT COALESCE(b.name, 'Sem marca') AS brand,
            SUM(oi.price * oi.quantity) AS revenue, SUM(oi.quantity) AS quantity
          FROM order_items oi
-         JOIN orders o ON o.id = oi.order_id AND o.status <> 'cancelled' AND o.created_at >= ? AND o.created_at < ?
+         JOIN orders o ON o.id = oi.order_id AND o.status IN ${PAID} AND o.created_at >= ? AND o.created_at < ?
          LEFT JOIN products p ON p.id = oi.product_id
          LEFT JOIN brands b ON b.id = p.brand_id
          GROUP BY COALESCE(b.name, 'Sem marca')
@@ -155,7 +158,7 @@ const dashboardController = {
       // Mapa de calor completo: 7 dias x 24 horas (0 = domingo).
       const [hourRows] = await pool.query(
         `SELECT DAYOFWEEK(created_at) - 1 AS weekday, HOUR(created_at) AS hour, COUNT(*) AS orders
-         FROM orders WHERE status <> 'cancelled' AND created_at >= ? AND created_at < ?
+         FROM orders WHERE status IN ${PAID} AND created_at >= ? AND created_at < ?
          GROUP BY weekday, hour`,
         current
       );

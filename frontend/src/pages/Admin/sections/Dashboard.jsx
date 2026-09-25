@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { FiArrowUpRight, FiArrowDownRight, FiMinus, FiShoppingBag, FiSlash, FiAlertTriangle, FiStar, FiBell, FiChevronRight } from 'react-icons/fi'
+import { FiArrowUpRight, FiArrowDownRight, FiMinus, FiShoppingBag, FiSlash, FiAlertTriangle, FiStar, FiBell, FiChevronRight, FiServer, FiDatabase } from 'react-icons/fi'
 import api from '../lib/api'
 import { useResource, usePersistentState } from '../lib/hooks'
 import { useAdmin } from '../lib/context'
@@ -40,6 +40,7 @@ export default function Dashboard() {
   const { dark } = useAdmin()
   const [days, setDays] = usePersistentState('pz-admin-periodo', 30)
   const dash = useResource(() => api.get('/dashboard', { params: { days } }).then(r => r.data), [days])
+  const health = useResource(() => api.get('/admin/health').then(r => r.data).catch(() => null), [])
   const grade = useResource(() => api.get('/products/admin', { params: { status: 'active', limit: 8, sort: 'recent' } }).then(r => r.data), [])
 
   const d = dash.data
@@ -112,7 +113,7 @@ export default function Dashboard() {
         </Panel>
 
         <Panel title="Precisa de você">
-          {firstLoad ? <Skeleton lines={4} height={40} /> : <Todo alerts={d?.alerts} />}
+          {firstLoad ? <Skeleton lines={4} height={40} /> : <Todo alerts={d?.alerts} health={health.data} />}
         </Panel>
       </div>
 
@@ -215,13 +216,18 @@ export default function Dashboard() {
   )
 }
 
-function Todo({ alerts = {} }) {
+function Todo({ alerts = {}, health }) {
+  // backup parado há mais de 2 dias, ou com erro, também é pendência
+  const lastBackup = health?.backups?.last_backup_at ? new Date(health.backups.last_backup_at).getTime() : 0
+  const backupBad = health && health.backups?.enabled !== false && (!!health.backups?.last_error || Date.now() - lastBackup > 2 * 24 * 60 * 60 * 1000)
   const items = [
-    { n: alerts.pendingOrders, text: (n) => `${n === 1 ? 'pedido esperando' : 'pedidos esperando'} confirmação`, to: '/admin/pedidos?status=pending', icon: FiShoppingBag, tone: 'var(--a-warning-wash)', color: 'var(--a-warning)' },
+    { n: alerts.pendingOrders, text: (n) => `${n === 1 ? 'pedido aguardando' : 'pedidos aguardando'} pagamento ou confirmação`, to: '/admin/pedidos?status=pending', icon: FiShoppingBag, tone: 'var(--a-warning-wash)', color: 'var(--a-warning)' },
     { n: alerts.outOfStock, text: (n) => `${n === 1 ? 'produto esgotado' : 'produtos esgotados'}`, to: '/admin/estoque/alertas', icon: FiSlash, tone: 'var(--a-critical-wash)', color: 'var(--a-critical)' },
     { n: alerts.lowStock, text: (n) => `${n === 1 ? 'produto acabando' : 'produtos acabando'}`, to: '/admin/estoque/alertas', icon: FiAlertTriangle, tone: 'var(--a-warning-wash)', color: 'var(--a-warning)' },
     { n: alerts.pendingReviews, text: (n) => `${n === 1 ? 'avaliação para' : 'avaliações para'} moderar`, to: '/admin/avaliacoes', icon: FiStar, tone: 'var(--a-info-wash)', color: 'var(--a-series-1)' },
     { n: alerts.stockAlertsWaiting, text: (n) => `${n === 1 ? 'cliente esperando' : 'clientes esperando'} reposição`, to: '/admin/estoque/avise-me', icon: FiBell, tone: 'var(--a-info-wash)', color: 'var(--a-series-1)' },
+    { n: health?.errors?.open_count, text: (n) => `${n === 1 ? 'erro do sistema' : 'erros do sistema'} para olhar`, to: '/admin/saude', icon: FiServer, tone: 'var(--a-critical-wash)', color: 'var(--a-critical)' },
+    { n: backupBad ? 1 : 0, text: () => 'backup do banco precisa de atenção', to: '/admin/saude', icon: FiDatabase, tone: 'var(--a-critical-wash)', color: 'var(--a-critical)' },
   ].filter(i => Number(i.n) > 0)
 
   if (!items.length) {

@@ -10,7 +10,7 @@
   margin: 0 auto;
   padding: clamp(48px, 7vw, 88px) var(--pz-gutter) clamp(36px, 5vw, 56px);
   display: grid;
-  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1.2fr);
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 0.9fr) minmax(0, 1fr) minmax(0, 1.2fr);
   gap: clamp(32px, 5vw, 64px);
 }
 
@@ -136,6 +136,8 @@
 }
 
 /* ===== Responsivo ===== */
+.legalLine { flex-basis: 100%; order: -1; overflow-wrap: anywhere; }
+
 @media (max-width: 1023.98px) {
   .footerInner { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .brandCol { grid-column: 1 / -1; }

@@ -1,4 +1,4 @@
-import { FiClock, FiCheck, FiPackage, FiTruck, FiCheckCircle, FiXCircle } from 'react-icons/fi'
+import { FiClock, FiCheck, FiPackage, FiTruck, FiCheckCircle, FiXCircle, FiCreditCard, FiRotateCcw, FiAlertTriangle, FiSlash } from 'react-icons/fi'
 import { Badge } from '../ui'
 
 // Status reais do pedido no banco, na ordem do fluxo.
@@ -23,6 +23,32 @@ export function OrderBadge({ status }) {
 export function nextStatus(status) {
   const i = ORDER_FLOW.indexOf(status)
   return i >= 0 && i < ORDER_FLOW.length - 1 ? ORDER_FLOW[i + 1] : null
+}
+
+// Situação do pagamento (Mercado Pago). "unpaid" = ainda não tentou pagar.
+export const PAYMENT_STATUS = {
+  unpaid: { label: 'Sem pagamento', tone: 'neutral', icon: FiClock },
+  pending: { label: 'Aguardando pagamento', tone: 'warning', icon: FiClock },
+  approved: { label: 'Pago', tone: 'good', icon: FiCheckCircle },
+  rejected: { label: 'Recusado', tone: 'critical', icon: FiXCircle },
+  expired: { label: 'Pix vencido', tone: 'neutral', icon: FiSlash },
+  refunded: { label: 'Estornado', tone: 'serious', icon: FiRotateCcw },
+  charged_back: { label: 'Contestado', tone: 'critical', icon: FiAlertTriangle },
+}
+
+export const PAYMENT_METHOD = { pix: 'Pix', credit_card: 'Cartão de crédito', debit_card: 'Cartão de débito' }
+
+export function PaymentBadge({ status }) {
+  if (!status) return null
+  const m = PAYMENT_STATUS[status] || { label: status, tone: 'neutral', icon: FiCreditCard }
+  const Icon = m.icon
+  return <Badge tone={m.tone} icon={<Icon aria-hidden="true" />}>{m.label}</Badge>
+}
+
+export function methodText(method, installments) {
+  const base = PAYMENT_METHOD[method] || ''
+  if (!base) return ''
+  return method === 'credit_card' && Number(installments) > 1 ? `${base} em ${installments}x` : base
 }
 
 export const NEXT_ACTION = {

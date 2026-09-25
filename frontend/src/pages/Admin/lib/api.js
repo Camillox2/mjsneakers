@@ -1,17 +1,40 @@
 import axios from 'axios'
 
-// Cliente só do painel. Usa o mesmo token da sessão (mj_token) e traduz
-// qualquer falha numa mensagem legível: as telas mostram err.message direto.
+// Cliente só do painel. A sessão mora num cookie httpOnly (pz_adm) que o
+// JavaScript não consegue ler: um script injetado não rouba o login. Quem
+// muda dado manda o X-CSRF-Token, copiado do cookie pz_csrf. Toda falha vira
+// uma mensagem legível: as telas mostram err.message direto.
 export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3305/api'
 export const API_ORIGIN = API_URL.replace(/\/api\/?$/, '')
 
-const api = axios.create({ baseURL: API_URL, timeout: 30000 })
+const api = axios.create({ baseURL: API_URL, timeout: 30000, withCredentials: true })
 
+let csrfMemory = null
+function readCookie(name) {
+  const m = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`))
+  return m ? decodeURIComponent(m[1]) : null
+}
+
+// Plano B quando a API está em outro domínio e o cookie não é legível daqui.
+export async function ensureCsrf() {
+  if (readCookie('pz_csrf')) return
+  try {
+    const { data } = await axios.get(`${API_URL}/security/config`, { withCredentials: true })
+    if (data?.csrf_token) csrfMemory = data.csrf_token
+  } catch { /* segue sem: a próxima escrita avisa */ }
+}
+
+const SAFE = ['get', 'head', 'options']
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('mj_token')
-  if (token) config.headers.Authorization = `Bearer ${token}`
+  if (!SAFE.includes(String(config.method || 'get').toLowerCase())) {
+    const token = readCookie('pz_csrf') || csrfMemory
+    if (token) config.headers['X-CSRF-Token'] = token
+  }
   return config
 })
+
+// Aviso para o shell: a loja exige duas etapas e esta conta ainda não ligou.
+export const TWO_FACTOR_EVENT = 'pz-admin-2fa'
 
 let onSessionEnd = null
 // O shell do admin registra aqui o que fazer quando o token deixa de valer.
@@ -30,6 +53,8 @@ const MESSAGES = {
 
 api.interceptors.response.use(
   (response) => {
+    // login, código de duas etapas e troca de senha devolvem o token CSRF novo
+    if (response.data && typeof response.data.csrf_token === 'string') csrfMemory = response.data.csrf_token
     // Sem backend, o servidor da página devolve o index.html com 200.
     const type = String(response.headers?.['content-type'] || '')
     if (type.includes('text/html')) {
@@ -39,9 +64,18 @@ api.interceptors.response.use(
     }
     return response
   },
-  (error) => {
+  async (error) => {
     const status = error.response?.status
     const data = error.response?.data
+    const cfg = error.config || {}
+    // token CSRF faltando ou velho: busca de novo e tenta uma vez só
+    if (status === 403 && data?.code === 'csrf' && !cfg.__csrfRetry) {
+      await ensureCsrf()
+      return api({ ...cfg, __csrfRetry: true })
+    }
+    if (status === 403 && data?.code === '2fa_setup_required') {
+      window.dispatchEvent(new CustomEvent(TWO_FACTOR_EVENT))
+    }
     let message = data?.error || data?.message
     if (Array.isArray(data?.errors) && data.errors.length) {
       message = data.errors.map(e => e.msg || e.message || e).join(' ')
@@ -53,7 +87,7 @@ api.interceptors.response.use(
     const err = new Error(message)
     err.status = status
     err.data = data
-    if (status === 401 && !String(error.config?.url || '').includes('/auth/login')) {
+    if (status === 401 && !/\/auth\/(login|me)/.test(String(cfg.url || ''))) {
       onSessionEnd?.()
     }
     return Promise.reject(err)

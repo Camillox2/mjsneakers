@@ -64,7 +64,36 @@ const FIELD_RULES = {
   height_cm: (v) => decimalRule(v, 'height_cm'),
   width_cm: (v) => decimalRule(v, 'width_cm'),
   length_cm: (v) => decimalRule(v, 'length_cm'),
+  // Nota fiscal (opcionais; na falta, valem os padrões fiscal_* das configurações)
+  ncm: (v) => {
+    if (v === null || v === '') return null;
+    const digits = String(v).replace(/[.\s]/g, '');
+    if (!/^\d{8}$/.test(digits)) throw httpError(400, 'NCM deve ter 8 dígitos');
+    return digits;
+  },
+  origin: (v) => {
+    if (v === null || v === '') return null;
+    const text = String(v).trim();
+    if (!/^[0-8]$/.test(text)) throw httpError(400, 'Origem da mercadoria deve ser um dígito de 0 a 8');
+    return text;
+  },
+  gtin: (v) => {
+    if (v === null || v === '') return null;
+    const digits = String(v).replace(/\s/g, '');
+    if (!/^(\d{8}|\d{12}|\d{13}|\d{14})$/.test(digits) || !validGtin(digits)) {
+      throw httpError(400, 'GTIN (código de barras) inválido');
+    }
+    return digits;
+  },
 };
+
+// Dígito verificador do GTIN-8/12/13/14 (pesos 3 e 1 da direita para a esquerda).
+function validGtin(code) {
+  const digits = code.split('').map(Number);
+  const check = digits.pop();
+  const sum = digits.reverse().reduce((acc, d, i) => acc + d * (i % 2 === 0 ? 3 : 1), 0);
+  return (10 - (sum % 10)) % 10 === check;
+}
 
 function optionalId(v, field) {
   if (v === null || v === '' || v === undefined) return null;

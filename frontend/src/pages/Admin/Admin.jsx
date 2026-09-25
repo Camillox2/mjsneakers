@@ -4,7 +4,7 @@ import { motion, MotionConfig } from 'framer-motion'
 import { FiGrid, FiLogOut, FiMoon, FiSun, FiExternalLink, FiBell, FiBellOff } from 'react-icons/fi'
 import { AuthContext, DarkModeContext } from '../../App'
 import { BRAND } from '../../config/brand'
-import api, { asList, setSessionEndHandler } from './lib/api'
+import api, { asList, setSessionEndHandler, ensureCsrf, TWO_FACTOR_EVENT } from './lib/api'
 import { AdminContext } from './lib/context'
 import { ChatProvider, useChat } from './lib/chat'
 import { notify, notifyPermission, askNotifyPermission, soundOn, setSound, NAVIGATE_EVENT } from './lib/notify'
@@ -32,6 +32,8 @@ const Team = lazy(() => import('./sections/Team'))
 const Settings = lazy(() => import('./sections/Settings'))
 const Activity = lazy(() => import('./sections/Activity'))
 const Conversations = lazy(() => import('./sections/Conversations'))
+const Health = lazy(() => import('./sections/Health'))
+const Privacy = lazy(() => import('./sections/Privacy'))
 const NotFound = lazy(() => import('./sections/NotFound'))
 
 const cx = (...c) => c.filter(Boolean).join(' ')
@@ -61,15 +63,26 @@ export default function Admin() {
     return () => setSessionEndHandler(null)
   }, [endSession])
 
-  // Confere o token guardado assim que o painel abre (conta desativada cai aqui).
+  // Confere a sessão (cookie) assim que o painel abre: conta desativada,
+  // senha trocada em outro aparelho ou cookie vencido caem aqui.
+  const [me, setMe] = useState(null)
   useEffect(() => {
-    if (user) api.get('/auth/verify').catch(() => {})
-  }, [user])
+    if (!user) { setMe(null); return }
+    ensureCsrf()
+    api.get('/auth/me')
+      .then(({ data }) => setMe(data?.user || null))
+      .catch((err) => { if (err.status === 401) endSession() })
+  }, [user, endSession])
 
-  const handleLogin = (u, token) => {
+  const handleLogin = (u) => {
     setNotice('')
-    login(u, token)
+    login(u)
   }
+
+  const handleLogout = useCallback(async () => {
+    try { await api.post('/auth/logout') } catch { /* sai do mesmo jeito */ }
+    logout()
+  }, [logout])
 
   return (
     <div className={cx(t.root, user && !dark && t.light)}>
@@ -77,7 +90,7 @@ export default function Admin() {
         <LayerProvider node={layer}>
           <ToastProvider>
             <ConfirmProvider>
-              {user ? <ChatProvider><Shell user={user} dark={dark} setDark={setDarkMode} onLogout={logout} /></ChatProvider> : <Login onLogin={handleLogin} notice={notice} />}
+              {user ? <ChatProvider><Shell user={me ? { ...user, ...me } : user} dark={dark} setDark={setDarkMode} onLogout={handleLogout} onMe={setMe} /></ChatProvider> : <Login onLogin={handleLogin} notice={notice} />}
             </ConfirmProvider>
           </ToastProvider>
         </LayerProvider>
@@ -87,7 +100,7 @@ export default function Admin() {
   )
 }
 
-function Shell({ user, dark, setDark, onLogout }) {
+function Shell({ user, dark, setDark, onLogout, onMe }) {
   const location = useLocation()
   const navigate = useNavigate()
   const chat = useChat()
@@ -95,6 +108,13 @@ function Shell({ user, dark, setDark, onLogout }) {
   const [moreOpen, setMoreOpen] = useState(false)
   const [alertsOpen, setAlertsOpen] = useState(false)
   const lastPending = useRef(null)
+  const [payments, setPayments] = useState(null)
+
+  // se o pagamento online está ligado (muda o que "confirmar pedido" significa)
+  const refreshPayments = useCallback(() => {
+    api.get('/payments/admin/config').then(r => setPayments(r.data || null)).catch(() => setPayments(null))
+  }, [])
+  useEffect(() => { refreshPayments() }, [refreshPayments])
 
   const refreshCounts = useCallback(async () => {
     const [orders, reviews] = await Promise.allSettled([
@@ -120,6 +140,13 @@ function Shell({ user, dark, setDark, onLogout }) {
     return () => clearInterval(id)
   }, [refreshCounts])
 
+  // a loja exige duas etapas e esta conta ainda não ligou: vai direto ligar
+  useEffect(() => {
+    const go = () => navigate('/admin/equipe?duas-etapas=1')
+    window.addEventListener(TWO_FACTOR_EVENT, go)
+    return () => window.removeEventListener(TWO_FACTOR_EVENT, go)
+  }, [navigate])
+
   // tocar na notificação traz para a tela certa
   useEffect(() => {
     const go = (e) => { if (typeof e.detail === 'string' && e.detail.startsWith('/admin')) navigate(e.detail) }
@@ -134,7 +161,7 @@ function Shell({ user, dark, setDark, onLogout }) {
   const waiting = counts.pendingOrders + counts.unreadChats
   useEffect(() => { document.title = `${waiting > 0 ? `(${waiting}) ` : ''}${title} | Painel ${BRAND.short}` }, [title, waiting])
 
-  const ctx = useMemo(() => ({ user, dark, counts, refreshCounts }), [user, dark, counts, refreshCounts])
+  const ctx = useMemo(() => ({ user, dark, counts, refreshCounts, payments, refreshPayments, setMe: onMe }), [user, dark, counts, refreshCounts, payments, refreshPayments, onMe])
   const initials = (user?.username || '?').slice(0, 2).toUpperCase()
   const roleLabel = user?.role === 'super_admin' ? 'Dono' : user?.role === 'admin' ? 'Administrador' : 'Equipe'
 
@@ -219,6 +246,8 @@ function Shell({ user, dark, setDark, onLogout }) {
               <Route path="configuracoes" element={<Settings />} />
               <Route path="atividade" element={<Activity />} />
               <Route path="conversas/*" element={<Conversations />} />
+              <Route path="saude" element={<Health />} />
+              <Route path="privacidade" element={<Privacy />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>

@@ -1,0 +1,445 @@
+/* Etapa de pagamento do checkout: escolha grande entre Pix e cartão, o Pix
+   com copia e cola e QR, e o Brick do Mercado Pago para o cartão. */
+
+.step {
+  display: grid;
+  gap: 18px;
+}
+
+/* faixa discreta do modo de teste */
+.testStrip {
+  padding: 8px 12px;
+  border-radius: var(--pz-radius-s);
+  font-size: var(--pz-fs-xs);
+  font-weight: 600;
+  text-align: center;
+  color: var(--pz-warn);
+  background: color-mix(in srgb, var(--pz-warn) 8%, transparent);
+  border: 1px dashed color-mix(in srgb, var(--pz-warn) 45%, transparent);
+}
+
+.summary {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--pz-line);
+}
+
+.summaryLabel {
+  font-size: var(--pz-fs-s);
+  font-weight: 600;
+  color: var(--pz-text-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.summaryTotal {
+  font-size: var(--pz-fs-xl);
+  font-weight: 700;
+  font-stretch: 110%;
+  font-variant-numeric: tabular-nums;
+}
+
+.checking {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 28px 0;
+  font-size: var(--pz-fs-s);
+  color: var(--pz-text-2);
+}
+
+.spin { animation: spin 1s linear infinite; }
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--pz-radius-m);
+  font-size: var(--pz-fs-s);
+  line-height: 1.45;
+  color: var(--pz-text);
+  background: var(--pz-surface-1);
+  border: 1px solid color-mix(in srgb, var(--pz-warn) 40%, transparent);
+}
+
+.notice svg { flex: none; margin-top: 2px; color: var(--pz-warn); }
+
+/* ---------- escolha ---------- */
+.choose {
+  display: grid;
+  gap: 14px;
+}
+
+.chooseTitle,
+.panelTitle {
+  font-family: var(--pz-serif);
+  font-style: italic;
+  font-weight: 700;
+  font-size: var(--pz-fs-xl);
+  line-height: 1.1;
+  letter-spacing: -0.015em;
+}
+
+.methods {
+  display: grid;
+  gap: 10px;
+}
+
+.method {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 84px;
+  padding: 14px 16px;
+  border-radius: var(--pz-radius-l);
+  text-align: left;
+  color: var(--pz-text);
+  background: var(--pz-surface-1);
+  border: 1px solid var(--pz-line-strong);
+  transition: border-color 0.2s var(--pz-ease), background 0.2s var(--pz-ease), transform 0.2s var(--pz-ease);
+}
+
+.method:active { transform: scale(0.99); background: var(--pz-surface-2); }
+
+.methodIcon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  font-size: 22px;
+  color: #0a0a0b;
+  background: var(--pz-chrome-flat);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 0 -1px 0 rgba(0, 0, 0, 0.18);
+}
+
+.methodText {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.methodName {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--pz-fs-l);
+  font-weight: 650;
+}
+
+.badge {
+  padding: 2px 9px;
+  border-radius: var(--pz-radius-pill);
+  font-size: var(--pz-fs-xs);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #062b17;
+  background: var(--pz-ok);
+}
+
+.methodSub {
+  font-size: var(--pz-fs-s);
+  color: var(--pz-text-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.methodValue {
+  flex: none;
+  display: grid;
+  justify-items: end;
+  font-size: var(--pz-fs-m);
+  font-weight: 700;
+  font-stretch: 110%;
+  font-variant-numeric: tabular-nums;
+}
+
+.methodOld {
+  font-size: var(--pz-fs-xs);
+  font-weight: 500;
+  color: var(--pz-text-3);
+  text-decoration: line-through;
+}
+
+.secure {
+  font-size: var(--pz-fs-xs);
+  line-height: 1.5;
+  color: var(--pz-text-3);
+}
+
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  margin: -8px 0 6px -4px;
+  padding: 0 4px;
+  font-size: var(--pz-fs-s);
+  font-weight: 600;
+  color: var(--pz-text-2);
+  background: none;
+}
+
+/* ---------- campos ---------- */
+.panelText {
+  font-size: var(--pz-fs-m);
+  line-height: 1.55;
+  color: var(--pz-text-2);
+}
+
+.panelText strong { color: var(--pz-text); font-variant-numeric: tabular-nums; }
+
+.label {
+  margin-top: 4px;
+  font-size: var(--pz-fs-s);
+  font-weight: 600;
+  color: var(--pz-text-2);
+}
+
+.input {
+  width: 100%;
+  height: 52px;
+  padding: 0 16px;
+  border-radius: var(--pz-radius-m);
+  font-family: var(--pz-sans);
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  color: var(--pz-text);
+  background: var(--pz-surface-1);
+  border: 1px solid var(--pz-line);
+  outline: none;
+  transition: border-color 0.2s var(--pz-ease);
+}
+
+.input::placeholder { color: var(--pz-text-3); letter-spacing: 0.02em; }
+.input:focus { border-color: rgba(233, 236, 241, 0.6); }
+.inputError { border-color: color-mix(in srgb, var(--pz-danger) 60%, transparent); }
+
+.fieldError {
+  font-size: var(--pz-fs-s);
+  color: var(--pz-danger);
+}
+
+.wide { width: 100%; }
+
+.pixForm {
+  display: grid;
+  gap: 10px;
+}
+
+.pixForm .wide { margin-top: 6px; }
+
+/* ---------- Pix esperando ---------- */
+.pix {
+  display: grid;
+  gap: 18px;
+}
+
+.pixHead {
+  display: grid;
+  gap: 6px;
+}
+
+.pixSaved {
+  font-size: var(--pz-fs-s);
+  font-weight: 600;
+  color: var(--pz-ok);
+}
+
+.waiting {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  font-size: var(--pz-fs-s);
+  color: var(--pz-text-2);
+}
+
+/* ponto que pulsa enquanto o banco não confirma */
+.pulse {
+  position: relative;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--pz-ok);
+}
+
+.pulse::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 1px solid var(--pz-ok);
+  animation: pulse 1.6s var(--pz-ease-io) infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(0.6); opacity: 1; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+
+.countdown {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--pz-text-3);
+}
+
+.clock {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--pz-text);
+}
+
+/* no celular: copia e cola primeiro, QR embaixo e menor */
+.pixMain {
+  display: grid;
+  gap: 18px;
+}
+
+.pixActions {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
+.copyBtn { --btn-h: 56px; }
+
+.howTo {
+  font-size: var(--pz-fs-s);
+  line-height: 1.5;
+  color: var(--pz-text-2);
+}
+
+.howTo strong { color: var(--pz-text); }
+
+.codeBox summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: var(--pz-fs-s);
+  font-weight: 600;
+  color: var(--pz-text-2);
+  cursor: pointer;
+  list-style: none;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  text-decoration-color: var(--pz-line-strong);
+}
+
+.codeBox summary::-webkit-details-marker { display: none; }
+
+.code {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: var(--pz-radius-m);
+  font-family: ui-monospace, 'SF Mono', Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  word-break: break-all;
+  color: var(--pz-text);
+  background: var(--pz-surface-1);
+  border: 1px solid var(--pz-line);
+  resize: none;
+}
+
+.qr {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
+.qr img {
+  width: min(180px, 60vw);
+  height: auto;
+  aspect-ratio: 1;
+  padding: 10px;
+  border-radius: var(--pz-radius-m);
+  background: #fff;
+  image-rendering: pixelated;
+}
+
+.qr figcaption {
+  font-size: var(--pz-fs-xs);
+  color: var(--pz-text-3);
+  text-align: center;
+}
+
+/* ---------- Pix vencido ou recusado ---------- */
+.pixEnd {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  padding: 12px 0;
+  text-align: center;
+}
+
+.endIcon {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  margin-bottom: 4px;
+  border-radius: 50%;
+  font-size: 24px;
+  color: var(--pz-warn);
+  background: var(--pz-surface-1);
+  border: 1px solid color-mix(in srgb, var(--pz-warn) 40%, transparent);
+}
+
+/* ---------- cartão ---------- */
+.card {
+  display: grid;
+  gap: 14px;
+}
+
+.failed {
+  display: grid;
+  gap: 12px;
+}
+
+/* o Brick aparece suave quando termina de montar */
+.brick {
+  min-height: 0;
+  opacity: 0;
+  transition: opacity 0.35s var(--pz-ease);
+}
+
+.brickOn { opacity: 1; }
+
+@media (hover: hover) {
+  .method:hover { border-color: rgba(233, 236, 241, 0.6); background: var(--pz-surface-2); }
+  .backLink:hover { color: var(--pz-text); }
+  .codeBox summary:hover { color: var(--pz-text); }
+}
+
+/* computador e tablet: QR em destaque ao lado do copia e cola */
+@media (min-width: 768px) {
+  .pixMain {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    gap: 24px;
+  }
+  .qr { order: -1; }
+  .qr img { width: 220px; }
+  .methods { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .method { flex-direction: column; align-items: flex-start; min-height: 170px; }
+  .methodValue { justify-items: start; margin-top: auto; font-size: var(--pz-fs-l); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse::after { animation: none; }
+}

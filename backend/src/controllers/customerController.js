@@ -1,6 +1,9 @@
 const { pool } = require('../config/db');
 const { pagination, likeTerm } = require('../utils/validate');
 
+// Total gasto conta só pedido pago ou em andamento ('pending' = aguardando pagamento).
+const PAID_STATUSES = ['confirmed', 'processing', 'shipped', 'delivered'];
+
 const customerController = {
   // Clientes = e-mails distintos dos pedidos. Nome e telefone do pedido mais
   // recente; total gasto sem cancelados.
@@ -28,7 +31,7 @@ const customerController = {
            SUBSTRING_INDEX(GROUP_CONCAT(o.customer_name ORDER BY o.created_at DESC SEPARATOR '\\n'), '\\n', 1) as name,
            SUBSTRING_INDEX(GROUP_CONCAT(o.customer_phone ORDER BY o.created_at DESC SEPARATOR '\\n'), '\\n', 1) as phone,
            COUNT(*) as total_orders,
-           SUM(CASE WHEN o.status != 'cancelled' THEN o.total ELSE 0 END) as total_spent,
+           SUM(CASE WHEN o.status IN ('confirmed','processing','shipped','delivered') THEN o.total ELSE 0 END) as total_spent,
            MAX(o.created_at) as last_order_at,
            MIN(o.created_at) as first_order_at
          FROM orders o
@@ -74,7 +77,7 @@ const customerController = {
         name: orders[0].customer_name,
         phone: orders[0].customer_phone,
         total_orders: orders.length,
-        total_spent: Math.round(orders.filter(o => o.status !== 'cancelled').reduce((s, o) => s + Number(o.total), 0) * 100) / 100,
+        total_spent: Math.round(orders.filter(o => PAID_STATUSES.includes(o.status)).reduce((s, o) => s + Number(o.total), 0) * 100) / 100,
         first_order_at: orders[orders.length - 1].created_at,
         last_order_at: orders[0].created_at,
         loyalty_points: points.length ? Number(points[0].points) : 0,

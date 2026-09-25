@@ -1,6 +1,6 @@
 import {
   FiHome, FiShoppingBag, FiUsers, FiPercent, FiGift, FiPackage, FiBox, FiTag, FiStar,
-  FiImage, FiZap, FiMail, FiTruck, FiBarChart2, FiShield, FiSettings, FiActivity, FiMessageSquare,
+  FiImage, FiZap, FiMail, FiTruck, FiBarChart2, FiShield, FiSettings, FiActivity, FiMessageSquare, FiLock, FiServer,
 } from 'react-icons/fi'
 
 // Mapa do painel. `badge` aponta para um contador do AdminContext.
@@ -33,6 +33,8 @@ export const NAV = [
   { label: 'Sistema', items: [
     { to: '/admin/equipe', label: 'Equipe', icon: FiShield },
     { to: '/admin/configuracoes', label: 'Configurações', icon: FiSettings },
+    { to: '/admin/privacidade', label: 'Privacidade (LGPD)', icon: FiLock },
+    { to: '/admin/saude', label: 'Saúde do sistema', icon: FiServer },
     { to: '/admin/atividade', label: 'Atividade', icon: FiActivity },
   ] },
 ]

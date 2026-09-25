@@ -1,16 +1,17 @@
 import { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { FiInstagram, FiMail, FiPhone, FiMapPin, FiArrowUpRight } from 'react-icons/fi'
+import { FiInstagram, FiMail, FiPhone, FiMapPin, FiArrowUpRight, FiClock } from 'react-icons/fi'
 import { BRAND } from '../../config/brand'
 import { scrollToEl, scrollToY } from '../../lib/motion'
 import ChromeLogo from '../ChromeLogo/ChromeLogo'
-import PrivacyModal from '../PrivacyModal/PrivacyModal'
 import styles from './Footer.module.css'
 import { cachedGet, TTL } from '../../services/cache'
+import { formatCnpj, loadLegal } from '../../lib/legal'
 
 export default function Footer() {
   const { pathname } = useLocation()
-  const [showPrivacy, setShowPrivacy] = useState(false)
+  // quem vende (Decreto 7.962/2013): razão social, CNPJ, endereço e atendimento
+  const [company, setCompany] = useState(null)
   const [info, setInfo] = useState({
     email: 'contato@pizzant.com.br',
     credit: 'Feito por DC Digital Foundry by Vitor Camillo',
@@ -29,6 +30,7 @@ export default function Footer() {
         instagram: data.footer_instagram || '',
       })
     }).catch(() => {})
+    loadLegal().then((data) => setCompany(data.company)).catch(() => {})
   }, [])
 
   // A vitrine (#loja) mora na página inicial; lá a rolagem passa pelo Lenis.
@@ -46,6 +48,18 @@ export default function Footer() {
   }
 
   const handle = info.instagram.replace('@', '').trim()
+  // contato: o que o admin preencheu nos dados legais, senão o das configurações
+  const email = company?.email || info.email
+  const phone = company?.phone || info.phone
+  const address = company?.address || info.address
+  const hours = company?.hours || ''
+  const legalLine = company
+    ? [
+        company.company_name,
+        company.trade_name && company.trade_name !== company.company_name ? company.trade_name : '',
+        company.cnpj ? `CNPJ ${formatCnpj(company.cnpj)}` : '',
+      ].filter(Boolean)
+    : []
 
   return (
     <>
@@ -76,25 +90,39 @@ export default function Footer() {
             <h2 className={styles.colTitle}>Navegue</h2>
             <a className={styles.footerLink} href="/#loja" onClick={goShop}>Loja</a>
             <Link className={styles.footerLink} to="/rastrear">Rastrear pedido</Link>
-            <button type="button" className={styles.footerLink} onClick={() => setShowPrivacy(true)}>
-              Política de privacidade
-            </button>
+            <Link className={styles.footerLink} to="/conta">Minha conta</Link>
+          </nav>
+
+          {/* Ajuda e políticas */}
+          <nav className={styles.linksCol} aria-label="Políticas">
+            <h2 className={styles.colTitle}>Ajuda</h2>
+            <Link className={styles.footerLink} to="/termos">Termos de uso</Link>
+            <Link className={styles.footerLink} to="/trocas-e-devolucoes">Trocas e devoluções</Link>
+            <Link className={styles.footerLink} to="/privacidade">Privacidade</Link>
+            <Link className={styles.footerLink} to="/meus-dados">Meus dados</Link>
           </nav>
 
           {/* Contato */}
           <div className={styles.contactCol}>
             <h2 className={styles.colTitle}>Contato</h2>
-            <a className={styles.contactItem} href={`mailto:${info.email}`}>
-              <FiMail aria-hidden="true" /> <span>{info.email}</span>
-            </a>
-            {info.phone && (
-              <a className={styles.contactItem} href={`tel:${info.phone.replace(/[^\d+]/g, '')}`}>
-                <FiPhone aria-hidden="true" /> <span>{info.phone}</span>
+            {email && (
+              <a className={styles.contactItem} href={`mailto:${email}`}>
+                <FiMail aria-hidden="true" /> <span>{email}</span>
               </a>
             )}
-            {info.address && (
+            {phone && (
+              <a className={styles.contactItem} href={`tel:${phone.replace(/[^\d+]/g, '')}`}>
+                <FiPhone aria-hidden="true" /> <span>{phone}</span>
+              </a>
+            )}
+            {hours && (
               <span className={styles.contactItem}>
-                <FiMapPin aria-hidden="true" /> <span>{info.address}</span>
+                <FiClock aria-hidden="true" /> <span>{hours}</span>
+              </span>
+            )}
+            {address && (
+              <span className={styles.contactItem}>
+                <FiMapPin aria-hidden="true" /> <span>{address}</span>
               </span>
             )}
           </div>
@@ -102,6 +130,7 @@ export default function Footer() {
 
         <div className={styles.bottomBar}>
           <span>© {new Date().getFullYear()} {BRAND.name}</span>
+          {legalLine.length > 0 && <span className={styles.legalLine}>{legalLine.join(' · ')}</span>}
           <span>{info.credit}</span>
         </div>
 
@@ -111,7 +140,6 @@ export default function Footer() {
         </div>
       </footer>
 
-      <PrivacyModal isOpen={showPrivacy} onClose={() => setShowPrivacy(false)} />
     </>
   )
 }

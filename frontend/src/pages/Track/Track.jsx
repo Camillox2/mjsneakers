@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence, MotionConfig } from 'framer-motion'
-import axios from 'axios'
+import api from '../../services/api'
 import { FiCheck, FiCopy, FiSearch, FiXCircle } from 'react-icons/fi'
 import { getImageUrl } from '../../utils/imageHelper'
 import { MQ, matches } from '../../lib/breakpoints'
+import { PAYMENT_STATUS, paymentMethodLabel } from '../../lib/payments'
 import styles from './Track.module.css'
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:3305/api'
 const EASE = [0.22, 1, 0.36, 1]
 
 // tone define a cor do selo: neutro (cromo), ok, atenção ou perigo
@@ -58,7 +58,7 @@ export default function Track() {
     setOrder(null)
     setCopied(false)
     try {
-      const { data } = await axios.get(`${API}/orders/track`, {
+      const { data } = await api.get('/orders/track', {
         params: { id: cleanId, email: email.trim() }
       })
       setOrder(data)
@@ -83,6 +83,9 @@ export default function Track() {
   const currentStep = order ? STATUS_ORDER.indexOf(order.status) : -1
   const status = order ? (STATUS_MAP[order.status] || { label: order.status, tone: 'neutral' }) : null
   const place = order ? [order.address_city, order.address_state].filter(Boolean).join(' / ') : ''
+  // situação do pagamento (Mercado Pago), quando o rastreio traz
+  const payStatus = order?.payment_status ? (PAYMENT_STATUS[order.payment_status] || { label: order.payment_status, tone: 'neutral' }) : null
+  const payMethod = order ? paymentMethodLabel(order.payment_method, order.installments) : ''
 
   return (
     <MotionConfig reducedMotion="user">
@@ -202,6 +205,24 @@ export default function Track() {
                     <dt>Total</dt>
                     <dd className={styles.num}>{formatPrice(order.total)}</dd>
                   </div>
+                  {payStatus && (
+                    <div className={`${styles.metaItem} ${styles.metaWide}`}>
+                      <dt>Pagamento</dt>
+                      <dd className={styles.payRow}>
+                        <span className={`${styles.payBadge} ${styles[`pay_${payStatus.tone}`] || ''}`}>{payStatus.label}</span>
+                        {payMethod && <span className={styles.payMethod}>{payMethod}</span>}
+                      </dd>
+                    </div>
+                  )}
+                  {Number(order.points_used) > 0 && (
+                    <div className={`${styles.metaItem} ${styles.metaWide}`}>
+                      <dt>Pontos usados</dt>
+                      <dd className={styles.num}>
+                        {Number(order.points_used).toLocaleString('pt-BR')} pontos
+                        {Number(order.points_discount) > 0 && <> (-{formatPrice(order.points_discount)})</>}
+                      </dd>
+                    </div>
+                  )}
                   {order.tracking_code && (
                     <div className={`${styles.metaItem} ${styles.metaWide}`}>
                       <dt>Código de rastreio</dt>

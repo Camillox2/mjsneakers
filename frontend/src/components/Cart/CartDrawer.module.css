@@ -87,6 +87,57 @@
   scrollbar-color: var(--pz-chrome-4) transparent;
 }
 
+/* ---------- pedido esperando pagamento ---------- */
+
+.pending {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 16px 24px 0;
+  padding: 12px 12px 12px 14px;
+  border-radius: var(--pz-radius-m);
+  background: var(--pz-surface-1);
+  border: 1px solid color-mix(in srgb, var(--pz-warn) 45%, transparent);
+}
+
+.pendingIcon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  color: var(--pz-warn);
+  background: color-mix(in srgb, var(--pz-warn) 10%, transparent);
+}
+
+.pendingText {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.pendingTitle {
+  font-size: var(--pz-fs-s);
+  font-weight: 650;
+  color: var(--pz-text);
+}
+
+.pendingSub {
+  font-size: var(--pz-fs-xs);
+  color: var(--pz-text-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.pendingBtn {
+  --btn-h: 44px;
+  flex: none;
+  gap: 4px;
+  padding: 0 14px 0 18px;
+  font-size: var(--pz-fs-s);
+}
+
 /* ---------- vazia ---------- */
 
 .empty {
@@ -482,6 +533,7 @@
   }
 
   .header { padding-left: 16px; padding-right: 12px; }
+  .pending { margin-left: 16px; margin-right: 16px; }
   .items { padding: 4px 16px 0; }
   .item { grid-template-columns: 72px minmax(0, 1fr); gap: 12px; }
   .thumb { width: 72px; height: 72px; }
