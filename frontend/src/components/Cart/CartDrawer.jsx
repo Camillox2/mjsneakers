@@ -6,6 +6,7 @@ import { getImageUrl } from '../../utils/imageHelper'
 import { isSample } from '../../data/drops'
 import CouponInput from '../CouponInput/CouponInput'
 import CheckoutModal from '../CheckoutModal/CheckoutModal'
+import DcFoundryCredit from '../DcFoundryCredit/DcFoundryCredit'
 import { useToast } from '../Toast/Toast'
 import api from '../../services/api'
 import styles from './CartDrawer.module.css'
@@ -245,6 +246,7 @@ export default function CartDrawer() {
                     <button type="button" className="pz-btn-ghost" onClick={() => setCartOpen(false)}>
                       Ver os pares
                     </button>
+                    <DcFoundryCredit compact className={styles.dcCredit} />
                   </div>
                 ) : (
                   <>
@@ -410,6 +412,7 @@ export default function CartDrawer() {
                     Finalizar compra
                   </button>
                   <p className={styles.shipNote}>O frete final é confirmado na finalização.</p>
+                  <DcFoundryCredit compact className={styles.dcCredit} />
                 </div>
               )}
             </motion.aside>

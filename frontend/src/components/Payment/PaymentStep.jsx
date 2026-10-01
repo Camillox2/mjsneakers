@@ -5,6 +5,7 @@ import { MdPix } from 'react-icons/md'
 import { getOrderPayment } from '../../lib/payments'
 import PixPanel from './PixPanel'
 import CardPanel from './CardPanel'
+import DcFoundryCredit from '../DcFoundryCredit/DcFoundryCredit'
 import styles from './Payment.module.css'
 
 const EASE = [0.22, 1, 0.36, 1]
@@ -169,6 +170,8 @@ export default function PaymentStep({ order, config, fresh, onPaid, onReview, on
           </motion.div>
         )}
       </AnimatePresence>
+
+      <DcFoundryCredit compact className={styles.dcCredit} />
     </div>
   )
 }

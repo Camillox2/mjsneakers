@@ -4,6 +4,7 @@ import { FiInstagram, FiMail, FiPhone, FiMapPin, FiArrowUpRight, FiClock } from 
 import { BRAND } from '../../config/brand'
 import { scrollToEl, scrollToY } from '../../lib/motion'
 import ChromeLogo from '../ChromeLogo/ChromeLogo'
+import DcFoundryCredit from '../DcFoundryCredit/DcFoundryCredit'
 import styles from './Footer.module.css'
 import { cachedGet, TTL } from '../../services/cache'
 import { formatCnpj, loadLegal } from '../../lib/legal'
@@ -14,7 +15,6 @@ export default function Footer() {
   const [company, setCompany] = useState(null)
   const [info, setInfo] = useState({
     email: 'contato@pizzant.com.br',
-    credit: 'Feito por DC Digital Foundry by Vitor Camillo',
     phone: '',
     address: '',
     instagram: '',
@@ -24,7 +24,6 @@ export default function Footer() {
     cachedGet('/settings', { ttl: TTL.config, persist: true }).then((data = {}) => {
       setInfo({
         email: data.footer_email || data.contact_email || 'contato@pizzant.com.br',
-        credit: data.footer_credit || 'Feito por DC Digital Foundry by Vitor Camillo',
         phone: data.footer_phone || data.contact_phone || '',
         address: data.footer_address || '',
         instagram: data.footer_instagram || '',
@@ -83,6 +82,7 @@ export default function Footer() {
                 <FiInstagram aria-hidden="true" /> @{handle} <FiArrowUpRight aria-hidden="true" />
               </a>
             )}
+            <DcFoundryCredit className={styles.dcCredit} />
           </div>
 
           {/* Navegação */}
@@ -131,7 +131,6 @@ export default function Footer() {
         <div className={styles.bottomBar}>
           <span>© {new Date().getFullYear()} {BRAND.name}</span>
           {legalLine.length > 0 && <span className={styles.legalLine}>{legalLine.join(' · ')}</span>}
-          <span>{info.credit}</span>
         </div>
 
         {/* assinatura: o logo cromado de ponta a ponta, com o reflexo passando */}

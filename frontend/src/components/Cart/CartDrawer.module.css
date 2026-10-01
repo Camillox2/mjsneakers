@@ -542,3 +542,8 @@
   .footer { padding-left: 16px; padding-right: 16px; }
   .totalValue { font-size: var(--pz-fs-l); }
 }
+
+.dcCredit {
+  margin-top: 2px;
+  width: 100%;
+}

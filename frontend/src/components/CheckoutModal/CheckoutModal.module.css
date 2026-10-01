@@ -756,3 +756,8 @@
   .footer .backBtn,
   .footer .nextBtn { --btn-h: 46px; height: 46px; }
 }
+
+.dcCredit {
+  width: 100%;
+  margin-top: 2px;
+}

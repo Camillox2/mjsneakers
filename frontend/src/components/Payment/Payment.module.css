@@ -443,3 +443,10 @@
 @media (prefers-reduced-motion: reduce) {
   .pulse::after { animation: none; }
 }
+
+.dcCredit {
+  width: 100%;
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 1px solid var(--pz-line);
+}

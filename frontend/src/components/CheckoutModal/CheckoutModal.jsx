@@ -4,6 +4,7 @@ import { FiX, FiUser, FiMapPin, FiTruck, FiCheck, FiChevronLeft, FiChevronRight,
 import api, { captchaHeaders, isCaptchaError } from '../../services/api'
 import SuccessScreen from '../SuccessScreen/SuccessScreen'
 import PaymentStep from '../Payment/PaymentStep'
+import DcFoundryCredit from '../DcFoundryCredit/DcFoundryCredit'
 import Turnstile, { useTurnstile } from '../Turnstile/Turnstile'
 import { useAccount } from '../../lib/AccountContext'
 import { useToast } from '../Toast/Toast'
@@ -819,6 +820,7 @@ export default function CheckoutModal({ isOpen, onClose, cartItems, coupon, onSu
                   </button>
                 )}
               </div>
+              <DcFoundryCredit compact className={styles.dcCredit} />
             </div>
             )}
           </motion.div>
