@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { API_URL } from '../config/api'
 
 // Configuração de segurança pública (GET /security/config): a chave do
 // captcha (Turnstile) e o token CSRF de reserva.
@@ -10,7 +11,7 @@ import axios from 'axios'
 // Cliente próprio, sem os interceptores do services/api.js: é ele que
 // alimenta o CSRF daquele, então não pode depender dele.
 
-const raw = axios.create({ baseURL: import.meta.env.VITE_API_URL, withCredentials: true, timeout: 15000 })
+const raw = axios.create({ baseURL: API_URL, withCredentials: true, timeout: 15000 })
 
 let pending = null
 let cached = null

@@ -1,4 +1,5 @@
-const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || ''
+import { API_ORIGIN } from '../config/api'
+const API_BASE = API_ORIGIN
 
 // Placeholder local (sem chamar serviço externo): silhueta de tênis em cromo.
 const placeholder = (name) => {

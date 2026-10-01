@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { API_URL } from '../config/api';
 import { csrfToken, loadSecurityConfig, readCookie } from './security';
 
 // Login por cookie: a sessão do admin (pz_adm) e a do cliente (pz_cli) vivem
@@ -33,7 +34,7 @@ export const captchaHeaders = (token) => (token ? { headers: { 'X-Turnstile-Toke
 export const isCaptchaError = (err) => err?.response?.status === 403 && err.response?.data?.code === 'captcha';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL,
+  baseURL: API_URL,
   withCredentials: true,
 });
 

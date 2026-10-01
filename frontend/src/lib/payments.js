@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { API_URL } from '../config/api'
 import { withCsrf } from '../services/api'
 
 // Pagamento com Mercado Pago: configuração pública, o SDK oficial (carregado
@@ -15,7 +16,7 @@ import { withCsrf } from '../services/api'
 // aqui não pode mexer na sessão de ninguém) e sem cache. Vai com os cookies
 // e com o X-CSRF-Token, como o cliente principal. Resposta em HTML (API fora
 // do ar, servidor devolvendo a página) é erro.
-const api = axios.create({ baseURL: import.meta.env.VITE_API_URL, timeout: 30000, withCredentials: true })
+const api = axios.create({ baseURL: API_URL, timeout: 30000, withCredentials: true })
 api.interceptors.request.use(withCsrf)
 api.interceptors.response.use((res) => {
   if (String(res.headers?.['content-type'] || '').includes('text/html')) {

@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { API_ORIGIN } from '../../config/api'
 
 // Conversa ao vivo com a equipe (Socket.io). O cliente só baixa o código do
 // socket quando escolhe falar com alguém. A conversa fica guardada no
 // aparelho: fechar e abrir o chat (ou recarregar) retoma de onde parou.
 const KEY = 'pz-chat-equipe'
-const ORIGIN = (import.meta.env.VITE_API_URL || 'http://localhost:3305/api').replace(/\/api\/?$/, '')
+const ORIGIN = API_ORIGIN
 
 function newSessionId() {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'

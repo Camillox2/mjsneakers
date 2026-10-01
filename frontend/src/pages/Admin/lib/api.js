@@ -1,11 +1,11 @@
 import axios from 'axios'
+import { API_URL, API_ORIGIN } from '../../../config/api'
 
 // Cliente só do painel. A sessão mora num cookie httpOnly (pz_adm) que o
 // JavaScript não consegue ler: um script injetado não rouba o login. Quem
 // muda dado manda o X-CSRF-Token, copiado do cookie pz_csrf. Toda falha vira
 // uma mensagem legível: as telas mostram err.message direto.
-export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3305/api'
-export const API_ORIGIN = API_URL.replace(/\/api\/?$/, '')
+export { API_URL, API_ORIGIN }
 
 const api = axios.create({ baseURL: API_URL, timeout: 30000, withCredentials: true })
 
