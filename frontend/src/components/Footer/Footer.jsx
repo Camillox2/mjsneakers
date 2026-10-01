@@ -4,7 +4,6 @@ import { FiInstagram, FiMail, FiPhone, FiMapPin, FiArrowUpRight, FiClock } from 
 import { BRAND } from '../../config/brand'
 import { scrollToEl, scrollToY } from '../../lib/motion'
 import ChromeLogo from '../ChromeLogo/ChromeLogo'
-import DcFoundryCredit from '../DcFoundryCredit/DcFoundryCredit'
 import styles from './Footer.module.css'
 import { cachedGet, TTL } from '../../services/cache'
 import { formatCnpj, loadLegal } from '../../lib/legal'
@@ -124,7 +123,6 @@ export default function Footer() {
                 <FiMapPin aria-hidden="true" /> <span>{address}</span>
               </span>
             )}
-            <DcFoundryCredit className={styles.dcCredit} />
           </div>
         </div>
 

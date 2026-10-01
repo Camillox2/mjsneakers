@@ -160,9 +160,3 @@
 }
 
 .giant > * { width: 100%; }
-
-.dcCredit {
-  margin-top: 20px;
-  padding-top: 16px;
-  border-top: 1px solid var(--pz-line);
-}

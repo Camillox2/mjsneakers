@@ -5,6 +5,7 @@ import api, { captchaHeaders, isCaptchaError } from '../../services/api'
 import { cometShower } from '../../lib/comets'
 import Turnstile, { useTurnstile } from '../Turnstile/Turnstile'
 import PrivacyModal from '../PrivacyModal/PrivacyModal'
+import DcFoundryCredit from '../DcFoundryCredit/DcFoundryCredit'
 import styles from './Newsletter.module.css'
 
 const EASE = [0.22, 1, 0.36, 1]
@@ -118,6 +119,7 @@ export default function Newsletter({ variant = 'footer' }) {
           </form>
           {armed && <Turnstile captcha={captcha} />}
           {consent}
+          <DcFoundryCredit className={styles.credit} />
           <div aria-live="polite">
             <AnimatePresence>
               {msg && (
@@ -126,7 +128,7 @@ export default function Newsletter({ variant = 'footer' }) {
                   className={`${styles.msg} ${msgClass}`}
                   initial={{ opacity: 0, y: 4 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
+                  exit={{ opacity: 1 }}
                   transition={{ duration: 0.3, ease: EASE }}
                 >
                   {msg}

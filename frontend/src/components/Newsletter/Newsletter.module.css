@@ -82,6 +82,13 @@
   color: var(--pz-text-3);
 }
 
+.credit {
+  justify-self: start;
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 1px solid var(--pz-line);
+}
+
 .consentLink {
   display: inline;
   min-height: 0;
