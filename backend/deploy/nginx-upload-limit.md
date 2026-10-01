@@ -30,3 +30,8 @@ curl -sS -o /dev/null -w '%{http_code}\n' -F 'image=@foto-2mb.jpg;type=image/jpe
 
 ## Mitigação no frontend (já no repo)
 `uploadImage` em `frontend/src/pages/Admin/lib/api.js` reduz a imagem no navegador para ~900 KB antes do POST, para o cadastro funcionar mesmo com nginx em 1m. Ainda assim suba o limite no nginx para banners grandes e futuros uploads.
+
+## Frontend (atualização)
+`prepareUploadBlob` agora **falha com mensagem clara** se não conseguir ficar sob ~900 KB
+(em vez de enviar o arquivo original e cair no 413/502). Darlan: hard-refresh (Ctrl+Shift+R)
+depois do deploy Vercel para pegar o SW `pizantt-v6`.

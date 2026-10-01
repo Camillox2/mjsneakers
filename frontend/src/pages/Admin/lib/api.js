@@ -162,16 +162,22 @@ const UPLOAD_MAX_SIDE = { products: 1600, brands: 800, banners: 1920, general: 1
 
 async function prepareUploadBlob(fileOrBlob, category = 'products') {
   const input = fileOrBlob
-  if (!input || typeof createImageBitmap !== 'function') return input
+  if (!input) return input
   const type = String(input.type || '')
   if (type && !type.startsWith('image/')) return input
   if (input.size && input.size <= UPLOAD_SAFE_BYTES) return input
+
+  // Sem createImageBitmap (ou formato que o navegador não decodifica), não
+  // dá para encolher no cliente — e o nginx da VPS ainda corta ~1 MB.
+  if (typeof createImageBitmap !== 'function') {
+    throw new Error('Este navegador não consegue reduzir a foto. Use JPG/PNG menor que 900 KB ou atualize o Chrome/Safari.')
+  }
 
   let bitmap
   try {
     bitmap = await createImageBitmap(input)
   } catch {
-    return input
+    throw new Error('Não deu para ler esta foto no navegador. Salve de novo em JPG ou PNG e tente outra vez.')
   }
 
   const maxSide = UPLOAD_MAX_SIDE[category] || UPLOAD_MAX_SIDE.general
@@ -184,14 +190,14 @@ async function prepareUploadBlob(fileOrBlob, category = 'products') {
   const ctx = canvas.getContext('2d', { alpha: false })
   if (!ctx) {
     bitmap.close?.()
-    return input
+    throw new Error('Não deu para reduzir a foto neste aparelho. Tente um JPG menor.')
   }
   ctx.fillStyle = '#fff'
   ctx.fillRect(0, 0, width, height)
   ctx.drawImage(bitmap, 0, 0, width, height)
   bitmap.close?.()
 
-  const qualities = [0.82, 0.72, 0.62, 0.52]
+  const qualities = [0.82, 0.72, 0.62, 0.52, 0.42]
   let best = null
   for (const q of qualities) {
     const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', q))
@@ -199,7 +205,10 @@ async function prepareUploadBlob(fileOrBlob, category = 'products') {
     best = blob
     if (blob.size <= UPLOAD_SAFE_BYTES) break
   }
-  return best || input
+  if (!best || best.size > UPLOAD_SAFE_BYTES) {
+    throw new Error('A foto ainda ficou grande demais depois de reduzir. Escolha outra imagem ou um recorte menor.')
+  }
+  return best
 }
 
 // Envia uma imagem (arquivo ou data URL) e devolve a URL gravada no servidor.
@@ -228,9 +237,14 @@ export async function downloadFile(url, params, filename, options = {}) {
   const a = document.createElement('a')
   a.href = href
   a.download = filename
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
+  const root = document.body || document.documentElement
+  if (root) {
+    root.appendChild(a)
+    a.click()
+    a.remove()
+  } else {
+    a.click()
+  }
   setTimeout(() => URL.revokeObjectURL(href), 1000)
 }
 

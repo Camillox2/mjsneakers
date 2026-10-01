@@ -542,7 +542,8 @@ function ProductEditor() {
         image_url_2: urls[1] || null,
         image_url_3: urls[2] || null,
         image_url_4: urls[3] || null,
-        sizes: run.map(x => x.size).join(','),
+        // Só size_stock: a API monta products.sizes a partir dele. Enviar
+        // `sizes` como lista de objetos gerava "Tamanho [object Object]".
         size_stock: run.map(x => ({ size: String(x.size), stock: Number(x.stock) || 0 })),
       }
       let savedId = id

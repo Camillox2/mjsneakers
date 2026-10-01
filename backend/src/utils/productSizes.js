@@ -35,8 +35,10 @@ function parseSizesText(value) {
   const seen = new Set();
   const sizes = [];
   for (const item of list) {
-    const size = String(item ?? '').trim();
-    if (!size) continue;
+    // Clientes antigos às vezes mandam [{size, stock}] em `sizes`.
+    const raw = (item && typeof item === 'object' && item.size != null) ? item.size : item;
+    const size = String(raw ?? '').trim();
+    if (!size || size === '[object Object]') continue;
     if (size.length > MAX_SIZE_LENGTH) throw httpError(400, `Tamanho "${size.slice(0, 20)}" passa de ${MAX_SIZE_LENGTH} caracteres`);
     if (seen.has(size)) continue;
     seen.add(size);

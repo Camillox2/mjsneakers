@@ -94,7 +94,7 @@ export function printHTML(html) {
     const frame = document.createElement('iframe')
     frame.setAttribute('aria-hidden', 'true')
     Object.assign(frame.style, { position: 'fixed', right: '0', bottom: '0', width: '0', height: '0', border: '0' })
-    document.body.appendChild(frame)
+    (document.body || document.documentElement).appendChild(frame)
     const doc = frame.contentWindow.document
     doc.open()
     doc.write(html)
@@ -126,7 +126,7 @@ export function csvDownload(filename, header, rows) {
   const a = document.createElement('a')
   a.href = href
   a.download = filename
-  document.body.appendChild(a)
+  (document.body || document.documentElement).appendChild(a)
   a.click()
   a.remove()
   setTimeout(() => URL.revokeObjectURL(href), 1000)

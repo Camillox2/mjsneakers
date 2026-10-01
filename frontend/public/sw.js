@@ -1,8 +1,8 @@
 // Pizantt Drop SW: HTML sempre da rede (deploy aparece na hora), assets do
 // build (com hash) em cache-first, quadros dos giros num cache próprio.
-// v5: apaga o cache velho. Com o login por cookie, a API só entra no cache
+// v6: força clientes a largar bundle antigo do admin (upload compress). Com o login por cookie, a API só entra no cache
 // numa lista de rotas públicas (ver PUBLIC_API abaixo).
-const CACHE_NAME = 'pizantt-v5';
+const CACHE_NAME = 'pizantt-v6';
 
 // Rotas da API que podem ir para o cache (dado público, igual para todos).
 // Todo o resto (conta, pedido, pagamento, login, segurança) é só rede: com

@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
-import { motion, MotionConfig } from 'framer-motion'
+import { LayoutGroup, motion, MotionConfig } from 'framer-motion'
 import { FiGrid, FiLogOut, FiMoon, FiSun, FiExternalLink, FiBell, FiBellOff } from 'react-icons/fi'
 import { AuthContext, DarkModeContext } from '../../App'
 import { BRAND } from '../../config/brand'
@@ -190,16 +190,18 @@ function Shell({ user, dark, setDark, onLogout, onMe }) {
           <img src={BRAND.logoSmall} alt={BRAND.name} className={t.brandLogo} />
           <span className={t.brandTag}>painel</span>
         </NavLink>
-        <nav className={t.nav}>
-          {NAV.map((group, gi) => (
-            <div key={gi} className={t.navGroup}>
-              {group.label && <span className={t.navGroupLabel}>{group.label}</span>}
-              {group.items.map(it => (
-                <NavItem key={it.to} item={it} count={it.badge ? counts[it.badge] : 0} />
-              ))}
-            </div>
-          ))}
-        </nav>
+        <motion.nav className={t.nav} layoutScroll>
+          <LayoutGroup id="admin-side-nav">
+            {NAV.map((group, gi) => (
+              <div key={gi} className={t.navGroup}>
+                {group.label && <span className={t.navGroupLabel}>{group.label}</span>}
+                {group.items.map(it => (
+                  <NavItem key={it.to} item={it} count={it.badge ? counts[it.badge] : 0} />
+                ))}
+              </div>
+            ))}
+          </LayoutGroup>
+        </motion.nav>
         <div className={t.sideFoot}>
           <div className={t.who}>
             <span className={t.avatar} aria-hidden="true">{initials}</span>
