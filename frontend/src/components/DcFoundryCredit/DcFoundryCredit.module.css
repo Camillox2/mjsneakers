@@ -1,63 +1,64 @@
-/* Crédito DC Foundry: discreto no tema preto da Pizantt (sem azul hospitalar). */
+/* Crédito DC Foundry: visível no tema preto da Pizantt (rodapé, sacola, checkout). */
 .credit {
   display: inline-flex;
   align-items: center;
   gap: 12px;
   max-width: 100%;
-  color: var(--pz-text-3);
+  color: var(--pz-text, #f2f3f5);
   font-family: var(--pz-sans);
-  font-size: var(--pz-fs-xs);
-  line-height: 1.4;
+  font-size: var(--pz-fs-s); /* 0.875rem */
+  line-height: 1.45;
   text-decoration: none;
   transition: color 0.2s var(--pz-ease);
 }
 
 .credit img {
   flex: none;
-  width: 42px;
-  height: 42px;
+  width: 48px;
+  height: 48px;
   object-fit: contain;
 }
 
 .label {
   display: block;
-  max-width: 220px;
+  max-width: 260px;
 }
 
 .name {
-  color: var(--pz-text-2);
+  color: var(--pz-cobalto-glow, #86a6ff);
   font-size: 1.05em;
   font-weight: 700;
   text-decoration-line: underline;
   text-decoration-style: wavy;
-  text-decoration-color: rgba(233, 236, 241, 0.35);
+  text-decoration-color: rgba(134, 166, 255, 0.55);
   text-decoration-thickness: 1.5px;
   text-underline-offset: 5px;
 }
 
 @media (hover: hover) {
-  .credit:hover { color: var(--pz-text-2); }
+  .credit:hover { color: #ffffff; }
   .credit:hover .name {
-    color: var(--pz-text);
-    text-decoration-color: rgba(233, 236, 241, 0.6);
+    color: #a8c0ff;
+    text-decoration-color: rgba(134, 166, 255, 0.85);
   }
 }
 
-/* Variante enxuta: sacola, checkout e pagamento */
+/* Variante enxuta: sacola, checkout e pagamento — ainda legível */
 .compact {
-  gap: 8px;
+  gap: 10px;
   justify-content: center;
-  padding-top: 4px;
-  font-size: 0.6875rem; /* 11px */
-  opacity: 0.85;
+  padding-top: 10px;
+  margin-top: 4px;
+  border-top: 1px solid rgba(233, 236, 241, 0.12);
+  font-size: 0.8125rem; /* 13px */
 }
 
 .compact img {
-  width: 28px;
-  height: 28px;
+  width: 36px;
+  height: 36px;
 }
 
-.compact .label { max-width: 180px; }
+.compact .label { max-width: 220px; }
 
 .compact .name {
   font-size: 1em;

@@ -1,8 +1,10 @@
+import logo from '../../assets/dcfoundry-digital-logo.png'
 import styles from './DcFoundryCredit.module.css'
 
 /**
  * Crédito clicável da DC Foundry Digital (rodapé + fluxo de compra).
  * `compact` encolhe logo e texto para gaveta/modal.
+ * Logo importada via Vite (/assets/hashed) para não cair no rewrite SPA.
  */
 export default function DcFoundryCredit({ compact = false, className = '' }) {
   const root = [styles.credit, compact ? styles.compact : '', className].filter(Boolean).join(' ')
@@ -15,9 +17,9 @@ export default function DcFoundryCredit({ compact = false, className = '' }) {
       aria-label="Desenvolvido e Mantido por DC Foundry Digital"
     >
       <img
-        src="/dcfoundry-digital-logo.png"
-        width={compact ? 28 : 42}
-        height={compact ? 28 : 42}
+        src={logo}
+        width={compact ? 36 : 48}
+        height={compact ? 36 : 48}
         alt="DC Foundry Digital"
         loading="lazy"
         decoding="async"
