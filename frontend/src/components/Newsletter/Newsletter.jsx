@@ -128,7 +128,7 @@ export default function Newsletter({ variant = 'footer' }) {
                   className={`${styles.msg} ${msgClass}`}
                   initial={{ opacity: 0, y: 4 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
                   transition={{ duration: 0.3, ease: EASE }}
                 >
                   {msg}
