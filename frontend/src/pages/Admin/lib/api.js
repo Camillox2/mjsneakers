@@ -71,8 +71,9 @@ const MESSAGES = {
   403: 'Sua conta não tem permissão para isso.',
   404: 'Não encontrado. Pode ter sido removido.',
   409: 'Conflito com um registro que já existe.',
-  413: 'Arquivo grande demais.',
+  413: 'Arquivo grande demais para o servidor. Tente uma foto menor ou atualize o painel (Ctrl+Shift+R).',
   429: 'Muitas tentativas seguidas. Espere um minuto e tente de novo.',
+  502: 'O envio da imagem falhou no caminho até a API. Tente uma foto menor ou atualize o painel (Ctrl+Shift+R).',
 }
 
 api.interceptors.response.use(
@@ -113,6 +114,14 @@ api.interceptors.response.use(
       const joined = list.map(e => asText(e?.msg ?? e?.message ?? e)).filter(Boolean).join(' ')
       if (joined) message = joined
     }
+    // nginx/Vercel devolvem HTML/texto em 413/502 — não tem data.error.
+    if (!message && typeof data === 'string') {
+      if (status === 413 || /entity too large|413/i.test(data)) {
+        message = MESSAGES[413]
+      } else if (status === 502 || /ROUTER_EXTERNAL|Bad Gateway/i.test(data)) {
+        message = MESSAGES[502]
+      }
+    }
     if (!message) {
       if (!error.response) message = 'Sem conexão com a API. Atualize com Ctrl+Shift+R ou aguarde se houver limite de tentativas.'
       else message = MESSAGES[status] || 'Algo deu errado no servidor. Tente de novo.'
@@ -145,14 +154,67 @@ export function asPage(data, fallbackPage = 1) {
   }
 }
 
+// nginx na VPS está com client_max_body_size ~1m: fotos de celular (2–8 MB)
+// estouram 413 e o cadastro de produto para no upload. Reduzimos no navegador
+// antes de enviar (o backend já redimensiona de novo para WebP).
+const UPLOAD_SAFE_BYTES = 900 * 1024
+const UPLOAD_MAX_SIDE = { products: 1600, brands: 800, banners: 1920, general: 1600 }
+
+async function prepareUploadBlob(fileOrBlob, category = 'products') {
+  const input = fileOrBlob
+  if (!input || typeof createImageBitmap !== 'function') return input
+  const type = String(input.type || '')
+  if (type && !type.startsWith('image/')) return input
+  if (input.size && input.size <= UPLOAD_SAFE_BYTES) return input
+
+  let bitmap
+  try {
+    bitmap = await createImageBitmap(input)
+  } catch {
+    return input
+  }
+
+  const maxSide = UPLOAD_MAX_SIDE[category] || UPLOAD_MAX_SIDE.general
+  const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height, 1))
+  const width = Math.max(1, Math.round(bitmap.width * scale))
+  const height = Math.max(1, Math.round(bitmap.height * scale))
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
+  const ctx = canvas.getContext('2d', { alpha: false })
+  if (!ctx) {
+    bitmap.close?.()
+    return input
+  }
+  ctx.fillStyle = '#fff'
+  ctx.fillRect(0, 0, width, height)
+  ctx.drawImage(bitmap, 0, 0, width, height)
+  bitmap.close?.()
+
+  const qualities = [0.82, 0.72, 0.62, 0.52]
+  let best = null
+  for (const q of qualities) {
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', q))
+    if (!blob) continue
+    best = blob
+    if (blob.size <= UPLOAD_SAFE_BYTES) break
+  }
+  return best || input
+}
+
 // Envia uma imagem (arquivo ou data URL) e devolve a URL gravada no servidor.
 export async function uploadImage(fileOrDataUrl, category = 'products') {
   let blob = fileOrDataUrl
   if (typeof fileOrDataUrl === 'string') {
     blob = await (await fetch(fileOrDataUrl)).blob()
   }
+  const prepared = await prepareUploadBlob(blob, category)
+  const name = (blob && blob.name) || `imagem-${Date.now()}.jpg`
+  const uploadName = prepared.type === 'image/jpeg' && !/\.jpe?g$/i.test(name)
+    ? name.replace(/\.[^.]+$/, '') + '.jpg'
+    : (prepared.type === 'image/jpeg' ? name.replace(/\.[^.]+$/, '.jpg') : name)
   const form = new FormData()
-  form.append('image', blob, blob.name || `imagem-${Date.now()}.jpg`)
+  form.append('image', prepared, uploadName || `imagem-${Date.now()}.jpg`)
   form.append('category', category)
   const { data } = await api.post('/upload/single', form)
   if (!data?.url) throw new Error('O upload não devolveu o endereço da imagem.')

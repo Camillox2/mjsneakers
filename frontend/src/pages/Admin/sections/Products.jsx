@@ -615,7 +615,7 @@ function ProductEditor() {
           <section className={p.part}>
             <div className={p.partHead}>
               <h3 className={p.partTitle}>Fotos</h3>
-              <p className={p.partHint}>Até 4, em JPG, PNG ou WebP de até 10 MB. A primeira é a capa; arraste para mudar a ordem.</p>
+              <p className={p.partHint}>Até 4, em JPG, PNG ou WebP de até 10 MB (a foto é otimizada antes de enviar). A primeira é a capa; arraste para mudar a ordem.</p>
             </div>
             <Reorder.Group as="ul" axis="x" values={photos} onReorder={setPhotosDirty} className={p.photos}>
               {photos.map((ph, i) => (
