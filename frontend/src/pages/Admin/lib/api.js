@@ -85,7 +85,7 @@ api.interceptors.response.use(
       message = data.errors.map(e => e.msg || e.message || e).join(' ')
     }
     if (!message) {
-      if (!error.response) message = 'Sem conexão com a API. Confira se o backend está rodando.'
+      if (!error.response) message = 'Sem conexão com a API. Atualize com Ctrl+Shift+R ou aguarde se houver limite de tentativas.'
       else message = MESSAGES[status] || 'Algo deu errado no servidor. Tente de novo.'
     }
     const err = new Error(message)

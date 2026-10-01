@@ -51,6 +51,10 @@
   ],
   "rewrites": [
     {
+      "source": "/api/:path*",
+      "destination": "https://api.pizantt.com/api/:path*"
+    },
+    {
       "source": "/:path((?!.*\\.(?:js|css|png|jpg|jpeg|gif|svg|webp|ico|json|txt|xml|map|woff2?|webmanifest)$).*)",
       "destination": "/index.html"
     }
