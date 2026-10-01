@@ -42,6 +42,30 @@ export function setSessionEndHandler(fn) {
   onSessionEnd = fn
 }
 
+
+// Converte qualquer valor de erro da API em string legível (PT).
+// Objeto sem campos conhecidos vira JSON — nunca "[object Object]".
+function asText(value) {
+  if (value == null || value === '') return ''
+  if (typeof value === 'string') return value
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value)
+  if (Array.isArray(value)) {
+    return value.map(asText).filter(Boolean).join(' ')
+  }
+  if (typeof value === 'object') {
+    const nested = value.msg ?? value.message ?? value.error ?? value.detail
+    if (nested != null && nested !== value) {
+      const t = asText(nested)
+      if (t) return t
+    }
+    try {
+      const json = JSON.stringify(value)
+      if (json && json !== '{}' && json !== '[]') return json
+    } catch { /* circular */ }
+  }
+  return ''
+}
+
 const MESSAGES = {
   400: 'Confira os campos e tente de novo.',
   403: 'Sua conta não tem permissão para isso.',
@@ -80,9 +104,14 @@ api.interceptors.response.use(
     if (status === 403 && data?.code === '2fa_setup_required') {
       window.dispatchEvent(new CustomEvent(TWO_FACTOR_EVENT))
     }
-    let message = data?.error || data?.message
-    if (Array.isArray(data?.errors) && data.errors.length) {
-      message = data.errors.map(e => e.msg || e.message || e).join(' ')
+    // Nunca passar objeto cru para Error()/toast: vira "[object Object]".
+    let message = asText(data?.error) || asText(data?.message)
+    const list = Array.isArray(data?.errors) ? data.errors
+      : Array.isArray(data?.details) ? data.details
+      : null
+    if (list?.length) {
+      const joined = list.map(e => asText(e?.msg ?? e?.message ?? e)).filter(Boolean).join(' ')
+      if (joined) message = joined
     }
     if (!message) {
       if (!error.response) message = 'Sem conexão com a API. Atualize com Ctrl+Shift+R ou aguarde se houver limite de tentativas.'

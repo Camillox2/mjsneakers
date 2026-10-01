@@ -249,6 +249,27 @@ function DrawnCheck() {
   )
 }
 
+// Toast só mostra texto: objeto cru vira JSON, nunca "[object Object]".
+function asText(value) {
+  if (value == null || value === '') return ''
+  if (typeof value === 'string') return value
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value)
+  if (value instanceof Error) return value.message || 'Algo deu errado.'
+  if (Array.isArray(value)) return value.map(asText).filter(Boolean).join(' ')
+  if (typeof value === 'object') {
+    const nested = value.msg ?? value.message ?? value.error ?? value.detail
+    if (nested != null && nested !== value) {
+      const t = asText(nested)
+      if (t) return t
+    }
+    try {
+      const json = JSON.stringify(value)
+      if (json && json !== '{}' && json !== '[]') return json
+    } catch { /* circular */ }
+  }
+  return ''
+}
+
 export function ToastProvider({ children }) {
   const [items, setItems] = useState([])
 
@@ -256,7 +277,8 @@ export function ToastProvider({ children }) {
 
   const push = useCallback((message, tone = 'good', ms = 3600) => {
     const id = ++toastSeq
-    setItems(list => [...list.slice(-2), { id, message, tone }])
+    const text = asText(message) || 'Algo deu errado.'
+    setItems(list => [...list.slice(-2), { id, message: text, tone }])
     if (ms) setTimeout(() => remove(id), ms)
   }, [remove])
 
