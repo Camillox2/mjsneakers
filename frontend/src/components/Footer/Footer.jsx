@@ -82,7 +82,6 @@ export default function Footer() {
                 <FiInstagram aria-hidden="true" /> @{handle} <FiArrowUpRight aria-hidden="true" />
               </a>
             )}
-            <DcFoundryCredit className={styles.dcCredit} />
           </div>
 
           {/* Navegação */}
@@ -125,6 +124,7 @@ export default function Footer() {
                 <FiMapPin aria-hidden="true" /> <span>{address}</span>
               </span>
             )}
+            <DcFoundryCredit className={styles.dcCredit} />
           </div>
         </div>
 
