@@ -76,16 +76,35 @@ app.use(cors({
 }));
 // Monitor de "site no ar": fora do limite global (consulta a cada minuto).
 app.use('/api/health', require('./routes/health'));
+// Catálogo público: limite separado e mais folgado para GETs de leitura.
+const publicCatalogPrefixes = ["/api/products", "/api/categories", "/api/banners", "/api/settings"];
+const isPublicCatalogRequest = (req) => req.method === "GET" && publicCatalogPrefixes.some((prefix) => req.path === prefix || req.path.startsWith(prefix + "/"));
+const publicCatalogRateLimit = rateLimit({
+  windowMs: 60 * 1000,
+  max: 600,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => req.method !== "GET",
+});
+
+app.use("/api/products", publicCatalogRateLimit);
+app.use("/api/categories", publicCatalogRateLimit);
+app.use("/api/banners", publicCatalogRateLimit);
+app.use("/api/settings", publicCatalogRateLimit);
+
+// Demais endpoints (incluindo auth/login e checkout) permanecem estritos.
 app.use(rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 2000,
   standardHeaders: true,
   legacyHeaders: false,
-  // Fora de produção, o próprio computador não entra no limite.
+  // GETs públicos usam o limite separado acima.
   skip: (req) => {
+    if (isPublicCatalogRequest(req)) return true;
+    // Fora de produção, o próprio computador não entra no limite.
     if (isProduction) return false;
-    const ip = req.ip || '';
-    return ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1';
+    const ip = req.ip || "";
+    return ip === "127.0.0.1" || ip === "::1" || ip === "::ffff:127.0.0.1";
   },
 }));
 // Imagens sobem por /upload (multipart); JSON grande não é necessário.
