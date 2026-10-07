@@ -2,7 +2,7 @@ const { pool, slugify } = require('../config/db');
 const { notifySubscribers } = require('./stockAlertController');
 const { auditReq } = require('./auditController');
 const { withEffectiveDiscount } = require('../utils/pricing');
-const { toMysqlDateTime, isImageRef, toBool, pagination, likeTerm } = require('../utils/validate');
+const { toMysqlDateTime, isImageRef, toBool, pagination, likeTerm, searchWords } = require('../utils/validate');
 const {
   parseSizesText, normalizeSizeStock, syncSizeStock, ensureSizesExist, loadSizeStock, recalcProduct,
 } = require('../utils/productSizes');
@@ -216,7 +216,11 @@ const productController = {
       const limit = Math.min(100, Math.max(1, parseInt(rawLimit) || 20));
       const offset = (Math.max(1, parseInt(page) || 1) - 1) * limit;
 
-      let countQuery = 'SELECT COUNT(*) as total FROM products p WHERE p.active = TRUE';
+      // a contagem tem os mesmos JOINs: a busca procura também na marca e na categoria
+      let countQuery = `SELECT COUNT(*) as total FROM products p
+        LEFT JOIN brands b ON p.brand_id = b.id
+        LEFT JOIN categories c ON p.category_id = c.id
+        WHERE p.active = TRUE`;
       let query = `
         SELECT p.*, b.name as brand_name, c.name as category_name,
           COALESCE((SELECT ROUND(AVG(r.rating),1) FROM reviews r WHERE r.product_id=p.id AND r.status='approved'), 0) as avg_rating,
@@ -245,11 +249,13 @@ const productController = {
         params.push(parseInt(category_id)); countParams.push(parseInt(category_id));
       }
       if (search) {
-        const clause = ' AND (p.name LIKE ? OR p.description LIKE ? OR p.tags LIKE ?)';
-        query += clause; countQuery += clause;
-        const term = likeTerm(search);
-        params.push(term, term, term);
-        countParams.push(term, term, term);
+        // cada palavra precisa aparecer no nome, descrição, tags, marca ou categoria
+        for (const term of searchWords(search)) {
+          const clause = ' AND (p.name LIKE ? OR p.description LIKE ? OR p.tags LIKE ? OR b.name LIKE ? OR c.name LIKE ?)';
+          query += clause; countQuery += clause;
+          params.push(term, term, term, term, term);
+          countParams.push(term, term, term, term, term);
+        }
       }
       if (featured === 'true') {
         const clause = ' AND p.featured = TRUE';
@@ -416,10 +422,20 @@ const productController = {
       const params = [];
 
       if (req.query.search) {
-        const term = likeTerm(req.query.search);
-        const id = Number(req.query.search);
-        where.push('(p.name LIKE ? OR p.tags LIKE ? OR p.slug LIKE ? OR b.name LIKE ? OR p.id = ?)');
-        params.push(term, term, term, term, Number.isInteger(id) ? id : 0);
+        const raw = String(req.query.search).trim().replace(/^#/, '');
+        const id = Number(raw);
+        if (Number.isInteger(id) && id > 0) {
+          // código do produto (ou número no nome/tag)
+          const term = likeTerm(raw);
+          where.push('(p.id = ? OR p.name LIKE ? OR p.tags LIKE ?)');
+          params.push(id, term, term);
+        } else {
+          // cada palavra em qualquer lugar: "adidas azul" acha "Adidas ... azul e rosa"
+          for (const term of searchWords(raw)) {
+            where.push('(p.name LIKE ? OR p.tags LIKE ? OR p.slug LIKE ? OR b.name LIKE ? OR c.name LIKE ?)');
+            params.push(term, term, term, term, term);
+          }
+        }
       }
       if (req.query.brand_id) { where.push('p.brand_id = ?'); params.push(Number(req.query.brand_id) || 0); }
       if (req.query.category_id) { where.push('p.category_id = ?'); params.push(Number(req.query.category_id) || 0); }

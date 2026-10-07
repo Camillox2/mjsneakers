@@ -63,6 +63,25 @@ function likeTerm(value) {
   return `%${String(value).slice(0, 100).replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
 }
 
+// Busca por palavras: "adidas azul" acha "Adidas adizero pro 3 azul e rosa"
+// (cada palavra em qualquer lugar), não só o trecho exato. Palavras que não
+// ajudam a achar um tênis (a loja só vende tênis; "de", "e"...) saem.
+// Devolve os termos já prontos para LIKE (no máx. 6 palavras).
+const SEARCH_STOPWORDS = new Set([
+  'tenis', 'sneaker', 'sneakers',
+  'de', 'da', 'do', 'das', 'dos', 'e', 'com', 'para', 'pra', 'o', 'a', 'os', 'as', 'um', 'uma',
+]);
+function searchWords(value) {
+  const plain = (w) => w.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  return String(value || '')
+    .slice(0, 100)
+    .split(/\s+/)
+    .map((w) => w.trim())
+    .filter((w) => w && !SEARCH_STOPWORDS.has(plain(w).replace(/[^a-z0-9]/g, '')))
+    .slice(0, 6)
+    .map(likeTerm);
+}
+
 module.exports = {
   validateRequest,
   toMysqlDateTime,
@@ -73,4 +92,5 @@ module.exports = {
   isBoolLike,
   pagination,
   likeTerm,
+  searchWords,
 };
