@@ -13,7 +13,7 @@ export default function Footer() {
   // quem vende (Decreto 7.962/2013): razão social, CNPJ, endereço e atendimento
   const [company, setCompany] = useState(null)
   const [info, setInfo] = useState({
-    email: 'contato@pizzant.com.br',
+    email: 'pizantt.loja@gmail.com',
     phone: '',
     address: '',
     instagram: '',
@@ -22,7 +22,7 @@ export default function Footer() {
   useEffect(() => {
     cachedGet('/settings', { ttl: TTL.config, persist: true }).then((data = {}) => {
       setInfo({
-        email: data.footer_email || data.contact_email || 'contato@pizzant.com.br',
+        email: data.footer_email || data.contact_email || 'pizantt.loja@gmail.com',
         phone: data.footer_phone || data.contact_phone || '',
         address: data.footer_address || '',
         instagram: data.footer_instagram || '',
