@@ -1,6 +1,9 @@
 /* Estilos compartilhados pelas seções do painel. */
 
-.grid { display: grid; gap: 16px; }
+/* minmax(0, 1fr): sem isso a coluna crescia até o conteúdo mais largo (abas
+   que rolam de lado, por exemplo) e no Safari do iPhone a página inteira
+   passava da tela e "andava" de lado (Configurações, Início no iPhone SE). */
+.grid { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); }
 .cols2 { display: grid; gap: 16px; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
 .cols3 { display: grid; gap: 16px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .half { display: grid; gap: 16px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -11,11 +14,11 @@
 }
 
 @media (max-width: 1023.98px) {
-  .cols2 { grid-template-columns: 1fr; }
+  .cols2 { grid-template-columns: minmax(0, 1fr); }
 }
 
 @media (max-width: 767.98px) {
-  .cols3, .half { grid-template-columns: 1fr; }
+  .cols3, .half { grid-template-columns: minmax(0, 1fr); }
 }
 
 /* ---------- Faixa de indicadores ---------- */
@@ -78,7 +81,7 @@
 
 /* ---------- Lista "precisa de você" ---------- */
 
-.todo { display: grid; gap: 6px; }
+.todo { display: grid; gap: 6px; grid-template-columns: minmax(0, 1fr); }
 
 .todoItem {
   display: flex;
@@ -102,7 +105,7 @@
 
 /* ---------- Listas compactas ---------- */
 
-.list { display: grid; }
+.list { display: grid; grid-template-columns: minmax(0, 1fr); }
 
 .listItem {
   display: flex;
@@ -206,7 +209,7 @@ a.listItem:hover .listTitle { color: var(--a-accent); }
 
 /* ---------- Formulários de seção ---------- */
 
-.formGrid { display: grid; gap: 16px; }
+.formGrid { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); }
 .formRow { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
 
 .sectionTitle {

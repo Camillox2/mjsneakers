@@ -3,6 +3,8 @@
 .note { margin: 0; font-size: 14px; color: var(--a-muted); }
 .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .split { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+/* abas (texto/modo) que não cabem rolam dentro da linha, sem alargar a página */
+.split > * { min-width: 0; max-width: 100%; }
 
 .warn {
   margin: 0;

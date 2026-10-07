@@ -297,6 +297,25 @@
   color: var(--pz-text-2);
 }
 
+.searchClear {
+  margin-left: auto;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: var(--pz-radius-pill);
+  border: 1px solid var(--pz-line-strong);
+  font-size: var(--pz-fs-xs);
+  font-weight: 600;
+  color: var(--pz-text);
+  background: transparent;
+}
+
+/* com mouse, as fileiras andam no arrasto (lib/useDragScroll) */
+@media (hover: hover) and (pointer: fine) {
+  .brands, .cats { cursor: grab; }
+  .brands[data-dragging], .cats[data-dragging] { cursor: grabbing; user-select: none; }
+  .brands[data-dragging] *, .cats[data-dragging] * { pointer-events: none; }
+}
+
 .noteTag {
   flex: none;
   font-size: 0.6875rem;

@@ -37,6 +37,12 @@
 }
 
 .row::-webkit-scrollbar { height: 4px; }
+
+@media (hover: hover) and (pointer: fine) {
+  .row { cursor: grab; }
+  .row[data-dragging] { cursor: grabbing; user-select: none; scroll-snap-type: none; }
+  .row[data-dragging] * { pointer-events: none; }
+}
 .row::-webkit-scrollbar-thumb { background: var(--pz-chrome-4); border-radius: 4px; }
 
 .item {

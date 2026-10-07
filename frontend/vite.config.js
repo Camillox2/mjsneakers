@@ -98,7 +98,9 @@ function securityHeaders(apiUrl) {
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   return {
-    plugins: [react(), securityHeaders(env.VITE_API_URL)],
+    // sem VITE_API_URL o app usa https://api.pizantt.com (src/config/api.js);
+    // a CSP precisa liberar a mesma origem, senão as fotos e o chat somem
+    plugins: [react(), securityHeaders(env.VITE_API_URL || 'https://api.pizantt.com/api')],
     // versão do build, para o relatório de erros (lib/errorReporter.js)
     define: {
       __PZ_RELEASE__: JSON.stringify(env.VITE_RELEASE || new Date().toISOString().slice(0, 16)),

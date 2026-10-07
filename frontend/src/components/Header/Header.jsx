@@ -13,10 +13,16 @@ import { useScrollLock } from '../../lib/useScrollLock'
 import { useBackToClose } from '../../lib/layers'
 import styles from './Header.module.css'
 import { cachedGet, TTL } from '../../services/cache'
+import { cleanQuery, norm as normText } from '../../utils/search'
 
 const brl = (p) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(p)
-const norm = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+const norm = normText
 const EASE = [0.22, 1, 0.36, 1]
+// preço com o desconto (o mesmo que o card e a ficha mostram)
+const salePrice = (p) => {
+  const d = Math.min(Math.max(Number(p.discount_percentage || 0), 0), 90)
+  return Number(p.price) * (1 - d / 100)
+}
 
 export default function Header() {
   const { cartCount, setCartOpen } = useContext(CartContext)
@@ -30,6 +36,9 @@ export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [results, setResults] = useState([])
+  // estado da busca no menu: 'idle' | 'loading' | 'done'; total = quantos a API achou
+  const [status, setStatus] = useState('idle')
+  const [total, setTotal] = useState(0)
   const [bump, setBump] = useState(false)
   const searchRef = useRef(null)
   const debounceRef = useRef(null)
@@ -65,29 +74,46 @@ export default function Header() {
   }, [bumpNow])
 
   useEffect(() => {
-    if (!query.trim()) {
+    const term = cleanQuery(query)
+    if (!term) {
       setResults([])
+      setTotal(0)
+      // só "tênis": não há o que procurar, mas a pessoa recebe uma dica
+      setStatus(query.trim() ? 'hint' : 'idle')
       return undefined
     }
+    setStatus('loading')
+    let alive = true
     clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(async () => {
       try {
-        const data = await cachedGet('/products', { params: { search: query.trim() }, ttl: TTL.list })
+        const data = await cachedGet('/products', { params: { search: term, limit: 6 }, ttl: TTL.list })
         const list = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : []
+        if (!alive) return
         setResults(list.slice(0, 6))
+        setTotal(Number(data?.total) || list.length)
       } catch {
+        if (!alive) return
         // sem backend: procura nos exemplares de amostra
-        const q = norm(query)
-        setResults(SAMPLE_PRODUCTS.filter((p) => norm(`${p.name} ${p.brand_name}`).includes(q)).slice(0, 6))
+        const words = norm(term).split(/\s+/)
+        const found = SAMPLE_PRODUCTS.filter((p) => words.every((w) => norm(`${p.name} ${p.brand_name}`).includes(w)))
+        setResults(found.slice(0, 6))
+        setTotal(found.length)
+      } finally {
+        if (alive) setStatus('done')
       }
     }, 250)
-    return () => clearTimeout(debounceRef.current)
+    return () => {
+      alive = false
+      clearTimeout(debounceRef.current)
+    }
   }, [query])
 
   const closeSearch = useCallback(() => {
     setSearchOpen(false)
     setQuery('')
     setResults([])
+    setStatus('idle')
   }, [])
 
   // toque ou clique fora da busca fecha a busca
@@ -130,9 +156,31 @@ export default function Header() {
   }
 
   const pick = (p) => {
-    setSearchProduct(p)
     closeSearch()
-    if (!isHome) navigate('/')
+    // no início abre a janela do produto; nas outras páginas vai para a página dele
+    if (isHome) setSearchProduct(p)
+    else navigate(`/produto/${p.id}`)
+  }
+
+  // Enter (ou "Ver todos"): a vitrine da página inicial filtrada pelo termo
+  const submitSearch = () => {
+    const term = cleanQuery(query)
+    if (!query.trim()) return
+    closeSearch()
+    searchRef.current?.querySelector('input')?.blur()
+    if (!term) {
+      // só "tênis": leva para a vitrine inteira
+      if (isHome) scrollToEl(document.getElementById('vitrine'))
+      else navigate('/#vitrine')
+      return
+    }
+    const to = `/?busca=${encodeURIComponent(term)}#vitrine`
+    if (isHome) {
+      navigate(to)
+      requestAnimationFrame(() => scrollToEl(document.getElementById('vitrine')))
+    } else {
+      navigate(to)
+    }
   }
 
   return (
@@ -169,7 +217,13 @@ export default function Header() {
                       className={styles.searchInput}
                       value={query}
                       onChange={(e) => setQuery(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Escape' && closeSearch()}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Escape') closeSearch()
+                        else if (e.key === 'Enter') {
+                          e.preventDefault()
+                          submitSearch()
+                        }
+                      }}
                       placeholder="Buscar tênis"
                       aria-label="Buscar tênis"
                       enterKeyHint="search"
@@ -188,7 +242,7 @@ export default function Header() {
                 </button>
               )}
               <AnimatePresence>
-                {searchOpen && results.length > 0 && (
+                {searchOpen && status !== 'idle' && (
                   <motion.ul
                     className={styles.results}
                     initial={{ opacity: 0, y: -8 }}
@@ -197,17 +251,37 @@ export default function Header() {
                     transition={{ duration: 0.2 }}
                     data-lenis-prevent
                   >
+                    {status === 'hint' && (
+                      <li className={styles.resultNote} role="status">
+                        Digite a marca ou o modelo (ex.: Nike, Adidas, Yeezy). Enter mostra a vitrine inteira.
+                      </li>
+                    )}
+                    {status === 'loading' && results.length === 0 && (
+                      <li className={styles.resultNote} role="status">Procurando…</li>
+                    )}
+                    {status === 'done' && results.length === 0 && (
+                      <li className={styles.resultNote} role="status">
+                        Nada encontrado para “{cleanQuery(query)}”. Tente só a marca ou o modelo.
+                      </li>
+                    )}
                     {results.map((p) => (
                       <li key={p.id}>
                         <button type="button" className={styles.result} onClick={() => pick(p)}>
                           <img src={getImageUrl(p.image_url, p.name)} alt="" className={p.fit === 'contain' ? styles.resultContain : ''} />
                           <span className={styles.resultText}>
                             <span className={styles.resultName}>{p.name}</span>
-                            <span className={styles.resultMeta}>{brl(p.price)}</span>
+                            <span className={styles.resultMeta}>{brl(salePrice(p))}</span>
                           </span>
                         </button>
                       </li>
                     ))}
+                    {status === 'done' && results.length > 0 && (
+                      <li>
+                        <button type="button" className={styles.resultAll} onClick={submitSearch}>
+                          {total > results.length ? `Ver todos os ${total} resultados` : 'Ver na vitrine'}
+                        </button>
+                      </li>
+                    )}
                   </motion.ul>
                 )}
               </AnimatePresence>

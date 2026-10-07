@@ -1,4 +1,5 @@
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { SearchContext } from '../../App'
 import { GRID_SAMPLES, SAMPLE_PRODUCTS } from '../../data/drops'
 import { mergeBrands, sameBrand } from '../../data/brands'
@@ -26,6 +27,16 @@ export default function Home() {
   const [shopStatus, setShopStatus] = useState({ samples: false, count: 0 })
   const { searchProduct, setSearchProduct } = useContext(SearchContext)
   const shopRef = useRef(null)
+  // busca vinda do header (Enter ou "Ver todos"): /?busca=termo#vitrine
+  const [params, setParams] = useSearchParams()
+  const search = (params.get('busca') || '').trim().slice(0, 100)
+  const clearSearch = useCallback(() => {
+    setParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.delete('busca')
+      return next
+    }, { replace: true })
+  }, [setParams])
 
   useEffect(() => {
     if (searchProduct) {
@@ -78,6 +89,7 @@ export default function Home() {
     document.documentElement.classList.remove('pz-intro')
     // veio de outra página pelo link "Loja": vai direto para a vitrine
     if (window.location.hash === '#loja') scrollToEl(document.getElementById('loja'))
+    else if (window.location.hash === '#vitrine') scrollToEl(document.getElementById('vitrine'))
   }, [])
 
   // marca escolhida na órbita: filtra a vitrine; o botão embaixo leva até ela
@@ -121,8 +133,16 @@ export default function Home() {
 
       <FeaturedDrop onOpen={setSelectedProduct} />
 
-      <div ref={shopRef}>
-        <Shop onProductClick={setSelectedProduct} brands={brands} brand={brand} onBrand={setBrand} onStatus={onShopStatus} />
+      <div ref={shopRef} id="vitrine">
+        <Shop
+          onProductClick={setSelectedProduct}
+          brands={brands}
+          brand={brand}
+          onBrand={setBrand}
+          onStatus={onShopStatus}
+          search={search}
+          onClearSearch={clearSearch}
+        />
       </div>
 
       <RecentlyViewed onProductClick={setSelectedProduct} />

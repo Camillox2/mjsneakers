@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useDragScroll } from '../../lib/useDragScroll'
 import { getImageUrl } from '../../utils/imageHelper'
 import styles from './RecentlyViewed.module.css'
 
@@ -34,6 +35,9 @@ export function addRecentlyViewed(product) {
 
 export default function RecentlyViewed({ onProductClick }) {
   const [items, setItems] = useState([])
+  const rowRef = useRef(null)
+  // com mouse a fileira também anda no arrasto
+  useDragScroll(rowRef, items.length > 0)
 
   useEffect(() => {
     try {
@@ -49,7 +53,7 @@ export default function RecentlyViewed({ onProductClick }) {
   return (
     <section className={styles.section} aria-labelledby="vistos-titulo">
       <h2 id="vistos-titulo" className={styles.title}>Vistos recentemente</h2>
-      <ul className={styles.row}>
+      <ul ref={rowRef} className={styles.row}>
         {items.map((p) => {
           const disc = Math.min(Math.max(Number(p.discount_percentage || 0), 0), 90)
           const finalPrice = disc > 0 ? Number(p.price) * (1 - disc / 100) : Number(p.price)

@@ -10,6 +10,8 @@ import SkeletonGrid from '../../components/Skeleton/Skeleton'
 import { MQ, useMedia } from '../../lib/breakpoints'
 import { useScrollLock } from '../../lib/useScrollLock'
 import { useBackToClose } from '../../lib/layers'
+import { useDragScroll } from '../../lib/useDragScroll'
+import { norm, normWords } from '../../utils/search'
 import styles from './Shop.module.css'
 
 const EASE = [0.22, 1, 0.36, 1]
@@ -33,8 +35,10 @@ const finalPrice = (p) => {
 }
 
 // Filtro no próprio navegador, só para as amostras (o backend filtra os reais).
-function filterSamples({ brand, size, minPrice, maxPrice, sort }) {
+function filterSamples({ brand, size, minPrice, maxPrice, sort, search }) {
+  const words = normWords(search)
   let list = GRID_SAMPLES.filter((p) => {
+    if (words.length && !words.every((w) => norm(`${p.name} ${p.brand_name}`).includes(w))) return false
     if (brand && !sameBrand(p.brand_name, brand.name)) return false
     if (size && !parseSizes(p.sizes).includes(size)) return false
     if (minPrice && finalPrice(p) < Number(minPrice)) return false
@@ -47,7 +51,7 @@ function filterSamples({ brand, size, minPrice, maxPrice, sort }) {
   return list
 }
 
-export default function Shop({ onProductClick, brands, brand, onBrand, onStatus }) {
+export default function Shop({ onProductClick, brands, brand, onBrand, onStatus, search = '', onClearSearch }) {
   const [products, setProducts] = useState([])
   const [categories, setCategories] = useState([])
   const [page, setPage] = useState(1)
@@ -61,6 +65,8 @@ export default function Shop({ onProductClick, brands, brand, onBrand, onStatus 
   const [maxPrice, setMaxPrice] = useState('')
   const [filtersOpen, setFiltersOpen] = useState(false)
   const loaderRef = useRef(null)
+  const brandsRef = useRef(null)
+  const catsRef = useRef(null)
   const lastFilters = useRef(null)
   const catalog = useRef('unknown') // 'unknown' | 'real' | 'samples'
 
@@ -80,10 +86,10 @@ export default function Shop({ onProductClick, brands, brand, onBrand, onStatus 
   }, [sheetOpen, closeFilters])
 
   const filters = useMemo(
-    () => ({ brand, category, sort, size, minPrice, maxPrice }),
-    [brand, category, sort, size, minPrice, maxPrice],
+    () => ({ brand, category, sort, size, minPrice, maxPrice, search }),
+    [brand, category, sort, size, minPrice, maxPrice, search],
   )
-  const hasFilters = Boolean(brand || category || sort || size || minPrice || maxPrice)
+  const hasFilters = Boolean(brand || category || sort || size || minPrice || maxPrice || search)
   const extraFilters = [size, minPrice, maxPrice].filter(Boolean).length
 
   useEffect(() => {
@@ -91,6 +97,10 @@ export default function Shop({ onProductClick, brands, brand, onBrand, onStatus 
       .then((data) => Array.isArray(data) && setCategories(data))
       .catch(() => {})
   }, [])
+
+  // com mouse, as fileiras de marcas e categorias também andam no arrasto
+  useDragScroll(brandsRef)
+  useDragScroll(catsRef, !samples && categories.length > 0)
 
   useEffect(() => {
     onStatus?.({ samples, count: products.length })
@@ -134,6 +144,7 @@ export default function Shop({ onProductClick, brands, brand, onBrand, onStatus 
         if (minPrice) params.min_price = minPrice
         if (maxPrice) params.max_price = maxPrice
         if (size) params.size = size
+        if (search) params.search = search
         const data = await cachedGet('/products', { params, ttl: TTL.list })
         const items = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : []
         if (!alive) return
@@ -179,6 +190,7 @@ export default function Shop({ onProductClick, brands, brand, onBrand, onStatus 
   }, [hasMore, loading, samples])
 
   const clear = () => {
+    onClearSearch?.()
     onBrand(null)
     setCategory(null)
     setSort('')
@@ -187,7 +199,7 @@ export default function Shop({ onProductClick, brands, brand, onBrand, onStatus 
     setMaxPrice('')
   }
 
-  const heading = brand ? brand.name : 'Todos os pares'
+  const heading = search ? `“${search}”` : brand ? brand.name : 'Todos os pares'
   const phoneFilters = extraFilters + (sort ? 1 : 0)
   const badgeCount = phone ? phoneFilters : extraFilters
   const doneLabel = loading
@@ -233,7 +245,7 @@ export default function Shop({ onProductClick, brands, brand, onBrand, onStatus 
       {/* barra de filtros: gruda embaixo do header enquanto a grade passa */}
       <div className={styles.bar}>
         <div className={styles.barInner}>
-          <div className={styles.brands} role="group" aria-label="Marcas">
+          <div ref={brandsRef} className={styles.brands} role="group" aria-label="Marcas">
             <button type="button" className={`${styles.pill} ${!brand ? styles.pillOn : ''}`} aria-pressed={!brand} onClick={() => onBrand(null)}>
               Todas
             </button>
@@ -384,6 +396,15 @@ export default function Shop({ onProductClick, brands, brand, onBrand, onStatus 
               </sup>
             )}
           </h2>
+          {search && (
+            <p className={styles.note}>
+              <span className={styles.noteTag}>busca</span>
+              {loading ? 'Procurando…' : products.length ? `Pares que combinam com “${search}”.` : `Nada encontrado para “${search}”.`}
+              <button type="button" className={styles.searchClear} onClick={() => onClearSearch?.()}>
+                Limpar busca
+              </button>
+            </p>
+          )}
           {samples && (
             <p className={styles.note}>
               <span className={styles.noteTag}>amostra</span>
@@ -393,7 +414,7 @@ export default function Shop({ onProductClick, brands, brand, onBrand, onStatus 
         </header>
 
         {!samples && categories.length > 0 && (
-          <div className={styles.cats} role="group" aria-label="Categorias">
+          <div ref={catsRef} className={styles.cats} role="group" aria-label="Categorias">
             {[{ id: null, name: 'Todas as categorias' }, ...categories].map((c) => (
               <button
                 key={c.id ?? 'all'}
@@ -425,6 +446,14 @@ export default function Shop({ onProductClick, brands, brand, onBrand, onStatus 
                 <p className={styles.emptyTitle}>Os pares da {brand.name} chegam com o catálogo de verdade.</p>
                 <p className={styles.emptySub}>Enquanto isso, veja os exemplares que já estão na vitrine.</p>
                 <button type="button" className="pz-btn-ghost" onClick={() => onBrand(null)}>
+                  Ver todos os pares
+                </button>
+              </>
+            ) : search ? (
+              <>
+                <p className={styles.emptyTitle}>Nenhum tênis encontrado para “{search}”.</p>
+                <p className={styles.emptySub}>Tente só a marca ou o modelo (ex.: Nike, Adidas, Yeezy) ou tire os outros filtros.</p>
+                <button type="button" className="pz-btn-ghost" onClick={() => onClearSearch?.()}>
                   Ver todos os pares
                 </button>
               </>

@@ -23,7 +23,11 @@ let locks = 0
 
 export function startSmoothScroll() {
   if (lenis || !wantsSmooth()) return lenis
-  lenis = new Lenis({ lerp: 0.1, wheelMultiplier: 0.9, smoothWheel: true })
+  // allowNestedScroll: fileiras que rolam de lado (marcas, categorias,
+  // vistos) e listas internas rolam nativas. Sem isso, o gesto de lado do
+  // trackpad (que sempre traz um pouco de vertical) virava rolagem da página
+  // e a fileira não andava.
+  lenis = new Lenis({ lerp: 0.1, wheelMultiplier: 0.9, smoothWheel: true, allowNestedScroll: true })
   lenis.on('scroll', ScrollTrigger.update)
   gsap.ticker.add(tick)
   gsap.ticker.lagSmoothing(0)
