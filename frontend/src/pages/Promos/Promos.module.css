@@ -115,10 +115,11 @@
 .col {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: clamp(12px, 1.8vw, 24px);
+  /* o vão entre cards vem da margem de cima de cada célula (useScrollParallax/keepGap) */
+  gap: 0;
   min-width: 0;
-  will-change: transform;
 }
+.col > .cell + .cell { margin-top: clamp(12px, 1.8vw, 24px); }
 
 /* degraus como no "No pé" */
 .col:nth-child(2) { margin-top: clamp(28px, 5vw, 72px); }
@@ -126,6 +127,7 @@
 .col:nth-child(4) { margin-top: clamp(40px, 6vw, 96px); }
 
 .cell { min-width: 0; }
+.par { will-change: transform; }
 
 .empty {
   display: grid;

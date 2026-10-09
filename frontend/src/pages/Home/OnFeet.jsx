@@ -1,6 +1,6 @@
-import { useLayoutEffect, useRef } from 'react'
+import { useRef } from 'react'
 import { SAMPLE_PRODUCTS } from '../../data/drops'
-import { gsap, prefersReducedMotion } from '../../lib/motion'
+import { NO_PE_SPEED, useScrollParallax } from '../../lib/useScrollParallax'
 import styles from './OnFeet.module.css'
 
 // Fotos reais da loja, no pé. Três colunas que correm em velocidades
@@ -18,28 +18,12 @@ const COLUMNS = [
   [SHOTS[1], SHOTS[4]],
   [SHOTS[2], SHOTS[5]],
 ]
-const SPEED = [-8, 10, -4] // yPercent de cada coluna ao longo da passagem
 
 export default function OnFeet({ onOpen }) {
   const ref = useRef(null)
 
-  useLayoutEffect(() => {
-    if (prefersReducedMotion()) return undefined
-    const ctx = gsap.context(() => {
-      gsap.utils.toArray('[data-col]').forEach((col, i) => {
-        gsap.fromTo(
-          col,
-          { yPercent: -SPEED[i] },
-          {
-            yPercent: SPEED[i],
-            ease: 'none',
-            scrollTrigger: { trigger: ref.current, start: 'top bottom', end: 'bottom top', scrub: true },
-          },
-        )
-      })
-    }, ref)
-    return () => ctx.revert()
-  }, [])
+  // yPercent de cada coluna ao longo da passagem (NO_PE_SPEED = [-8, 10, -4])
+  useScrollParallax(ref, { selector: '[data-col]', speeds: NO_PE_SPEED })
 
   const open = (id) => {
     const product = SAMPLE_PRODUCTS.find((p) => p.id === id)

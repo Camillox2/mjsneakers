@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import ProductCard from '../../components/ProductCard/ProductCard'
@@ -8,7 +8,7 @@ import SkeletonGrid from '../../components/Skeleton/Skeleton'
 import { useDragScroll } from '../../lib/useDragScroll'
 import { discountOf, fetchPromos } from '../../lib/promos'
 import { sameBrand } from '../../data/brands'
-import { gsap, prefersReducedMotion } from '../../lib/motion'
+import { CARD_SPEED, useScrollParallax } from '../../lib/useScrollParallax'
 import { MQ, useMedia } from '../../lib/breakpoints'
 import styles from './Promos.module.css'
 
@@ -19,10 +19,6 @@ const SORTS = [
   { value: 'price_desc', label: 'Maior preço' },
   { value: 'ending', label: 'Acabando antes' },
 ]
-// Paralaxe dos cards "No pé" da página inicial: a grade vira colunas que
-// correm em velocidades diferentes na rolagem (só transform, scrub). As
-// colunas aqui são longas, então o deslocamento é em px, não em %.
-const COL_SPEED = [-40, 56, -24, 44]
 const final = (p) => Number(p.price) * (1 - discountOf(p) / 100)
 const endOf = (p) => (p.promo_end ? new Date(p.promo_end).getTime() : Infinity)
 
@@ -76,21 +72,18 @@ export default function Promos() {
     return cols
   }, [list, nCols])
 
+  // Paralaxe do "No pé" (mesmo hook). A coluna aqui é longa demais para andar
+  // inteira (o deslocamento se diluiria na passagem), então cada card anda na
+  // velocidade da sua coluna, com o gatilho na própria célula; keepGap mantém o
+  // vão entre cards da mesma coluna igual na tela.
   const gridRef = useRef(null)
-  useLayoutEffect(() => {
-    if (!gridRef.current || !list.length || prefersReducedMotion()) return undefined
-    const ctx = gsap.context(() => {
-      gsap.utils.toArray('[data-col]').forEach((col, i) => {
-        const amp = COL_SPEED[i % COL_SPEED.length]
-        gsap.fromTo(col, { y: -amp }, {
-          y: amp,
-          ease: 'none',
-          scrollTrigger: { trigger: gridRef.current, start: 'top bottom', end: 'bottom top', scrub: true },
-        })
-      })
-    }, gridRef)
-    return () => ctx.revert()
-  }, [columns, list.length])
+  useScrollParallax(gridRef, {
+    selector: '[data-par]',
+    speeds: CARD_SPEED,
+    trigger: (el) => el.parentElement,
+    keepGap: () => Math.min(24, Math.max(12, window.innerWidth * 0.018)),
+    deps: [columns],
+  })
 
   const maxOff = items.length ? Math.max(...items.map(discountOf)) : 0
 
@@ -135,10 +128,12 @@ export default function Promos() {
         ) : list.length > 0 ? (
           <div ref={gridRef} className={styles.grid} style={{ '--cols': nCols }}>
             {columns.map((col, c) => (
-              <div key={c} className={styles.col} data-col>
+              <div key={c} className={styles.col}>
                 {col.map(({ p, i }) => (
                   <div key={p.id} className={styles.cell}>
-                    <ProductCard product={p} index={i % 8} onClick={setSelected} promo />
+                    <div className={styles.par} data-par={c}>
+                      <ProductCard product={p} index={i % 8} onClick={setSelected} promo />
+                    </div>
                   </div>
                 ))}
               </div>

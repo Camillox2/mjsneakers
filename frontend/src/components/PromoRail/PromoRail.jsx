@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useDragScroll } from '../../lib/useDragScroll'
@@ -6,15 +6,13 @@ import { getImageUrl } from '../../utils/imageHelper'
 import { discountOf, fetchPromos, salePrice } from '../../lib/promos'
 import CountdownTimer from '../CountdownTimer/CountdownTimer'
 import ShareButton from '../ShareButton/ShareButton'
-import { gsap, prefersReducedMotion } from '../../lib/motion'
+import { CARD_SPEED, useScrollParallax } from '../../lib/useScrollParallax'
 import PromoBanner from './PromoBanner'
 import styles from './PromoRail.module.css'
 
 const brl = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
 const MAX_RAIL = 12
 const EASE = [0.22, 1, 0.36, 1]
-// deslocamento (px) de cada card na passagem, como as colunas do "No pé"
-const RAIL_SPEED = [-14, 18, -8]
 
 // Card da fileira de promoções: o mesmo cartão dos "vistos recentemente",
 // com o preço antigo riscado, o selo do desconto pulsando e, se a oferta tem
@@ -79,24 +77,15 @@ export default function PromoRail({ onProductClick }) {
     }
   }, [])
 
-  // Paralaxe dos cards "No pé": cada card anda numa velocidade na rolagem
-  // (só transform, com scrub do ScrollTrigger). Vale no celular e no
-  // computador; com menos movimento, fica parado.
+  // Paralaxe do "No pé" (mesmo hook): cada card anda numa velocidade na
+  // rolagem da página. O gatilho é a fileira, que não se mexe.
   const sectionRef = useRef(null)
-  useLayoutEffect(() => {
-    if (!items.length || prefersReducedMotion() || !sectionRef.current) return undefined
-    const ctx = gsap.context(() => {
-      gsap.utils.toArray('[data-par]').forEach((el) => {
-        const amp = RAIL_SPEED[Number(el.dataset.par) || 0]
-        gsap.fromTo(el, { y: -amp }, {
-          y: amp,
-          ease: 'none',
-          scrollTrigger: { trigger: sectionRef.current, start: 'top bottom', end: 'bottom top', scrub: true },
-        })
-      })
-    }, sectionRef)
-    return () => ctx.revert()
-  }, [items.length])
+  useScrollParallax(sectionRef, {
+    selector: '[data-par]',
+    speeds: CARD_SPEED,
+    trigger: (el) => el.closest('ul'),
+    deps: [items.length],
+  })
 
   if (!items.length) return null
   const maxOff = Math.max(...items.map(discountOf))

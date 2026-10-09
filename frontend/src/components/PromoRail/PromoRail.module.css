@@ -8,9 +8,10 @@
 .row {
   display: flex;
   gap: clamp(12px, 1.6vw, 20px);
-  margin: clamp(2px, 1vw, 12px) calc(var(--pz-gutter) * -1) 0;
-  /* espaço em cima para o card subir no hover sem ser cortado */
-  padding: 26px var(--pz-gutter) 30px;
+  margin: calc(clamp(2px, 1vw, 12px) - 18px) calc(var(--pz-gutter) * -1) -18px;
+  /* espaço em cima e embaixo: o card sobe no hover e anda na paralaxe sem ser
+     cortado pela fileira (que corta o eixo vertical) */
+  padding: 46px var(--pz-gutter) 48px;
   overflow-x: auto;
   /* sem rolagem vertical na fileira: o gesto de lado do trackpad fica com ela */
   overflow-y: hidden;
