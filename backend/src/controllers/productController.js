@@ -207,12 +207,13 @@ const ADMIN_SORTS = {
   name: 'p.name ASC, p.id ASC',
   price: 'p.price ASC, p.id ASC',
   stock: 'p.stock ASC, p.id ASC',
+  discount: 'p.discount_percentage DESC, p.id DESC',
 };
 
 const productController = {
   async getAll(req, res) {
     try {
-      const { brand_id, category_id, search, featured, page, limit: rawLimit, sort, min_price, max_price, size } = req.query;
+      const { brand_id, category_id, search, featured, page, limit: rawLimit, sort, min_price, max_price, size, promo } = req.query;
       const limit = Math.min(100, Math.max(1, parseInt(rawLimit) || 20));
       const offset = (Math.max(1, parseInt(page) || 1) - 1) * limit;
 
@@ -271,6 +272,14 @@ const productController = {
         query += clause; countQuery += clause;
         params.push(parseFloat(max_price)); countParams.push(parseFloat(max_price));
       }
+      // promo=1: só o que está com desconto valendo agora (dentro da janela
+      // promo_start/promo_end, no fuso da loja, o mesmo da sessão do banco)
+      if (promo === '1' || promo === 'true') {
+        const clause = ' AND p.discount_percentage > 0'
+          + ' AND (p.promo_start IS NULL OR p.promo_start <= NOW())'
+          + ' AND (p.promo_end IS NULL OR p.promo_end >= NOW())';
+        query += clause; countQuery += clause;
+      }
       if (size) {
         const clause = " AND FIND_IN_SET(?, REPLACE(p.sizes, ' ', '')) > 0";
         query += clause; countQuery += clause;
@@ -284,6 +293,7 @@ const productController = {
         price_desc: 'p.price * (1 - COALESCE(p.discount_percentage,0)/100) DESC',
         best_sellers: 'total_sold DESC, p.created_at DESC',
         top_rated: 'avg_rating DESC, review_count DESC',
+        discount: 'p.discount_percentage DESC, p.created_at DESC',
       };
       query += ` ORDER BY ${sortMap[sort] || sortMap.featured} LIMIT ? OFFSET ?`;
       params.push(limit, offset);
@@ -445,6 +455,9 @@ const productController = {
       else if (status === 'inactive') where.push('p.active = FALSE');
       else if (status !== 'all') return res.status(400).json({ error: 'status deve ser active, inactive ou all' });
 
+      // promo=1: produtos com desconto cadastrado (valendo, agendado ou vencido)
+      if (req.query.promo === '1' || req.query.promo === 'true') where.push('p.discount_percentage > 0');
+
       const stockFilter = req.query.stock;
       if (stockFilter === 'out') where.push('p.stock <= 0');
       else if (stockFilter === 'low') where.push('p.stock > 0 AND p.stock <= COALESCE(st.threshold, 5)');
@@ -452,7 +465,7 @@ const productController = {
       else if (stockFilter) return res.status(400).json({ error: 'stock deve ser out, low ou ok' });
 
       const sort = ADMIN_SORTS[req.query.sort || 'recent'];
-      if (!sort) return res.status(400).json({ error: 'sort deve ser recent, name, price ou stock' });
+      if (!sort) return res.status(400).json({ error: 'sort deve ser recent, name, price, stock ou discount' });
 
       const from = `FROM products p
         LEFT JOIN brands b ON p.brand_id = b.id
