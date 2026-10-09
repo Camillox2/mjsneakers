@@ -2,9 +2,7 @@
   min-height: 100vh;
   min-height: 100svh;
   padding: calc(var(--pz-header-total) + clamp(16px, 3vw, 36px)) 0 clamp(56px, 8vw, 112px);
-  background:
-    radial-gradient(60% 40% at 50% 0%, color-mix(in srgb, var(--pz-violeta) 45%, transparent), transparent 70%),
-    var(--pz-black);
+  background: var(--pz-black);
 }
 
 .inner {

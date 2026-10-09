@@ -1,17 +1,17 @@
 import { Link } from 'react-router-dom'
+import WarpField from './WarpField'
 import styles from './PromoBanner.module.css'
 
-// Faixa de abertura das promoções: vidro escuro com o violeta e o cobalto do
-// giro acesos atrás, "Promoções" no cromo e o maior desconto em destaque.
-// O brilho anda só por transform/opacity (placa de vídeo) e para com
-// prefers-reduced-motion.
+// Faixa de abertura das promoções: fundo preto com estrelas em salto para o
+// hiperespaço (canvas), "Promoções" no cromo e o maior desconto em destaque.
+// Os números (maior desconto e quantidade) chegam de quem chama, calculados
+// das promoções valendo agora. Com prefers-reduced-motion o céu fica parado.
 export default function PromoBanner({ count = 0, maxOff = 0, size = 'rail', titleId, title = 'Promoções', lead, cta }) {
   const Title = size === 'hero' ? 'h1' : 'h2'
   return (
     <div className={`${styles.banner} ${size === 'hero' ? styles.hero : styles.rail}`}>
-      <span className={styles.glowA} aria-hidden="true" />
-      <span className={styles.glowB} aria-hidden="true" />
-      <span className={styles.grain} aria-hidden="true" />
+      <WarpField className={styles.warp} />
+      <span className={styles.shade} aria-hidden="true" />
       <div className={styles.content}>
         <div className={styles.text}>
           <span className={styles.eyebrow}>

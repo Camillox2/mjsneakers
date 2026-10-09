@@ -1,15 +1,11 @@
-/* Faixa das promoções. Cores da casa: preto, cromo, violeta e cobalto do giro. */
+/* Faixa das promoções: fundo preto com salto no hiperespaço (canvas), título no cromo. */
 .banner {
   position: relative;
   isolation: isolate;
   overflow: hidden;
   border-radius: var(--pz-radius-l);
   border: 1px solid var(--pz-line);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 60%),
-    radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--pz-violeta) 70%, #000) 0%, transparent 60%),
-    radial-gradient(120% 140% at 100% 100%, color-mix(in srgb, var(--pz-cobalto) 45%, #000) 0%, transparent 60%),
-    var(--pz-surface-1);
+  background: #000;
 }
 
 /* borda acesa: um fio de cromo que contorna a faixa */
@@ -27,52 +23,27 @@
   pointer-events: none;
 }
 
-.glowA,
-.glowB {
+/* céu em salto: canvas atrás de tudo */
+.warp {
   position: absolute;
-  z-index: -1;
-  width: 60%;
-  aspect-ratio: 1;
-  border-radius: 50%;
-  filter: blur(60px);
-  opacity: 0.55;
-  pointer-events: none;
-  will-change: transform;
+  inset: 0;
+  z-index: -2;
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: #000;
 }
 
-.glowA {
-  top: -55%;
-  left: -12%;
-  background: radial-gradient(circle, var(--pz-violeta-glow) 0%, transparent 65%);
-  animation: driftA 14s var(--pz-ease-io) infinite alternate;
-}
-
-.glowB {
-  bottom: -60%;
-  right: -14%;
-  background: radial-gradient(circle, var(--pz-cobalto-glow) 0%, transparent 65%);
-  opacity: 0.4;
-  animation: driftB 17s var(--pz-ease-io) infinite alternate;
-}
-
-@keyframes driftA {
-  from { transform: translate3d(0, 0, 0) scale(1); }
-  to { transform: translate3d(38%, 22%, 0) scale(1.15); }
-}
-
-@keyframes driftB {
-  from { transform: translate3d(0, 0, 0) scale(1.1); }
-  to { transform: translate3d(-42%, -18%, 0) scale(0.95); }
-}
-
-/* textura fina (linhas) para a faixa não ficar chapada */
-.grain {
+/* sombra preta atrás do texto (esquerda) e do número (direita): as estrelas
+   seguem no meio, mas nunca brigam com as letras */
+.shade {
   position: absolute;
   inset: 0;
   z-index: -1;
-  opacity: 0.35;
-  background: repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.025) 0 1px, transparent 1px 7px);
   pointer-events: none;
+  background:
+    radial-gradient(70% 90% at 0% 60%, rgba(0, 0, 0, 0.78), transparent 70%),
+    radial-gradient(45% 80% at 100% 70%, rgba(0, 0, 0, 0.7), transparent 75%);
 }
 
 .content {
@@ -195,7 +166,7 @@
   background-clip: text;
   color: transparent;
   -webkit-text-fill-color: transparent;
-  filter: drop-shadow(0 6px 26px color-mix(in srgb, var(--pz-violeta-glow) 45%, transparent));
+  filter: drop-shadow(0 4px 22px rgba(200, 218, 255, 0.28));
 }
 
 .rail .statBig { font-size: clamp(2rem, 1.3rem + 2.6vw, 3.25rem); }
@@ -224,9 +195,9 @@
   .stat { grid-column: 1; }
   .count { grid-column: 1; }
   .cta { grid-column: 2; grid-row: 1 / span 2; margin-top: 0; --btn-h: 44px; padding: 0 18px; white-space: nowrap; }
-  .glowA, .glowB { filter: blur(40px); }
+  .shade { background: radial-gradient(120% 70% at 0% 40%, rgba(0, 0, 0, 0.75), transparent 75%), linear-gradient(0deg, rgba(0, 0, 0, 0.6), transparent 45%); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .glowA, .glowB, .dot, .titleText { animation: none; }
+  .dot, .titleText { animation: none; }
 }
