@@ -1,6 +1,7 @@
 import { useState, useEffect, useContext, useMemo, useRef } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { AnimatePresence, motion, MotionConfig } from 'framer-motion'
+import ShareButton from '../../components/ShareButton/ShareButton'
 import { FiAlertTriangle, FiArrowLeft, FiHeart, FiInfo, FiMaximize2, FiShoppingBag, FiStar } from 'react-icons/fi'
 import api from '../../services/api'
 import { CartContext } from '../../App'
@@ -445,6 +446,7 @@ export default function Product({ wishlist, onToggleWishlist }) {
               >
                 <FiHeart aria-hidden="true" />
               </button>
+              <ShareButton product={product} className={styles.wishBtn} />
             </div>
 
             {/* Frete depende do produto no backend; amostra não tem. */}

@@ -2,7 +2,7 @@
 // build (com hash) em cache-first, quadros dos giros num cache próprio.
 // v6: força clientes a largar bundle antigo do admin (upload compress). Com o login por cookie, a API só entra no cache
 // numa lista de rotas públicas (ver PUBLIC_API abaixo).
-const CACHE_NAME = 'pizantt-v9';
+const CACHE_NAME = 'pizantt-v10';
 
 // Rotas da API que podem ir para o cache (dado público, igual para todos).
 // Todo o resto (conta, pedido, pagamento, login, segurança) é só rede: com

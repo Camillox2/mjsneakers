@@ -105,9 +105,25 @@
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(var(--cols, 4), minmax(0, 1fr));
+  align-items: start;
   gap: clamp(12px, 1.8vw, 24px);
+  /* espaço para as colunas que descem na paralaxe */
+  padding: 40px 0 72px;
 }
+
+.col {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: clamp(12px, 1.8vw, 24px);
+  min-width: 0;
+  will-change: transform;
+}
+
+/* degraus como no "No pé" */
+.col:nth-child(2) { margin-top: clamp(28px, 5vw, 72px); }
+.col:nth-child(3) { margin-top: clamp(12px, 2vw, 32px); }
+.col:nth-child(4) { margin-top: clamp(40px, 6vw, 96px); }
 
 .cell { min-width: 0; }
 
@@ -127,12 +143,9 @@
 
 .emptySub { color: var(--pz-text-2); margin-bottom: 8px; }
 
-@media (max-width: 1199.98px) {
-  .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-}
 
 @media (max-width: 767.98px) {
-  .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .col:nth-child(2) { margin-top: 36px; }
   .bar { flex-wrap: wrap; }
   .brands { flex: 1 1 100%; }
   .sort { margin-left: auto; }

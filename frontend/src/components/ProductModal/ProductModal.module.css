@@ -58,6 +58,8 @@
   transition: background 0.2s var(--pz-ease), border-color 0.2s var(--pz-ease);
 }
 
+.shareBtn { right: 66px; font-size: 18px; }
+
 .body {
   flex: 1;
   min-height: 0;

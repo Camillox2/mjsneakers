@@ -8,9 +8,9 @@
 .row {
   display: flex;
   gap: clamp(12px, 1.6vw, 20px);
-  margin: clamp(18px, 2.4vw, 28px) calc(var(--pz-gutter) * -1) 0;
+  margin: clamp(2px, 1vw, 12px) calc(var(--pz-gutter) * -1) 0;
   /* espaço em cima para o card subir no hover sem ser cortado */
-  padding: 10px var(--pz-gutter) 14px;
+  padding: 26px var(--pz-gutter) 30px;
   overflow-x: auto;
   /* sem rolagem vertical na fileira: o gesto de lado do trackpad fica com ela */
   overflow-y: hidden;
@@ -37,6 +37,38 @@
   flex: 0 0 clamp(178px, 20vw, 248px);
   min-width: 0;
   scroll-snap-align: start;
+}
+
+.lift {
+  position: relative;
+  height: 100%;
+  will-change: transform;
+}
+
+/* compartilhar: vidro escuro no canto da foto, fora do botão do card */
+.share {
+  position: absolute;
+  z-index: 2;
+  top: 10px;
+  right: 10px;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.38);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  transition: transform 0.2s var(--pz-ease), background 0.2s;
+}
+
+.share svg { width: 16px; height: 16px; }
+.share:active { transform: scale(0.92); }
+
+@media (hover: hover) {
+  .share:hover { transform: scale(1.08); background: rgba(0, 0, 0, 0.55); }
+  .lift:hover .share { transform: translateY(-6px); }
+  .lift:hover .share:hover { transform: translateY(-6px) scale(1.08); }
 }
 
 .card {
@@ -123,8 +155,8 @@
 .out {
   position: absolute;
   z-index: 1;
-  top: 10px;
-  right: 10px;
+  bottom: 10px;
+  left: 10px;
   padding: 4px 10px;
   border-radius: var(--pz-radius-pill);
   font-size: var(--pz-fs-xs);

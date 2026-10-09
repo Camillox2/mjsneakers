@@ -192,6 +192,9 @@
 }
 
 .wish:active { transform: scale(0.92); }
+/* compartilhar: logo abaixo do coração, mesmo botão de vidro */
+.share { top: 62px; }
+.share svg { width: 16px; height: 16px; }
 .wished { color: #0a0a0b; background: var(--pz-chrome-flat); border-color: transparent; }
 .wished svg { fill: currentColor; }
 
@@ -368,6 +371,8 @@
   }
   .wished { background: none; color: #0a0a0b; }
   .wished::before { background: var(--pz-chrome-flat); border-color: transparent; }
+  .wish.share { top: 42px; }
+  .share svg { width: 14px; height: 14px; }
   .badges { top: 8px; left: 8px; right: 48px; }
   .feature .stage { min-height: 0; aspect-ratio: 4 / 3; flex: none; }
   .feature .info { padding: 4px 16px 18px; }

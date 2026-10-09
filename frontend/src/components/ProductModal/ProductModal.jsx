@@ -6,6 +6,7 @@ import { getImageUrl } from '../../utils/imageHelper'
 import { useToast } from '../Toast/Toast'
 import SizeSelector from '../SizeSelector/SizeSelector'
 import ShippingEstimate from '../ShippingEstimate/ShippingEstimate'
+import ShareButton from '../ShareButton/ShareButton'
 import SpinViewer from '../SpinViewer/SpinViewer'
 import { isSample } from '../../data/drops'
 import api from '../../services/api'
@@ -262,6 +263,7 @@ export default function ProductModal({ product, isOpen, onClose }) {
               <button type="button" className={styles.closeBtn} onClick={onClose} aria-label="Fechar">
                 <FiX aria-hidden />
               </button>
+              {shown && <ShareButton product={shown} className={`${styles.closeBtn} ${styles.shareBtn}`} />}
 
               <div className={styles.body}>
                 <div className={styles.visual}>

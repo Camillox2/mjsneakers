@@ -2,6 +2,7 @@ import { useContext, useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { FiHeart, FiStar } from 'react-icons/fi'
 import CountdownTimer from '../CountdownTimer/CountdownTimer'
+import ShareButton from '../ShareButton/ShareButton'
 import { CartContext, WishlistContext } from '../../App'
 import { getImageUrl } from '../../utils/imageHelper'
 import { parseSizes } from '../../utils/sizes'
@@ -177,6 +178,8 @@ export default function ProductCard({ product, onClick, index = 0, feature = fal
           >
             <FiHeart />
           </button>
+
+          <ShareButton product={product} className={`${styles.wish} ${styles.share}`} />
 
           {product.spin && (
             <span className={styles.spinHint} aria-hidden="true">

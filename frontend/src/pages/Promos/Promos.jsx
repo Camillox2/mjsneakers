@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import ProductCard from '../../components/ProductCard/ProductCard'
@@ -8,6 +8,8 @@ import SkeletonGrid from '../../components/Skeleton/Skeleton'
 import { useDragScroll } from '../../lib/useDragScroll'
 import { discountOf, fetchPromos } from '../../lib/promos'
 import { sameBrand } from '../../data/brands'
+import { gsap, prefersReducedMotion } from '../../lib/motion'
+import { MQ, useMedia } from '../../lib/breakpoints'
 import styles from './Promos.module.css'
 
 const EASE = [0.22, 1, 0.36, 1]
@@ -17,6 +19,10 @@ const SORTS = [
   { value: 'price_desc', label: 'Maior preço' },
   { value: 'ending', label: 'Acabando antes' },
 ]
+// Paralaxe dos cards "No pé" da página inicial: a grade vira colunas que
+// correm em velocidades diferentes na rolagem (só transform, scrub). As
+// colunas aqui são longas, então o deslocamento é em px, não em %.
+const COL_SPEED = [-40, 56, -24, 44]
 const final = (p) => Number(p.price) * (1 - discountOf(p) / 100)
 const endOf = (p) => (p.promo_end ? new Date(p.promo_end).getTime() : Infinity)
 
@@ -61,6 +67,31 @@ export default function Promos() {
     return out
   }, [items, brand, sort])
 
+  const phone = useMedia(MQ.phone)
+  const midsize = useMedia('(max-width: 1199.98px)')
+  const nCols = phone ? 2 : midsize ? 3 : 4
+  const columns = useMemo(() => {
+    const cols = Array.from({ length: nCols }, () => [])
+    list.forEach((p, i) => cols[i % nCols].push({ p, i }))
+    return cols
+  }, [list, nCols])
+
+  const gridRef = useRef(null)
+  useLayoutEffect(() => {
+    if (!gridRef.current || !list.length || prefersReducedMotion()) return undefined
+    const ctx = gsap.context(() => {
+      gsap.utils.toArray('[data-col]').forEach((col, i) => {
+        const amp = COL_SPEED[i % COL_SPEED.length]
+        gsap.fromTo(col, { y: -amp }, {
+          y: amp,
+          ease: 'none',
+          scrollTrigger: { trigger: gridRef.current, start: 'top bottom', end: 'bottom top', scrub: true },
+        })
+      })
+    }, gridRef)
+    return () => ctx.revert()
+  }, [columns, list.length])
+
   const maxOff = items.length ? Math.max(...items.map(discountOf)) : 0
 
   return (
@@ -102,10 +133,14 @@ export default function Promos() {
         {status === 'loading' ? (
           <div className={styles.gridWrap}><SkeletonGrid count={8} /></div>
         ) : list.length > 0 ? (
-          <div className={styles.grid}>
-            {list.map((p, i) => (
-              <div key={p.id} className={styles.cell}>
-                <ProductCard product={p} index={i % 8} onClick={setSelected} promo />
+          <div ref={gridRef} className={styles.grid} style={{ '--cols': nCols }}>
+            {columns.map((col, c) => (
+              <div key={c} className={styles.col} data-col>
+                {col.map(({ p, i }) => (
+                  <div key={p.id} className={styles.cell}>
+                    <ProductCard product={p} index={i % 8} onClick={setSelected} promo />
+                  </div>
+                ))}
               </div>
             ))}
           </div>
