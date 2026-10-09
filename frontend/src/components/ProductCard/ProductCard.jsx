@@ -80,7 +80,7 @@ function useHoverSpin(spinId) {
 
 // Card da loja: uma vitrine na cor do próprio tênis (como os mundos do giro).
 // Sem efeito 3D: inclinar um card com cantos arredondados serrilha a borda.
-export default function ProductCard({ product, onClick, index = 0, feature = false }) {
+export default function ProductCard({ product, onClick, index = 0, feature = false, promo = false }) {
   const { addToCart, revealCart } = useContext(CartContext)
   const { wishlist, toggleWishlist } = useContext(WishlistContext)
   const addToast = useToast()
@@ -140,7 +140,7 @@ export default function ProductCard({ product, onClick, index = 0, feature = fal
     >
       <div
         ref={cardRef}
-        className={`${styles.card} ${contain ? styles.contain : styles.cover} ${feature ? styles.feature : ''} ${stock === 0 ? styles.soldOut : ''}`}
+        className={`${styles.card} ${contain ? styles.contain : styles.cover} ${feature ? styles.feature : ''} ${stock === 0 ? styles.soldOut : ''} ${promo ? styles.promo : ''}`}
         style={{ '--glow': product.glow || '#cdd1d8' }}
         onPointerMove={onMove}
         onPointerEnter={onEnter}
@@ -160,7 +160,7 @@ export default function ProductCard({ product, onClick, index = 0, feature = fal
           {product.spin && <canvas ref={spin.canvasRef} className={`${styles.spin} ${spinning && spin.ready ? styles.spinOn : ''}`} aria-hidden="true" />}
 
           <div className={styles.badges}>
-            {discountActive && <span className={styles.badgeOff}>-{Math.round(discount)}%</span>}
+            {discountActive && <span className={`${styles.badgeOff} ${promo ? styles.badgePulse : ''}`}>-{Math.round(discount)}%</span>}
             {stock === 0 && <span className={styles.badgeOut}>Esgotado</span>}
             {stock > 0 && stock <= 3 && <span className={styles.badgeLow}>Últimos {stock}</span>}
           </div>

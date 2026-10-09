@@ -1,6 +1,6 @@
 import {
   FiHome, FiShoppingBag, FiUsers, FiPercent, FiGift, FiPackage, FiBox, FiTag, FiStar,
-  FiImage, FiZap, FiMail, FiTruck, FiBarChart2, FiShield, FiSettings, FiActivity, FiMessageSquare, FiLock, FiServer,
+  FiImage, FiZap, FiMail, FiTruck, FiBarChart2, FiShield, FiSettings, FiActivity, FiMessageSquare, FiLock, FiServer, FiTrendingDown,
 } from 'react-icons/fi'
 
 // Mapa do painel. `badge` aponta para um contador do AdminContext.
@@ -13,6 +13,7 @@ export const NAV = [
     { to: '/admin/conversas', label: 'Conversas', icon: FiMessageSquare, badge: 'unreadChats' },
     { to: '/admin/clientes', label: 'Clientes', icon: FiUsers },
     { to: '/admin/cupons', label: 'Cupons', icon: FiPercent },
+    { to: '/admin/promocoes', label: 'Promoções', icon: FiTrendingDown },
     { to: '/admin/fidelidade', label: 'Fidelidade', icon: FiGift },
   ] },
   { label: 'Catálogo', items: [

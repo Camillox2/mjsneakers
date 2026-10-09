@@ -373,3 +373,29 @@
   .feature .info { padding: 4px 16px 18px; }
   .feature .name { font-size: var(--pz-fs-xl); }
 }
+
+/* ---------- página de promoções: selo pulsando e card que sobe no hover ---------- */
+.promo { transition: transform 0.45s var(--pz-ease), box-shadow 0.45s var(--pz-ease); }
+
+@media (hover: hover) {
+  .promo:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 34px 60px -30px color-mix(in srgb, var(--glow) 60%, transparent);
+  }
+}
+
+.badges .badgePulse {
+  font-size: var(--pz-fs-s);
+  font-weight: 800;
+  animation: offPulse 2.4s ease-in-out infinite;
+}
+
+@keyframes offPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); transform: scale(1); }
+  50% { box-shadow: 0 0 0 5px rgba(255, 255, 255, 0.12), 0 0 22px 2px color-mix(in srgb, var(--pz-violeta-glow) 55%, transparent); transform: scale(1.06); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .badges .badgePulse { animation: none; }
+  .promo, .promo:hover { transform: none; transition: none; }
+}

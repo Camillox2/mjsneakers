@@ -12,6 +12,7 @@ import TrustStrip from '../../components/TrustStrip/TrustStrip'
 import BannerCarousel from '../../components/BannerCarousel/BannerCarousel'
 import PromotionTicker from '../../components/PromotionTicker/PromotionTicker'
 import ProductModal from '../../components/ProductModal/ProductModal'
+import PromoRail from '../../components/PromoRail/PromoRail'
 import RecentlyViewed from '../../components/RecentlyViewed/RecentlyViewed'
 import Newsletter from '../../components/Newsletter/Newsletter'
 import BottomPromoBanner from '../../components/BottomPromoBanner/BottomPromoBanner'
@@ -132,6 +133,8 @@ export default function Home() {
       <BannerCarousel />
 
       <FeaturedDrop onOpen={setSelectedProduct} />
+
+      <PromoRail onProductClick={setSelectedProduct} />
 
       <div ref={shopRef} id="vitrine">
         <Shop

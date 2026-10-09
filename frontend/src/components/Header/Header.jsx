@@ -198,6 +198,7 @@ export default function Header() {
             <a href="/#loja" onClick={goShop}>
               Loja
             </a>
+            <Link to="/promocoes" className={styles.navPromo}>Promoções</Link>
             <Link to="/rastrear">Rastrear pedido</Link>
           </nav>
 
@@ -346,6 +347,7 @@ export default function Header() {
               <a href="/#loja" onClick={goShop}>
                 Loja
               </a>
+              <Link to="/promocoes" className={styles.navPromo}>Promoções</Link>
               <Link to="/rastrear">Rastrear pedido</Link>
               <Link to="/conta">{customerIn ? 'Minha conta' : 'Entrar'}</Link>
               <button

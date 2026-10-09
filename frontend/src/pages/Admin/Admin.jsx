@@ -18,6 +18,7 @@ const Dashboard = lazy(() => import('./sections/Dashboard'))
 const Orders = lazy(() => import('./sections/Orders'))
 const Customers = lazy(() => import('./sections/Customers'))
 const Coupons = lazy(() => import('./sections/Coupons'))
+const Promotions = lazy(() => import('./sections/Promotions'))
 const Loyalty = lazy(() => import('./sections/Loyalty'))
 const Products = lazy(() => import('./sections/Products'))
 const Stock = lazy(() => import('./sections/Stock'))
@@ -238,6 +239,7 @@ function Shell({ user, dark, setDark, onLogout, onMe }) {
               <Route path="pedidos/*" element={<Orders />} />
               <Route path="clientes" element={<Customers />} />
               <Route path="cupons" element={<Coupons />} />
+              <Route path="promocoes" element={<Promotions />} />
               <Route path="fidelidade" element={<Loyalty />} />
               <Route path="produtos/*" element={<Products />} />
               <Route path="estoque/*" element={<Stock />} />

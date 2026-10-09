@@ -402,3 +402,15 @@
   }
   .results { top: calc(100% + 6px); left: max(12px, env(safe-area-inset-left, 0px)); right: max(12px, env(safe-area-inset-right, 0px)); width: auto; }
 }
+
+/* "Promoções": um ponto aceso antes do nome chama o olho sem gritar */
+.navPromo::before {
+  content: '';
+  flex: none;
+  width: 6px;
+  height: 6px;
+  margin-right: 8px;
+  border-radius: 50%;
+  background: var(--pz-danger);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--pz-danger) 70%, transparent);
+}

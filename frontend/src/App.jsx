@@ -11,6 +11,7 @@ const Track = lazy(() => import('./pages/Track/Track'))
 const Account = lazy(() => import('./pages/Account/Account'))
 const MyData = lazy(() => import('./pages/MyData/MyData'))
 const LegalPage = lazy(() => import('./pages/Legal/LegalPage'))
+const Promos = lazy(() => import('./pages/Promos/Promos'))
 import CartDrawer from './components/Cart/CartDrawer'
 import WishlistDrawer from './components/WishlistDrawer/WishlistDrawer'
 import BackToTop from './components/BackToTop/BackToTop'
@@ -350,6 +351,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/produto/:id" element={<Product wishlist={wishlist} onToggleWishlist={toggleWishlist} />} />
+            <Route path="/promocoes" element={<Promos />} />
             <Route path="/rastrear" element={<Track />} />
             <Route path="/conta" element={<Account />} />
             <Route path="/meus-dados" element={<MyData />} />

@@ -1,0 +1,232 @@
+/* Faixa das promoções. Cores da casa: preto, cromo, violeta e cobalto do giro. */
+.banner {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: var(--pz-radius-l);
+  border: 1px solid var(--pz-line);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 60%),
+    radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--pz-violeta) 70%, #000) 0%, transparent 60%),
+    radial-gradient(120% 140% at 100% 100%, color-mix(in srgb, var(--pz-cobalto) 45%, #000) 0%, transparent 60%),
+    var(--pz-surface-1);
+}
+
+/* borda acesa: um fio de cromo que contorna a faixa */
+.banner::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  border-radius: inherit;
+  padding: 1px;
+  background: var(--pz-chrome-edge);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.glowA,
+.glowB {
+  position: absolute;
+  z-index: -1;
+  width: 60%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  filter: blur(60px);
+  opacity: 0.55;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.glowA {
+  top: -55%;
+  left: -12%;
+  background: radial-gradient(circle, var(--pz-violeta-glow) 0%, transparent 65%);
+  animation: driftA 14s var(--pz-ease-io) infinite alternate;
+}
+
+.glowB {
+  bottom: -60%;
+  right: -14%;
+  background: radial-gradient(circle, var(--pz-cobalto-glow) 0%, transparent 65%);
+  opacity: 0.4;
+  animation: driftB 17s var(--pz-ease-io) infinite alternate;
+}
+
+@keyframes driftA {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to { transform: translate3d(38%, 22%, 0) scale(1.15); }
+}
+
+@keyframes driftB {
+  from { transform: translate3d(0, 0, 0) scale(1.1); }
+  to { transform: translate3d(-42%, -18%, 0) scale(0.95); }
+}
+
+/* textura fina (linhas) para a faixa não ficar chapada */
+.grain {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  opacity: 0.35;
+  background: repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.025) 0 1px, transparent 1px 7px);
+  pointer-events: none;
+}
+
+.content {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px 32px;
+  padding: clamp(22px, 3.4vw, 40px) clamp(20px, 3.6vw, 44px);
+}
+
+.text {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  flex: 1 1 320px;
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  padding: 5px 12px;
+  border-radius: var(--pz-radius-pill);
+  font-size: var(--pz-fs-xs);
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--pz-text-2);
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--pz-line);
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--pz-danger);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--pz-danger) 70%, transparent);
+  animation: ping 1.8s ease-out infinite;
+}
+
+@keyframes ping {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--pz-danger) 65%, transparent); }
+  80%, 100% { box-shadow: 0 0 0 9px transparent; }
+}
+
+.title {
+  margin: 0;
+  font-family: var(--pz-serif);
+  font-style: italic;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.025em;
+}
+
+/* cromo com um reflexo que passa de tempos em tempos */
+.titleText {
+  display: inline-block;
+  padding: 0 0.08em 0.08em 0;
+  background:
+    linear-gradient(100deg, transparent 40%, rgba(255, 255, 255, 0.95) 50%, transparent 60%) -150% 0 / 220% 100% no-repeat,
+    var(--pz-chrome);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  animation: sheen 6s var(--pz-ease-io) 1s infinite;
+}
+
+@keyframes sheen {
+  0%, 55% { background-position: -150% 0, 0 0; }
+  100% { background-position: 250% 0, 0 0; }
+}
+
+.rail .title { font-size: var(--pz-fs-2xl); }
+.hero .title { font-size: clamp(3.25rem, 1rem + 8vw, 8.5rem); line-height: 0.95; }
+
+.lead {
+  max-width: 48ch;
+  margin: 0;
+  font-size: var(--pz-fs-m);
+  line-height: 1.5;
+  color: var(--pz-text-2);
+}
+
+.hero .lead { font-size: var(--pz-fs-l); }
+
+.side {
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+  text-align: right;
+}
+
+.stat {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+}
+
+.statSmall {
+  font-size: var(--pz-fs-s);
+  font-weight: 600;
+  color: var(--pz-text-2);
+}
+
+.statBig {
+  font-family: var(--pz-sans);
+  font-size: clamp(2.25rem, 1.4rem + 3.6vw, 4.5rem);
+  font-weight: 800;
+  font-stretch: 115%;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  background: var(--pz-chrome);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 6px 26px color-mix(in srgb, var(--pz-violeta-glow) 45%, transparent));
+}
+
+.rail .statBig { font-size: clamp(2rem, 1.3rem + 2.6vw, 3.25rem); }
+
+.count {
+  margin: 0;
+  font-size: var(--pz-fs-s);
+  color: var(--pz-text-2);
+}
+
+.cta { --btn-h: 46px; margin-top: 6px; }
+.cta svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+@media (max-width: 767.98px) {
+  .banner { border-radius: var(--pz-radius-m); }
+  .content { align-items: stretch; }
+  /* número grande e contagem à esquerda, botão à direita */
+  .side {
+    width: 100%;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    justify-items: start;
+    text-align: left;
+    gap: 2px 14px;
+  }
+  .stat { grid-column: 1; }
+  .count { grid-column: 1; }
+  .cta { grid-column: 2; grid-row: 1 / span 2; margin-top: 0; --btn-h: 44px; padding: 0 18px; white-space: nowrap; }
+  .glowA, .glowB { filter: blur(40px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glowA, .glowB, .dot, .titleText { animation: none; }
+}
