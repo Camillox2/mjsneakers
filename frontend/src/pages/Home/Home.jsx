@@ -2,7 +2,7 @@ import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'r
 import { useSearchParams } from 'react-router-dom'
 import { SearchContext } from '../../App'
 import { GRID_SAMPLES, SAMPLE_PRODUCTS } from '../../data/drops'
-import { mergeBrands, sameBrand } from '../../data/brands'
+import { mergeBrands, orbitBrands, sameBrand } from '../../data/brands'
 import DropReel from './DropReel'
 import ShopIntro from './ShopIntro'
 import FeaturedDrop from './FeaturedDrop'
@@ -57,6 +57,16 @@ export default function Home() {
     const sampleNames = shopStatus.samples ? [...new Set(GRID_SAMPLES.map((p) => p.brand_name))] : []
     return mergeBrands(apiBrands, sampleNames)
   }, [apiBrands, shopStatus.samples])
+
+  // órbita: top 10 com estoque; filtro da loja (Shop) mantém a lista completa
+  const orbitBrandsList = useMemo(() => {
+    const top = orbitBrands(brands, 10)
+    // amostras sem product_count: usa as marcas presentes nas amostras
+    if (!top.length && shopStatus.samples) {
+      return brands.filter((b) => GRID_SAMPLES.some((p) => sameBrand(p.brand_name, b.name))).slice(0, 10)
+    }
+    return top
+  }, [brands, shopStatus.samples])
 
   // pares que a órbita usa para mostrar o tênis e contar cada marca: as
   // amostras, ou a primeira página do catálogo real (mesmo pedido da vitrine,
@@ -120,7 +130,7 @@ export default function Home() {
       <div id="loja">
         <PromotionTicker position="top" />
         <ShopIntro
-          brands={brands}
+          brands={orbitBrandsList}
           active={brand}
           onBrand={setBrand}
           count={shopStatus.count}
