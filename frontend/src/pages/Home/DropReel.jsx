@@ -877,9 +877,6 @@ export default function DropReel({ onPick, onIntroDone, catalogRef }) {
               ))}
             </dl>
             <div className={styles.buy}>
-              <span className={styles.price}>
-                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(d.price)}
-              </span>
               <button type="button" className="pz-btn" onClick={() => onPick?.(d)}>
                 Quero esse
               </button>

@@ -3,8 +3,6 @@ import { DROPS } from '../../data/drops'
 import ChromeLogo from '../../components/ChromeLogo/ChromeLogo'
 import styles from './DropReelStatic.module.css'
 
-const brl = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(v)
-
 // Mesmo conteúdo do giro, sem prender a rolagem nem animar: para quem pediu
 // menos movimento no aparelho ou quando os quadros não carregam.
 export default function DropReelStatic({ onPick }) {
@@ -39,7 +37,6 @@ export default function DropReelStatic({ onPick }) {
               ))}
             </dl>
             <div className={styles.buy}>
-              <span className={styles.price}>{brl(d.price)}</span>
               <button type="button" className="pz-btn" onClick={() => onPick?.(d)}>
                 Quero esse
               </button>
